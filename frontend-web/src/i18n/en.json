@@ -1,0 +1,140 @@
+{
+  "app": {
+    "name": "BLA",
+    "tagline": "Find the right professional,",
+    "tagline2": "in seconds"
+  },
+  "nav": {
+    "home": "Home",
+    "search": "Services",
+    "bookings": "My Bookings",
+    "profile": "My Profile",
+    "logout": "Sign Out",
+    "dashboard": "Dashboard",
+    "become_provider": "Become a Provider",
+    "about": "About"
+  },
+  "auth": {
+    "login": "Sign In",
+    "register": "Sign Up",
+    "logout": "Sign Out",
+    "phone": "Phone Number",
+    "email": "Email",
+    "password": "Password",
+    "password_min": "Minimum 8 characters",
+    "otp_title": "Verification",
+    "otp_sent": "Code sent by SMS",
+    "otp_placeholder": "6-digit code",
+    "verify": "Verify",
+    "resend": "Resend code",
+    "forgot_password": "Forgot password?",
+    "no_account": "No account yet?",
+    "already_account": "Already have an account?"
+  },
+  "search": {
+    "title": "Find a Provider",
+    "placeholder": "Plumber, electrician...",
+    "location_placeholder": "Your city",
+    "use_location": "Use my location",
+    "filters": "Filters",
+    "radius": "Radius (km)",
+    "min_rating": "Minimum rating",
+    "available_only": "Available only",
+    "results": "{{count}} provider found",
+    "results_plural": "{{count}} providers found",
+    "no_results": "No providers found in this area.",
+    "loading": "Searching..."
+  },
+  "provider": {
+    "rating": "{{rating}} out of 5",
+    "reviews": "{{count}} reviews",
+    "km_away": "{{km}} km",
+    "hourly_rate": "{{rate}} XOF/h",
+    "available": "Available",
+    "unavailable": "Unavailable",
+    "contact": "Contact",
+    "book": "Book Now",
+    "verified": "Identity Verified"
+  },
+  "booking": {
+    "new": "New Booking",
+    "description": "Problem description",
+    "scheduled_at": "Desired date and time",
+    "address": "Service address",
+    "confirm": "Confirm Booking",
+    "cancel": "Cancel",
+    "status": {
+      "pending": "Pending",
+      "accepted": "Accepted",
+      "rejected": "Rejected",
+      "in_progress": "In Progress",
+      "completed": "Completed",
+      "validated": "Validated",
+      "cancelled": "Cancelled",
+      "disputed": "Disputed"
+    }
+  },
+  "payment": {
+    "title": "Payment",
+    "amount": "Amount",
+    "method": "Payment Method",
+    "wave": "Wave",
+    "orange_money": "Orange Money",
+    "free_money": "Free Money",
+    "confirm": "Confirm Payment",
+    "success": "Payment Successful!",
+    "error": "Payment Failed"
+  },
+  "errors": {
+    "network": "Connection problem. Check your network.",
+    "server": "Server error. Please try again.",
+    "unauthorized": "Session expired. Please sign in again.",
+    "not_found": "Not found."
+  },
+  "offline": "Connection lost. Data may not be up to date.",
+  "home": {
+    "stats_providers": "Verified Providers",
+    "stats_clients": "Happy Clients",
+    "stats_satisfaction": "Satisfaction Rate",
+    "categories_title": "Our Services",
+    "categories_sub": "Click a category to find available professionals",
+    "how_title": "How it works",
+    "how_sub": "Simple, fast and secure",
+    "step1_title": "Search",
+    "step1_desc": "Find a provider by service and location",
+    "step2_title": "Book",
+    "step2_desc": "Choose your time slot and confirm online",
+    "step3_title": "Pay",
+    "step3_desc": "Pay via Wave, Orange Money or card",
+    "cta_title": "Are you a provider?",
+    "cta_desc": "Join BLA Services and grow your client base. Free registration, transparent fees.",
+    "cta_btn": "Join BLA",
+    "testimonials_title": "What our users say",
+    "search_btn": "Search"
+  },
+  "footer": {
+    "company": "Company",
+    "about": "About",
+    "careers": "Careers",
+    "blog": "Blog",
+    "services": "Services",
+    "browse": "Browse Services",
+    "categories": "Categories",
+    "support": "Support",
+    "help": "Help Center",
+    "contact": "Contact",
+    "legal": "Legal",
+    "terms": "Terms of Service",
+    "privacy": "Privacy Policy",
+    "newsletter_title": "Stay updated",
+    "newsletter_sub": "Get the best offers and news.",
+    "newsletter_placeholder": "Your email",
+    "newsletter_btn": "Subscribe",
+    "copyright": "All rights reserved.",
+    "tagline": "The African service marketplace"
+  },
+  "theme": {
+    "dark": "Dark Mode",
+    "light": "Light Mode"
+  }
+}

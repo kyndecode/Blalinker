@@ -5,11 +5,12 @@ import { useTranslation } from 'react-i18next';
 
 // Layout
 import Header from './components/layout/Header';
+import Footer from './components/layout/Footer';
 
 // Pages publiques
-import Home     from './pages/Home/Home';
-import Login    from './pages/Auth/Login';
-import Register from './pages/Auth/Register';
+import Home      from './pages/Home/Home';
+import Login     from './pages/Auth/Login';
+import Register  from './pages/Auth/Register';
 import VerifyOTP from './pages/Auth/VerifyOTP';
 
 // Pages authentifiées
@@ -30,36 +31,38 @@ export default function App() {
   const { t }    = useTranslation();
 
   return (
-    <>
+    <div className="min-h-screen flex flex-col bg-white dark:bg-gray-950 transition-colors duration-200">
       {/* Bannière hors-ligne */}
       {!isOnline && (
         <div className="offline-banner" role="alert" aria-live="assertive">
-          {t('offline')}
+          📡 {t('offline')}
         </div>
       )}
 
       <Header />
 
-      <main className={!isOnline ? 'mt-10' : ''}>
+      <main className={`flex-1 ${!isOnline ? 'mt-10' : ''}`}>
         <Routes>
           {/* Publiques */}
-          <Route path="/"          element={<Home />} />
-          <Route path="/login"     element={<Login />} />
-          <Route path="/register"  element={<Register />} />
-          <Route path="/verify"    element={<VerifyOTP />} />
-          <Route path="/search"    element={<SearchPage />} />
+          <Route path="/"             element={<Home />} />
+          <Route path="/login"        element={<Login />} />
+          <Route path="/register"     element={<Register />} />
+          <Route path="/verify"       element={<VerifyOTP />} />
+          <Route path="/search"       element={<SearchPage />} />
           <Route path="/provider/:id" element={<ProviderProfile />} />
 
           {/* Authentifiées */}
-          <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
-          <Route path="/bookings/new"  element={<RequireAuth><BookingNew /></RequireAuth>} />
-          <Route path="/bookings/:id"  element={<RequireAuth><BookingDetail /></RequireAuth>} />
-          <Route path="/profile"       element={<RequireAuth><ProfilePage /></RequireAuth>} />
+          <Route path="/dashboard"    element={<RequireAuth><Dashboard /></RequireAuth>} />
+          <Route path="/bookings/new" element={<RequireAuth><BookingNew /></RequireAuth>} />
+          <Route path="/bookings/:id" element={<RequireAuth><BookingDetail /></RequireAuth>} />
+          <Route path="/profile"      element={<RequireAuth><ProfilePage /></RequireAuth>} />
 
           {/* 404 */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
-    </>
+
+      <Footer />
+    </div>
   );
 }
