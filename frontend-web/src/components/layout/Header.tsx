@@ -9,7 +9,6 @@ import Logo from '../common/Logo';
 const LANGUAGES = [
   { code: 'fr', label: 'FR', flag: '🇫🇷' },
   { code: 'en', label: 'EN', flag: '🇬🇧' },
-  { code: 'wo', label: 'WO', flag: '🇸🇳' },
 ];
 
 function useClickOutside(ref: React.RefObject<HTMLElement>, cb: () => void) {
@@ -33,7 +32,7 @@ export default function Header() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery]         = useState('');
   const userMenuRef = useRef<HTMLDivElement>(null!);
-  const searchRef   = useRef<HTMLFormElement>(null!);
+  const searchRef   = useRef<HTMLDivElement>(null!);
 
   useClickOutside(userMenuRef, () => setUserMenu(false));
   useClickOutside(searchRef,   () => setSearchOpen(false));

@@ -1,11 +1,18 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import fr from './fr.json';
-import wo from './wo.json';
+import en from './en.json';
+
+const savedLang = localStorage.getItem('bla_lang');
+const browserLang = navigator.language.split('-')[0];
+const defaultLang = savedLang || (['fr', 'en'].includes(browserLang) ? browserLang : 'fr');
 
 i18n.use(initReactI18next).init({
-  resources: { fr: { translation: fr }, wo: { translation: wo } },
-  lng:        localStorage.getItem('bla_lang') || 'fr',
+  resources: {
+    fr: { translation: fr },
+    en: { translation: en },
+  },
+  lng:        defaultLang,
   fallbackLng:'fr',
   interpolation: { escapeValue: false },
 });
