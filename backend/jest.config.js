@@ -5,7 +5,7 @@ const config = {
   rootDir:         '.',
   testMatch:       ['**/tests/**/*.test.ts'],
   moduleNameMapper: { '@/(.*)': '<rootDir>/src/$1' },
-  setupFilesAfterFramework: ['<rootDir>/tests/setup.ts'],
+  setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
   globalSetup:     '<rootDir>/tests/globalSetup.ts',
   globalTeardown:  '<rootDir>/tests/globalTeardown.ts',
   collectCoverageFrom: [
