@@ -13,7 +13,7 @@ services:
     name: bla-backend
     runtime: node
     region: frankfurt   # Plus proche Afrique de l'Ouest que US
-    plan: starter       # $7/mois (free plan = 512MB RAM, spin-down)
+    plan: free          # Gratuit (512MB RAM, spin-down après 15min inactivité)
     rootDir: backend
     buildCommand: npm ci && npx prisma generate && npm run build
     startCommand: npx prisma migrate deploy && node dist/server.js
