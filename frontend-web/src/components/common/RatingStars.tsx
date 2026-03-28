@@ -16,12 +16,12 @@ export function RatingStars({ rating, count, size = 'md' }: RatingStarsProps) {
         {Array.from({ length: 5 }, (_, i) => {
           if (i < full)               return <span key={i} className="text-yellow-400">★</span>;
           if (i === full && half)     return <span key={i} className="text-yellow-400">½</span>;
-          return                             <span key={i} className="text-gray-300">★</span>;
+          return                             <span key={i} className="text-gray-300 dark:text-gray-600">★</span>;
         })}
       </span>
-      <span className="font-semibold text-gray-900">{rating.toFixed(1)}</span>
+      <span className="font-semibold text-gray-900 dark:text-white">{rating.toFixed(1)}</span>
       {count !== undefined && (
-        <span className="text-gray-500 text-xs">({count})</span>
+        <span className="text-gray-500 dark:text-gray-400 text-xs">({count})</span>
       )}
     </div>
   );

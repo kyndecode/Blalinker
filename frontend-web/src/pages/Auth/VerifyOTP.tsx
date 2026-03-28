@@ -1,8 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Button }  from '../../components/common/Button';
+import Logo from '../../components/common/Logo';
 import { useAuthStore } from '../../store/authStore';
 import api from '../../services/api';
+
+const PAGE = 'min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center p-4';
+const CARD = 'w-full max-w-sm bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm p-8';
 
 export default function VerifyOTP() {
   const [params]   = useSearchParams();
@@ -37,7 +41,6 @@ export default function VerifyOTP() {
     if (value && index < 5) refs.current[index + 1]?.focus();
     if (!value && index > 0) refs.current[index - 1]?.focus();
 
-    // Auto-submit quand les 6 chiffres sont saisis
     if (value && index === 5 && next.every((c) => c)) {
       submit(next.join(''));
     }
@@ -93,19 +96,28 @@ export default function VerifyOTP() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="card max-w-sm w-full text-center">
-        <span className="text-5xl" aria-hidden="true">📱</span>
-        <h1 className="text-xl font-bold text-gray-900 mt-3 mb-1">Vérification</h1>
-        <p className="text-sm text-gray-600 mb-6">
-          Code envoyé au <strong>{phone || email}</strong>
-        </p>
+    <div className={PAGE}>
+      <div className={CARD}>
+        <div className="flex justify-center mb-7">
+          <Logo size="md" />
+        </div>
+
+        <div className="text-center mb-6">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-green-100 dark:bg-green-900/30 text-2xl mb-3" aria-hidden="true">
+            📱
+          </div>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Vérification</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            Code envoyé au <strong className="text-gray-700 dark:text-gray-200">{phone || email}</strong>
+          </p>
+        </div>
 
         {error && (
-          <p className="text-red-600 text-sm mb-4 bg-red-50 p-2 rounded-lg" role="alert">{error}</p>
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-3 mb-5" role="alert">
+            <p className="text-red-700 dark:text-red-400 text-sm">{error}</p>
+          </div>
         )}
 
-        {/* Inputs OTP */}
         <div
           className="flex gap-2 justify-center mb-6"
           onPaste={handlePaste}
@@ -121,7 +133,7 @@ export default function VerifyOTP() {
               value={code}
               onChange={(e) => handleChange(i, e.target.value)}
               onKeyDown={(e) => handleKeyDown(i, e)}
-              className="w-11 h-12 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:border-primary-500 focus:outline-none transition-colors"
+              className="w-11 h-12 text-center text-lg font-bold border-2 border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:border-green-500 dark:focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500/20 transition-colors disabled:opacity-50"
               aria-label={`Chiffre ${i + 1}`}
               disabled={loading}
             />
@@ -132,20 +144,22 @@ export default function VerifyOTP() {
           onClick={() => submit(codes.join(''))}
           loading={loading}
           disabled={codes.some((c) => !c)}
-          className="w-full mb-3"
+          className="w-full mb-4"
         >
           Vérifier
         </Button>
 
-        <button
-          onClick={handleResend}
-          disabled={resendCooldown > 0}
-          className="text-sm text-primary-600 hover:underline disabled:text-gray-400 disabled:cursor-not-allowed"
-        >
-          {resendCooldown > 0
-            ? `Renvoyer dans ${resendCooldown}s`
-            : 'Renvoyer le code'}
-        </button>
+        <div className="text-center">
+          <button
+            onClick={handleResend}
+            disabled={resendCooldown > 0}
+            className="text-sm text-green-600 dark:text-green-400 hover:underline disabled:text-gray-400 dark:disabled:text-gray-600 disabled:cursor-not-allowed transition-colors"
+          >
+            {resendCooldown > 0
+              ? `Renvoyer dans ${resendCooldown}s`
+              : 'Renvoyer le code'}
+          </button>
+        </div>
       </div>
     </div>
   );
