@@ -20,7 +20,7 @@ function StatCard({ icon: Icon, label, value, sub, color, trend }: {
   sub?: string; color: string; trend?: number;
 }) {
   return (
-    <div className="bg-gray-900 rounded-2xl p-5 border border-gray-800 hover:border-gray-700 transition-colors">
+    <div className="bg-[#1a2744] rounded-2xl p-5 border border-white/[0.08] hover:border-white/20 transition-colors">
       <div className="flex items-start justify-between mb-4">
         <div className={`p-2.5 rounded-xl ${color}`}>
           <Icon className="w-4 h-4 text-white" />
@@ -43,7 +43,7 @@ function MiniBar({ value, max, color }: { value: number; max: number; color: str
   const pct = max > 0 ? Math.min(Math.round((value / max) * 100), 100) : 0;
   return (
     <div className="flex items-center gap-3">
-      <div className="flex-1 h-1.5 bg-gray-800 rounded-full overflow-hidden">
+      <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
         <div className={`h-full rounded-full ${color} transition-all duration-500`} style={{ width: `${pct}%` }} />
       </div>
       <span className="text-xs text-gray-500 w-8 text-right">{pct}%</span>
@@ -73,7 +73,7 @@ export default function Dashboard() {
             {now.toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
           </p>
         </div>
-        <div className="flex items-center gap-2 bg-gray-900 border border-gray-800 rounded-xl px-4 py-2 w-fit">
+        <div className="flex items-center gap-2 bg-[#1a2744] border border-white/[0.08] rounded-xl px-4 py-2 w-fit">
           <Activity className="w-4 h-4 text-green-400" />
           <span className="text-xs text-gray-400">Mise à jour toutes les 60s</span>
         </div>
@@ -83,7 +83,7 @@ export default function Dashboard() {
       {isLoading ? (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="bg-gray-900 rounded-2xl p-5 h-32 animate-pulse border border-gray-800" />
+            <div key={i} className="bg-[#1a2744] rounded-2xl p-5 h-32 animate-pulse border border-white/[0.08]" />
           ))}
         </div>
       ) : data ? (
@@ -111,7 +111,7 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
             {/* Réservations */}
-            <div className="bg-gray-900 rounded-2xl p-5 border border-gray-800">
+            <div className="bg-[#1a2744] rounded-2xl p-5 border border-white/[0.08]">
               <h3 className="text-white font-semibold text-sm mb-5">Répartition réservations</h3>
               <div className="space-y-4">
                 {[
@@ -131,7 +131,7 @@ export default function Dashboard() {
             </div>
 
             {/* Utilisateurs */}
-            <div className="bg-gray-900 rounded-2xl p-5 border border-gray-800">
+            <div className="bg-[#1a2744] rounded-2xl p-5 border border-white/[0.08]">
               <h3 className="text-white font-semibold text-sm mb-5">Répartition utilisateurs</h3>
               <div className="space-y-4">
                 {[
@@ -151,7 +151,7 @@ export default function Dashboard() {
             </div>
 
             {/* Finances */}
-            <div className="bg-gray-900 rounded-2xl p-5 border border-gray-800">
+            <div className="bg-[#1a2744] rounded-2xl p-5 border border-white/[0.08]">
               <h3 className="text-white font-semibold text-sm mb-5">Finances</h3>
               <div className="space-y-5">
                 <div>
@@ -159,11 +159,11 @@ export default function Dashboard() {
                   <p className="text-3xl font-extrabold text-white">{data.revenue.thisMonth.toLocaleString()}</p>
                   <p className="text-gray-500 text-xs">{data.revenue.currency}</p>
                 </div>
-                <div className="pt-4 border-t border-gray-800">
+                <div className="pt-4 border-t border-white/10">
                   <p className="text-gray-500 text-xs mb-1">Revenus cumulés</p>
                   <p className="text-xl font-bold text-green-400">{data.revenue.total.toLocaleString()} {data.revenue.currency}</p>
                 </div>
-                <div className="pt-4 border-t border-gray-800">
+                <div className="pt-4 border-t border-white/10">
                   <p className="text-gray-500 text-xs mb-1">Commission plateforme (5%)</p>
                   <p className="text-xl font-bold text-amber-400">{Math.round(data.revenue.thisMonth * 0.05).toLocaleString()} {data.revenue.currency}</p>
                 </div>
@@ -172,7 +172,7 @@ export default function Dashboard() {
           </div>
         </>
       ) : (
-        <div className="bg-gray-900 rounded-2xl p-8 border border-gray-800 text-center">
+        <div className="bg-[#1a2744] rounded-2xl p-8 border border-white/[0.08] text-center">
           <p className="text-gray-500 text-sm">Données non disponibles. Vérifiez la connexion API.</p>
         </div>
       )}

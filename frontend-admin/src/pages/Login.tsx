@@ -47,7 +47,7 @@ export default function AdminLogin() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-[#0f1829] flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
@@ -58,7 +58,7 @@ export default function AdminLogin() {
           <p className="text-gray-400 mt-1">Accès réservé aux administrateurs</p>
         </div>
 
-        <div className="bg-gray-800 rounded-2xl p-8 shadow-2xl border border-gray-700">
+        <div className="bg-[#1a2744] rounded-2xl p-8 shadow-2xl border border-white/10">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-1">
@@ -68,8 +68,8 @@ export default function AdminLogin() {
                 type="email"
                 autoComplete="username"
                 {...register('email')}
-                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white
-                           placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500
+                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white
+                           placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-green-500
                            focus:border-transparent"
                 placeholder="admin@bla-app.com"
               />
@@ -86,8 +86,8 @@ export default function AdminLogin() {
                 type="password"
                 autoComplete="current-password"
                 {...register('password')}
-                className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white
-                           placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500
+                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white
+                           placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-green-500
                            focus:border-transparent"
                 placeholder="••••••••••••"
               />

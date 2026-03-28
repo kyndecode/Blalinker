@@ -21,10 +21,10 @@ export default function Reports() {
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold text-white">Signalements</h1>
-      <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+      <div className="bg-[#1a2744] rounded-xl border border-white/10 overflow-hidden">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-gray-700 text-gray-400">
+            <tr className="border-b border-white/10 text-gray-400">
               <th className="text-left px-4 py-3 font-medium">Signalé</th>
               <th className="text-left px-4 py-3 font-medium">Raison</th>
               <th className="text-left px-4 py-3 font-medium">Statut</th>
@@ -35,10 +35,10 @@ export default function Reports() {
           <tbody>
             {isLoading
               ? Array.from({ length: 8 }).map((_, i) => (
-                <tr key={i} className="border-b border-gray-700"><td colSpan={5} className="px-4 py-3"><div className="h-4 bg-gray-700 rounded animate-pulse w-3/4" /></td></tr>
+                <tr key={i} className="border-b border-white/10"><td colSpan={5} className="px-4 py-3"><div className="h-4 bg-white/10 rounded animate-pulse w-3/4" /></td></tr>
               ))
               : data?.data?.map((r: any) => (
-                <tr key={r.id} className="border-b border-gray-700/50 hover:bg-gray-700/30">
+                <tr key={r.id} className="border-b border-white/10/50 hover:bg-white/5">
                   <td className="px-4 py-3 text-white">{r.reported?.email ?? r.reported?.phone ?? '—'}</td>
                   <td className="px-4 py-3 text-orange-400">{REASON_LABELS[r.reason] ?? r.reason}</td>
                   <td className="px-4 py-3">

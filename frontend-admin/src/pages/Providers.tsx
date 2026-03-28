@@ -38,15 +38,15 @@ export default function Providers() {
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             placeholder="Rechercher un prestataire..."
-            className="w-full pl-9 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            className="w-full pl-9 pr-4 py-2 bg-[#1a2744] border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
           />
         </div>
       </div>
 
-      <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+      <div className="bg-[#1a2744] rounded-xl border border-white/10 overflow-hidden">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-gray-700 text-gray-400">
+            <tr className="border-b border-white/10 text-gray-400">
               <th className="text-left px-4 py-3 font-medium">Nom</th>
               <th className="text-left px-4 py-3 font-medium">Contact</th>
               <th className="text-left px-4 py-3 font-medium">Ville</th>
@@ -58,14 +58,14 @@ export default function Providers() {
           <tbody>
             {isLoading
               ? Array.from({ length: 10 }).map((_, i) => (
-                <tr key={i} className="border-b border-gray-700">
+                <tr key={i} className="border-b border-white/10">
                   <td colSpan={6} className="px-4 py-3">
-                    <div className="h-4 bg-gray-700 rounded animate-pulse w-3/4" />
+                    <div className="h-4 bg-white/10 rounded animate-pulse w-3/4" />
                   </td>
                 </tr>
               ))
               : data?.data?.map((p: Provider) => (
-                <tr key={p.id} className="border-b border-gray-700/50 hover:bg-gray-700/30">
+                <tr key={p.id} className="border-b border-white/10/50 hover:bg-white/5">
                   <td className="px-4 py-3 text-white">{p.firstName} {p.lastName}</td>
                   <td className="px-4 py-3 text-gray-300">{p.user?.email ?? p.user?.phone ?? '—'}</td>
                   <td className="px-4 py-3 text-gray-400">{p.city ?? '—'}</td>
@@ -87,9 +87,9 @@ export default function Providers() {
         <div className="flex items-center justify-between text-sm text-gray-400">
           <span>{data.meta.total} prestataires</span>
           <div className="flex items-center gap-2">
-            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="px-3 py-1 rounded bg-gray-800 hover:bg-gray-700 disabled:opacity-40">←</button>
+            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="px-3 py-1 rounded bg-[#1a2744] hover:bg-white/10 disabled:opacity-40">←</button>
             <span>Page {page} / {data.meta.totalPages}</span>
-            <button onClick={() => setPage((p) => p + 1)} disabled={page >= data.meta.totalPages} className="px-3 py-1 rounded bg-gray-800 hover:bg-gray-700 disabled:opacity-40">→</button>
+            <button onClick={() => setPage((p) => p + 1)} disabled={page >= data.meta.totalPages} className="px-3 py-1 rounded bg-[#1a2744] hover:bg-white/10 disabled:opacity-40">→</button>
           </div>
         </div>
       )}

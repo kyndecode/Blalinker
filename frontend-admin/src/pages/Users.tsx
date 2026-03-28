@@ -13,7 +13,7 @@ const STATUS_COLORS: Record<string, string> = {
   active:   'bg-green-900/50 text-green-400',
   pending:  'bg-yellow-900/50 text-yellow-400',
   banned:   'bg-red-900/50 text-red-400',
-  inactive: 'bg-gray-700 text-gray-400',
+  inactive: 'bg-white/10 text-gray-400',
 };
 
 export default function Users() {
@@ -52,14 +52,14 @@ export default function Users() {
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             placeholder="Rechercher email / téléphone..."
-            className="w-full pl-9 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg
+            className="w-full pl-9 pr-4 py-2 bg-[#1a2744] border border-white/10 rounded-lg
                        text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
           />
         </div>
         <select
           value={status}
           onChange={(e) => { setStatus(e.target.value); setPage(1); }}
-          className="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm
+          className="px-3 py-2 bg-[#1a2744] border border-white/10 rounded-lg text-white text-sm
                      focus:outline-none focus:ring-2 focus:ring-green-500"
         >
           <option value="">Tous les statuts</option>
@@ -70,10 +70,10 @@ export default function Users() {
       </div>
 
       {/* Table */}
-      <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+      <div className="bg-[#1a2744] rounded-xl border border-white/10 overflow-hidden">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-gray-700 text-gray-400">
+            <tr className="border-b border-white/10 text-gray-400">
               <th className="text-left px-4 py-3 font-medium">Utilisateur</th>
               <th className="text-left px-4 py-3 font-medium">Contact</th>
               <th className="text-left px-4 py-3 font-medium">Rôle</th>
@@ -85,14 +85,14 @@ export default function Users() {
           <tbody>
             {isLoading ? (
               Array.from({ length: 10 }).map((_, i) => (
-                <tr key={i} className="border-b border-gray-700">
+                <tr key={i} className="border-b border-white/10">
                   <td colSpan={6} className="px-4 py-3">
-                    <div className="h-4 bg-gray-700 rounded animate-pulse w-3/4" />
+                    <div className="h-4 bg-white/10 rounded animate-pulse w-3/4" />
                   </td>
                 </tr>
               ))
             ) : data?.data?.map((user: User) => (
-              <tr key={user.id} className="border-b border-gray-700/50 hover:bg-gray-700/30">
+              <tr key={user.id} className="border-b border-white/10/50 hover:bg-white/5">
                 <td className="px-4 py-3 text-white">
                   {user.profile
                     ? `${user.profile.firstName} ${user.profile.lastName}`.trim() || '—'
@@ -160,7 +160,7 @@ export default function Users() {
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="p-1 rounded hover:bg-gray-700 disabled:opacity-40"
+              className="p-1 rounded hover:bg-white/10 disabled:opacity-40"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
@@ -168,7 +168,7 @@ export default function Users() {
             <button
               onClick={() => setPage((p) => p + 1)}
               disabled={page >= data.meta.totalPages}
-              className="p-1 rounded hover:bg-gray-700 disabled:opacity-40"
+              className="p-1 rounded hover:bg-white/10 disabled:opacity-40"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
