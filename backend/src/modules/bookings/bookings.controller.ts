@@ -149,7 +149,7 @@ export const bookingsController = {
     }
     try {
       const where = requiredRole === 'provider'
-        ? { id, providerId: req.user!.id, status: 'pending' }
+        ? { id, providerId: req.user!.id, status: 'pending' as const }
         : { id, clientId: req.user!.id };
 
       const booking = await prisma.booking.findFirst({ where });
