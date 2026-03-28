@@ -36,12 +36,22 @@ app.use(cookieParser());
 applySecurityMiddlewares(app);
 app.use(requestLogger);
 
-// ─── Health check (monitoring) ────────────────────────────────
+// ─── Racine + Health check ────────────────────────────────────
+app.get('/', (_req, res) => {
+  res.json({
+    name:    'BLA API',
+    version: process.env.npm_package_version ?? '1.0.0',
+    status:  'ok',
+    docs:    '/api/v1',
+    health:  '/health',
+  });
+});
+
 app.get('/health', (_req, res) => {
   res.json({
-    status: 'ok',
-    version: process.env.npm_package_version ?? '1.0.0',
-    env: env.NODE_ENV,
+    status:    'ok',
+    version:   process.env.npm_package_version ?? '1.0.0',
+    env:       env.NODE_ENV,
     timestamp: new Date().toISOString(),
   });
 });
