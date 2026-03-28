@@ -8,8 +8,6 @@ import {
   loginSchema,
   loginMfaSchema,
   refreshTokenSchema,
-  forgotPasswordSchema,
-  resetPasswordSchema,
 } from './auth.schemas';
 
 const router = Router();

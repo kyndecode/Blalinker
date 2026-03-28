@@ -1,15 +1,13 @@
 /**
  * BLA — Service de paiement
- * Supporte : CinetPay (Africa), Stripe (cartes), Wave (direct)
+ * Supporte : CinetPay (Africa), Stripe (cartes)
  */
 import axios from 'axios';
-import crypto from 'crypto';
 import { prisma } from '../../config/database';
 import { env } from '../../config/env';
 import { logger } from '../../config/logger';
-import type { InitPaymentInput } from './payments.schemas';
 
-const CINETPAY_API = 'https://api-checkout.cinetpay.com/v2/payment';
+const CINETPAY_API    = 'https://api-checkout.cinetpay.com/v2/payment';
 const CINETPAY_VERIFY = 'https://api-checkout.cinetpay.com/v2/payment/check';
 
 export class PaymentService {
@@ -19,18 +17,15 @@ export class PaymentService {
   async initCinetPay(bookingId: string, userId: string, currency: string, returnUrl?: string) {
     const booking = await prisma.booking.findFirst({
       where: { id: bookingId, clientId: userId },
-      include: { service: true },
     });
     if (!booking) throw Object.assign(new Error('Réservation introuvable'), { status: 404 });
-    if (booking.paymentStatus === 'paid') {
-      throw Object.assign(new Error('Cette réservation est déjà payée'), { status: 409 });
-    }
 
-    const transactionId = `BLA-${bookingId.slice(0, 8)}-${Date.now()}`;
-    const amount = Math.round(Number(booking.totalPrice));
+    const amount = Math.round(Number(booking.amount ?? 0));
+    if (!amount) throw Object.assign(new Error('Montant de réservation invalide'), { status: 400 });
 
     // CinetPay exige un multiple de 5 pour XOF/XAF
     const roundedAmount = currency !== 'USD' ? Math.ceil(amount / 5) * 5 : amount;
+    const transactionId = `BLA-${bookingId.slice(0, 8)}-${Date.now()}`;
 
     const payload = {
       apikey:         env.CINETPAY_API_KEY,
@@ -58,17 +53,17 @@ export class PaymentService {
       throw Object.assign(new Error('Erreur initialisation paiement CinetPay'), { status: 502 });
     }
 
-    // Sauvegarder la transaction en base
     await prisma.transaction.create({
       data: {
         bookingId,
-        userId,
-        amount:        roundedAmount,
+        payerId:     userId,
+        payeeId:     booking.providerId,
+        amount:      roundedAmount,
+        netAmount:   roundedAmount,   // ajusté à la confirmation (après commission)
         currency,
-        provider:      'cinetpay',
-        externalId:    transactionId,
-        paymentToken:  payment_token,
-        status:        'pending',
+        method:      'wave',          // méthode par défaut CinetPay, mise à jour via webhook
+        externalRef: transactionId,
+        metadata:    { provider: 'cinetpay', paymentToken: payment_token },
       },
     });
 
@@ -78,7 +73,7 @@ export class PaymentService {
 
   async verifyCinetPay(transactionId: string) {
     const transaction = await prisma.transaction.findFirst({
-      where: { externalId: transactionId, provider: 'cinetpay' },
+      where: { externalRef: transactionId },
     });
     if (!transaction) throw Object.assign(new Error('Transaction introuvable'), { status: 404 });
 
@@ -108,14 +103,14 @@ export class PaymentService {
     if (cpm_result !== '00') {
       logger.warn(`Paiement échoué: ${cpm_trans_id} — ${cpm_error_message}`);
       await prisma.transaction.updateMany({
-        where:  { externalId: cpm_trans_id },
-        data:   { status: 'failed' },
+        where: { externalRef: cpm_trans_id },
+        data:  { status: 'failed' },
       });
       return;
     }
 
     const transaction = await prisma.transaction.findFirst({
-      where: { externalId: cpm_trans_id },
+      where: { externalRef: cpm_trans_id },
     });
     if (!transaction || transaction.status === 'completed') return;
 
@@ -137,12 +132,14 @@ export class PaymentService {
     });
     if (!booking) throw Object.assign(new Error('Réservation introuvable'), { status: 404 });
 
+    const amount = Math.round(Number(booking.amount ?? 0));
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [{
         price_data: {
           currency:     currency.toLowerCase(),
-          unit_amount:  Math.round(Number(booking.totalPrice) * 100),
+          unit_amount:  amount * 100,
           product_data: { name: `BLA - Réservation #${bookingId.slice(0, 8)}` },
         },
         quantity: 1,
@@ -156,13 +153,14 @@ export class PaymentService {
     await prisma.transaction.create({
       data: {
         bookingId,
-        userId,
-        amount:       Math.round(Number(booking.totalPrice)),
+        payerId:     userId,
+        payeeId:     booking.providerId,
+        amount,
+        netAmount:   amount,
         currency,
-        provider:     'stripe',
-        externalId:   session.id,
-        paymentToken: session.id,
-        status:       'pending',
+        method:      'bank_transfer',
+        externalRef: session.id,
+        metadata:    { provider: 'stripe' },
       },
     });
 
@@ -184,7 +182,7 @@ export class PaymentService {
 
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object as { id: string; metadata: { bookingId: string } };
-      const transaction = await prisma.transaction.findFirst({ where: { externalId: session.id } });
+      const transaction = await prisma.transaction.findFirst({ where: { externalRef: session.id } });
       if (transaction) {
         await this._confirmPayment(session.metadata.bookingId, transaction.id, session.id);
       }
@@ -193,7 +191,7 @@ export class PaymentService {
 
   // ─── Méthodes privées ────────────────────────────────────
 
-  private async _confirmPayment(bookingId: string, transactionId: string, externalId: string) {
+  private async _confirmPayment(bookingId: string, transactionId: string, externalRef: string) {
     await prisma.$transaction([
       prisma.transaction.update({
         where: { id: transactionId },
@@ -201,10 +199,10 @@ export class PaymentService {
       }),
       prisma.booking.update({
         where: { id: bookingId },
-        data:  { paymentStatus: 'paid', status: 'confirmed' },
+        data:  { status: 'accepted' },
       }),
     ]);
-    logger.info(`Paiement confirmé: booking=${bookingId} tx=${externalId}`);
+    logger.info(`Paiement confirmé: booking=${bookingId} tx=${externalRef}`);
   }
 }
 
