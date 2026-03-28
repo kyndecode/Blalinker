@@ -1,14 +1,18 @@
 {
   "app": {
     "name": "BLA",
-    "tagline": "Trouvez des prestataires près de chez vous"
+    "tagline": "Trouvez le bon professionnel,",
+    "tagline2": "en quelques secondes"
   },
   "nav": {
     "home": "Accueil",
-    "search": "Rechercher",
+    "search": "Services",
     "bookings": "Mes réservations",
     "profile": "Mon profil",
-    "logout": "Se déconnecter"
+    "logout": "Se déconnecter",
+    "dashboard": "Tableau de bord",
+    "become_provider": "Devenir prestataire",
+    "about": "À propos"
   },
   "auth": {
     "login": "Se connecter",
@@ -87,5 +91,50 @@
     "unauthorized": "Session expirée. Reconnectez-vous.",
     "not_found": "Introuvable."
   },
-  "offline": "Connexion perdue. Les données peuvent ne pas être à jour."
+  "offline": "Connexion perdue. Les données peuvent ne pas être à jour.",
+  "home": {
+    "stats_providers": "Prestataires vérifiés",
+    "stats_clients": "Clients satisfaits",
+    "stats_satisfaction": "Taux de satisfaction",
+    "categories_title": "Nos services",
+    "categories_sub": "Cliquez sur un service pour trouver des professionnels disponibles",
+    "how_title": "Comment ça marche ?",
+    "how_sub": "Simple, rapide et sécurisé",
+    "step1_title": "Recherchez",
+    "step1_desc": "Trouvez un prestataire par service et localisation",
+    "step2_title": "Réservez",
+    "step2_desc": "Choisissez votre créneau et confirmez en ligne",
+    "step3_title": "Payez",
+    "step3_desc": "Payez via Wave, Orange Money ou carte bancaire",
+    "cta_title": "Vous êtes prestataire ?",
+    "cta_desc": "Rejoignez BLA Services et développez votre clientèle. Inscription gratuite, commissions transparentes.",
+    "cta_btn": "Rejoindre BLA",
+    "testimonials_title": "Ce que disent nos utilisateurs",
+    "search_btn": "Chercher"
+  },
+  "footer": {
+    "company": "Entreprise",
+    "about": "À propos",
+    "careers": "Carrières",
+    "blog": "Blog",
+    "services": "Services",
+    "browse": "Parcourir les services",
+    "categories": "Catégories",
+    "support": "Support",
+    "help": "Centre d'aide",
+    "contact": "Contact",
+    "legal": "Légal",
+    "terms": "Conditions d'utilisation",
+    "privacy": "Politique de confidentialité",
+    "newsletter_title": "Restez informé",
+    "newsletter_sub": "Recevez les meilleures offres et actualités.",
+    "newsletter_placeholder": "Votre email",
+    "newsletter_btn": "S'abonner",
+    "copyright": "Tous droits réservés.",
+    "tagline": "La marketplace africaine de services"
+  },
+  "theme": {
+    "dark": "Mode sombre",
+    "light": "Mode clair"
+  }
 }

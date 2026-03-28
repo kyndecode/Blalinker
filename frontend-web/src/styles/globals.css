@@ -97,10 +97,21 @@
 
   /* ── Section label ───────────────────────────────────── */
   .section-title {
-    @apply text-2xl sm:text-3xl font-extrabold text-gray-900 text-center;
+    @apply text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-white text-center;
   }
   .section-sub {
-    @apply text-gray-500 text-center mt-2 mb-10;
+    @apply text-gray-500 dark:text-gray-400 text-center mt-2 mb-10;
+  }
+
+  /* ── Dark mode overrides ─────────────────────────────── */
+  .dark .card {
+    @apply bg-gray-900 border-gray-800;
+  }
+  .dark .input {
+    @apply bg-gray-800 border-gray-700 text-gray-100 placeholder-gray-500;
+  }
+  .dark .btn-secondary {
+    @apply bg-gray-800 text-gray-200 border-gray-700 hover:bg-gray-700;
   }
 }
 
