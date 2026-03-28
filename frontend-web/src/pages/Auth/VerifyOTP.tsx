@@ -133,7 +133,11 @@ export default function VerifyOTP() {
               value={code}
               onChange={(e) => handleChange(i, e.target.value)}
               onKeyDown={(e) => handleKeyDown(i, e)}
-              className="w-11 h-12 text-center text-lg font-bold border-2 border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:border-green-500 dark:focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500/20 transition-colors disabled:opacity-50"
+              className={`w-11 h-13 text-center text-xl font-bold border-2 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500/20 transition-all duration-150 disabled:opacity-50 ${
+                code
+                  ? 'border-green-500 dark:border-green-500 scale-110 shadow-md shadow-green-500/20'
+                  : 'border-gray-200 dark:border-gray-700 focus:border-green-500 dark:focus:border-green-500'
+              }`}
               aria-label={`Chiffre ${i + 1}`}
               disabled={loading}
             />

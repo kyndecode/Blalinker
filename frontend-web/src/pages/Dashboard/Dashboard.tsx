@@ -92,15 +92,15 @@ export default function Dashboard() {
         <h2 id="quick-actions-title" className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
           Actions rapides
         </h2>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {quickActions.map((a) => (
             <Link
               key={a.to}
               to={a.to}
-              className={`flex flex-col items-center gap-2 p-4 rounded-xl border ${a.color} hover:scale-105 transition-transform duration-150 text-center`}
+              className={`flex sm:flex-col items-center sm:justify-center gap-3 sm:gap-2 p-4 sm:p-5 rounded-2xl border ${a.color} hover:scale-[1.02] transition-transform duration-150`}
             >
-              <span className="text-2xl">{a.icon}</span>
-              <span className="text-xs font-semibold text-gray-700 dark:text-gray-200">{a.label}</span>
+              <span className="text-3xl">{a.icon}</span>
+              <span className="text-sm sm:text-xs font-semibold text-gray-700 dark:text-gray-200 sm:text-center">{a.label}</span>
             </Link>
           ))}
         </div>

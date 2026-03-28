@@ -67,30 +67,30 @@ export default function SearchPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">{t('search.title')}</h1>
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">{t('search.title')}</h1>
 
       <div className="flex flex-col lg:flex-row gap-6">
         {/* ─── Panneau filtres ─────────────────────────── */}
         <aside className="lg:w-64 flex-shrink-0">
-          <div className="card">
-            <h2 className="font-semibold text-gray-900 mb-4">{t('search.filters')}</h2>
+          <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-5">
+            <h2 className="font-semibold text-gray-900 dark:text-white mb-4">{t('search.filters')}</h2>
 
             <div className="flex flex-col gap-4">
               {/* Rayon */}
               <div>
-                <label className="text-sm font-medium text-gray-700 block mb-1">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1">
                   {t('search.radius')} : <strong>{filters.radius} km</strong>
                 </label>
                 <input
                   type="range" min={1} max={50} value={filters.radius}
                   onChange={(e) => setFilters((f) => ({ ...f, radius: Number(e.target.value), page: 1 }))}
-                  className="w-full accent-primary-600"
+                  className="w-full accent-green-600"
                 />
               </div>
 
               {/* Note minimale */}
               <div>
-                <label className="text-sm font-medium text-gray-700 block mb-1">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-1">
                   {t('search.min_rating')}
                 </label>
                 <select
@@ -111,9 +111,9 @@ export default function SearchPage() {
                   type="checkbox"
                   checked={filters.available_only}
                   onChange={(e) => setFilters((f) => ({ ...f, available_only: e.target.checked, page: 1 }))}
-                  className="w-4 h-4 accent-primary-600"
+                  className="w-4 h-4 accent-green-600"
                 />
-                <span className="text-sm text-gray-700">{t('search.available_only')}</span>
+                <span className="text-sm text-gray-700 dark:text-gray-300">{t('search.available_only')}</span>
               </label>
 
               {/* Utiliser ma position */}
@@ -141,7 +141,7 @@ export default function SearchPage() {
         <div className="flex-1">
           {/* Compteur */}
           {!isLoading && data && (
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
               {data.meta.total === 0
                 ? t('search.no_results')
                 : `${data.meta.total} prestataire${data.meta.total > 1 ? 's' : ''} trouvé${data.meta.total > 1 ? 's' : ''}`
@@ -150,9 +150,9 @@ export default function SearchPage() {
           )}
 
           {isLoading && (
-            <div className="grid gap-4" aria-busy aria-label={t('search.loading')}>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" aria-busy aria-label={t('search.loading')}>
               {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="card animate-pulse h-32 bg-gray-100" />
+                <div key={i} className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-5 animate-pulse h-40" />
               ))}
             </div>
           )}
@@ -171,7 +171,7 @@ export default function SearchPage() {
             </div>
           )}
 
-          <div className="grid gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {data?.data.map((provider) => (
               <ProviderCard
                 key={provider.id}
