@@ -1,14 +1,13 @@
-import type { Config } from 'jest';
-
-const config: Config = {
-  preset:         'ts-jest',
-  testEnvironment:'node',
-  rootDir:        '.',
-  testMatch:      ['**/tests/**/*.test.ts'],
+/** @type {import('jest').Config} */
+const config = {
+  preset:          'ts-jest',
+  testEnvironment: 'node',
+  rootDir:         '.',
+  testMatch:       ['**/tests/**/*.test.ts'],
   moduleNameMapper: { '@/(.*)': '<rootDir>/src/$1' },
   setupFilesAfterFramework: ['<rootDir>/tests/setup.ts'],
-  globalSetup:    '<rootDir>/tests/globalSetup.ts',
-  globalTeardown: '<rootDir>/tests/globalTeardown.ts',
+  globalSetup:     '<rootDir>/tests/globalSetup.ts',
+  globalTeardown:  '<rootDir>/tests/globalTeardown.ts',
   collectCoverageFrom: [
     'src/**/*.ts',
     '!src/**/*.d.ts',
@@ -21,4 +20,4 @@ const config: Config = {
   testTimeout: 15_000,
 };
 
-export default config;
+module.exports = config;
