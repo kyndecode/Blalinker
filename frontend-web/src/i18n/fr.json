@@ -1,0 +1,91 @@
+{
+  "app": {
+    "name": "BLA",
+    "tagline": "Trouvez des prestataires près de chez vous"
+  },
+  "nav": {
+    "home": "Accueil",
+    "search": "Rechercher",
+    "bookings": "Mes réservations",
+    "profile": "Mon profil",
+    "logout": "Se déconnecter"
+  },
+  "auth": {
+    "login": "Se connecter",
+    "register": "Créer un compte",
+    "logout": "Se déconnecter",
+    "phone": "Numéro de téléphone",
+    "email": "Email",
+    "password": "Mot de passe",
+    "password_min": "Minimum 8 caractères",
+    "otp_title": "Vérification",
+    "otp_sent": "Code envoyé par SMS",
+    "otp_placeholder": "Code à 6 chiffres",
+    "verify": "Vérifier",
+    "resend": "Renvoyer le code",
+    "forgot_password": "Mot de passe oublié ?",
+    "no_account": "Pas encore de compte ?",
+    "already_account": "Déjà un compte ?"
+  },
+  "search": {
+    "title": "Trouver un prestataire",
+    "placeholder": "Plombier, électricien...",
+    "location_placeholder": "Votre ville",
+    "use_location": "Utiliser ma position",
+    "filters": "Filtres",
+    "radius": "Rayon (km)",
+    "min_rating": "Note minimale",
+    "available_only": "Disponibles uniquement",
+    "results": "{{count}} prestataire trouvé",
+    "results_plural": "{{count}} prestataires trouvés",
+    "no_results": "Aucun prestataire trouvé dans cette zone.",
+    "loading": "Recherche en cours..."
+  },
+  "provider": {
+    "rating": "{{rating}} sur 5",
+    "reviews": "{{count}} avis",
+    "km_away": "{{km}} km",
+    "hourly_rate": "{{rate}} XOF/h",
+    "available": "Disponible",
+    "unavailable": "Indisponible",
+    "contact": "Contacter",
+    "book": "Réserver",
+    "verified": "Identité vérifiée"
+  },
+  "booking": {
+    "new": "Nouvelle réservation",
+    "description": "Description du problème",
+    "scheduled_at": "Date et heure souhaitées",
+    "address": "Adresse d'intervention",
+    "confirm": "Confirmer la réservation",
+    "cancel": "Annuler",
+    "status": {
+      "pending": "En attente",
+      "accepted": "Acceptée",
+      "rejected": "Refusée",
+      "in_progress": "En cours",
+      "completed": "Terminée",
+      "validated": "Validée",
+      "cancelled": "Annulée",
+      "disputed": "En litige"
+    }
+  },
+  "payment": {
+    "title": "Paiement",
+    "amount": "Montant",
+    "method": "Moyen de paiement",
+    "wave": "Wave",
+    "orange_money": "Orange Money",
+    "free_money": "Free Money",
+    "confirm": "Confirmer le paiement",
+    "success": "Paiement réussi !",
+    "error": "Échec du paiement"
+  },
+  "errors": {
+    "network": "Problème de connexion. Vérifiez votre réseau.",
+    "server": "Erreur serveur. Réessayez dans quelques instants.",
+    "unauthorized": "Session expirée. Reconnectez-vous.",
+    "not_found": "Introuvable."
+  },
+  "offline": "Connexion perdue. Les données peuvent ne pas être à jour."
+}

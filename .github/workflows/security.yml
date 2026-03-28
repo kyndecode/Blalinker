@@ -1,0 +1,52 @@
+##############################################################
+# BLA — Scan de sécurité hebdomadaire
+##############################################################
+
+name: Security Scan
+
+on:
+  schedule:
+    - cron: '0 2 * * 1'  # Tous les lundis à 2h du matin
+  workflow_dispatch:
+
+jobs:
+  dependency-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Audit backend
+        run: cd backend && npm ci && npm audit --json > audit-backend.json || true
+
+      - name: Audit frontend
+        run: cd frontend-web && npm ci && npm audit --json > audit-frontend.json || true
+
+      - name: Upload rapports
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-audits
+          path: |
+            backend/audit-backend.json
+            frontend-web/audit-frontend.json
+
+  codeql:
+    name: CodeQL Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3

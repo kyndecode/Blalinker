@@ -1,0 +1,27 @@
+{
+  "app": {
+    "name": "BLA",
+    "tagline": "Seet ku liggéeykat ci sa kër"
+  },
+  "auth": {
+    "login": "Dugg",
+    "register": "Bëgg account bu bees",
+    "phone": "Nimero téléphone",
+    "password": "Xel bi",
+    "otp_title": "Yéttali",
+    "otp_sent": "Code bi yónnee na ci SMS",
+    "verify": "Yéttali",
+    "resend": "Yónni code bu bees"
+  },
+  "search": {
+    "title": "Seet ku liggéeykat",
+    "no_results": "Amul ku liggéeykat ci kaw tey.",
+    "available": "Dafa soxor"
+  },
+  "provider": {
+    "available": "Soxor na",
+    "unavailable": "Soxor mënul",
+    "book": "Yokk"
+  },
+  "offline": "Xel bi dafa nekk ci problema. Data yi dafay doon bu mu ëpp."
+}

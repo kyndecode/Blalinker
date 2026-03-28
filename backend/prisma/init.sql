@@ -1,0 +1,7 @@
+-- Extensions PostgreSQL requises pour BLA
+-- Exécuté automatiquement au premier démarrage du conteneur PostgreSQL
+
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "postgis";
+CREATE EXTENSION IF NOT EXISTS "pg_trgm";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";

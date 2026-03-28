@@ -1,0 +1,146 @@
+##############################################################
+# BLA — Docker Compose (développement local)
+# Usage : docker compose up -d
+##############################################################
+version: '3.8'
+
+services:
+
+  # ──────────────────────────────────────────────────────────
+  #  Base de données PostgreSQL 15 + PostGIS
+  # ──────────────────────────────────────────────────────────
+  db:
+    image: postgis/postgis:15-3.4-alpine
+    container_name: bla_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       bla_db
+      POSTGRES_USER:     bla_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-bla_local_password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/prisma/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bla_user -d bla_db"]
+      interval: 5s
+      timeout:  5s
+      retries:  10
+    networks:
+      - bla_network
+
+  # ──────────────────────────────────────────────────────────
+  #  Redis (cache + sessions OTP + Socket.IO adapter)
+  # ──────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: bla_redis
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD:-bla_redis_password} --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-bla_redis_password}", "ping"]
+      interval: 5s
+      timeout:  3s
+      retries:  5
+    networks:
+      - bla_network
+
+  # ──────────────────────────────────────────────────────────
+  #  Backend Node.js
+  # ──────────────────────────────────────────────────────────
+  backend:
+    build:
+      context:    ./backend
+      dockerfile: Dockerfile
+      target:     development
+    container_name: bla_backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV:      development
+      PORT:          3000
+      APP_URL:       http://localhost:3000
+      CORS_ORIGIN:   http://localhost:5173
+      DATABASE_URL:  postgresql://bla_user:${DB_PASSWORD:-bla_local_password}@db:5432/bla_db
+      REDIS_URL:     redis://:${REDIS_PASSWORD:-bla_redis_password}@redis:6379
+      JWT_PRIVATE_KEY:  ${JWT_PRIVATE_KEY:-dev_private_key_placeholder}
+      JWT_PUBLIC_KEY:   ${JWT_PUBLIC_KEY:-dev_public_key_placeholder}
+      ENCRYPTION_KEY:   ${ENCRYPTION_KEY:-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa}
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./backend/src:/app/src:ro
+      - ./backend/prisma:/app/prisma:ro
+    networks:
+      - bla_network
+
+  # ──────────────────────────────────────────────────────────
+  #  Frontend Web React (Vite dev server)
+  # ──────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context:    ./frontend-web
+      dockerfile: Dockerfile
+      target:     development
+    container_name: bla_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      VITE_API_URL: /api/v1
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend-web/src:/app/src:ro
+    networks:
+      - bla_network
+
+  # ──────────────────────────────────────────────────────────
+  #  Nginx — Reverse proxy (unifie backend + frontend sur :80)
+  # ──────────────────────────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    container_name: bla_nginx
+    restart: unless-stopped
+    depends_on:
+      - backend
+      - frontend
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.dev.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - bla_network
+
+  # ──────────────────────────────────────────────────────────
+  #  Adminer — Interface web pour la DB (dev uniquement)
+  # ──────────────────────────────────────────────────────────
+  adminer:
+    image: adminer:latest
+    container_name: bla_adminer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+    networks:
+      - bla_network
+    profiles:
+      - tools  # Lancer avec: docker compose --profile tools up
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  bla_network:
+    driver: bridge

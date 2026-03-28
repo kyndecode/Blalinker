@@ -1,0 +1,66 @@
+{
+  "expo": {
+    "name":        "BLA",
+    "slug":        "bla-app",
+    "version":     "1.0.0",
+    "scheme":      "bla",
+    "orientation": "portrait",
+    "icon":        "./assets/icon.png",
+    "splash": {
+      "image":          "./assets/splash.png",
+      "resizeMode":     "contain",
+      "backgroundColor":"#22c55e"
+    },
+    "userInterfaceStyle": "light",
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.blaapp.mobile",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "BLA utilise votre position pour trouver des prestataires proches.",
+        "NSLocationAlwaysUsageDescription": "BLA utilise votre position en arrière-plan pour le suivi de mission.",
+        "NSCameraUsageDescription": "Prendre une photo de votre pièce d'identité ou de profil.",
+        "NSPhotoLibraryUsageDescription": "Choisir une photo depuis votre galerie."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#22c55e"
+      },
+      "package": "com.blaapp.mobile",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "BLA utilise votre position pour trouver des prestataires."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon":  "./assets/notification-icon.png",
+          "color": "#22c55e"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
