@@ -15,7 +15,7 @@ services:
     region: frankfurt   # Plus proche Afrique de l'Ouest que US
     plan: free          # Gratuit (512MB RAM, spin-down après 15min inactivité)
     rootDir: backend
-    buildCommand: NODE_ENV=development npm ci && npx prisma generate && npm run build
+    buildCommand: npm ci && npx prisma generate && npm run build
     startCommand: npx prisma migrate deploy && node dist/server.js
     healthCheckPath: /health
     autoDeploy: true    # Re-déploie à chaque push sur main
