@@ -20,20 +20,9 @@ import BookingNew      from './pages/Booking/BookingNew';
 import BookingDetail   from './pages/Booking/BookingDetail';
 import ProfilePage     from './pages/Profile/ProfilePage';
 
-// Admin
-import AdminDashboard  from './pages/Admin/AdminDashboard';
-
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
-}
-
-function RequireAdmin({ children }: { children: React.ReactNode }) {
-  const user = useAuthStore((s) => s.user);
-  if (!user || !['admin', 'super_admin'].includes(user.role)) {
-    return <Navigate to="/" replace />;
-  }
-  return <>{children}</>;
 }
 
 export default function App() {
@@ -66,11 +55,6 @@ export default function App() {
           <Route path="/bookings/new"  element={<RequireAuth><BookingNew /></RequireAuth>} />
           <Route path="/bookings/:id"  element={<RequireAuth><BookingDetail /></RequireAuth>} />
           <Route path="/profile"       element={<RequireAuth><ProfilePage /></RequireAuth>} />
-
-          {/* Admin */}
-          <Route path="/admin/*" element={
-            <RequireAuth><RequireAdmin><AdminDashboard /></RequireAdmin></RequireAuth>
-          } />
 
           {/* 404 */}
           <Route path="*" element={<Navigate to="/" replace />} />

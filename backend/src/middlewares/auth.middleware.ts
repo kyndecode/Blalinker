@@ -1,7 +1,17 @@
 import { Request, Response, NextFunction } from 'express';
+import rateLimit from 'express-rate-limit';
 import { verifyAccessToken, isTokenRevoked } from '../utils/jwt.util';
 import { prisma } from '../config/database';
 import { logger } from '../config/logger';
+
+/** Rate limiter strict pour les routes admin : 60 req/min max */
+export const adminRateLimit = rateLimit({
+  windowMs: 60_000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de requêtes admin. Réessayez dans une minute.' },
+});
 
 // Augmenter le type Request d'Express
 declare global {

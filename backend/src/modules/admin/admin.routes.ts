@@ -1,11 +1,11 @@
 import { Router } from 'express';
 import { adminController } from './admin.controller';
-import { authenticate, requireAdmin } from '../../middlewares/auth.middleware';
+import { authenticate, requireAdmin, adminRateLimit } from '../../middlewares/auth.middleware';
 
 const router = Router();
 
-// Toutes les routes admin requièrent authentification + rôle admin
-router.use(authenticate, requireAdmin);
+// Toutes les routes admin : rate limit strict + auth + rôle admin
+router.use(adminRateLimit, authenticate, requireAdmin);
 
 router.get('/dashboard',        adminController.dashboard);
 router.get('/users',            adminController.listUsers);
