@@ -42,13 +42,20 @@ const envSchema = z.object({
   CLOUDINARY_API_KEY:    z.string().optional(),
   CLOUDINARY_API_SECRET: z.string().optional(),
 
-  // Paiements
+  // Paiements — CinetPay (agrégateur Africa : Wave, Orange Money, MTN, Moov...)
+  CINETPAY_API_KEY:        z.string().optional(),
+  CINETPAY_SITE_ID:        z.string().optional(),
+  CINETPAY_NOTIFY_URL:     z.string().url().optional(),
+  CINETPAY_RETURN_URL:     z.string().url().optional(),
+
+  // Paiements — Stripe (cartes bancaires internationales)
+  STRIPE_SECRET_KEY:       z.string().optional(),
+  STRIPE_WEBHOOK_SECRET:   z.string().optional(),
+  STRIPE_PUBLIC_KEY:       z.string().optional(),
+
+  // Paiements — Wave (direct, optionnel si CinetPay insuffisant)
   WAVE_API_KEY:               z.string().optional(),
   WAVE_WEBHOOK_SECRET:        z.string().optional(),
-  ORANGE_MONEY_CLIENT_ID:     z.string().optional(),
-  ORANGE_MONEY_CLIENT_SECRET: z.string().optional(),
-  ORANGE_MERCHANT_KEY:        z.string().optional(),
-  ORANGE_MONEY_WEBHOOK_SECRET:z.string().optional(),
 
   // IA
   AI_SERVICE_URL:      z.string().url().default('http://localhost:8000'),
