@@ -16,7 +16,7 @@ jest.mock('../../src/config/env', () => ({
 
 jest.mock('../../src/config/database', () => ({
   prisma: {
-    booking:     { findFirst: jest.fn() },
+    booking:     { findFirst: jest.fn(), update: jest.fn() },
     transaction: {
       create:      jest.fn(),
       findFirst:   jest.fn(),

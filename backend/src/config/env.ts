@@ -66,7 +66,7 @@ const envSchema = z.object({
 
   // Admin seed
   ADMIN_EMAIL:    z.string().email().default('admin@bla-app.com'),
-  ADMIN_PASSWORD: z.string().min(12).default('BlaAdmin2024!'),
+  ADMIN_PASSWORD: z.string().min(8).default('BlaAdmin2024!'),
 });
 
 const parsed = envSchema.safeParse(process.env);
