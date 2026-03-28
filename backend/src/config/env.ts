@@ -27,10 +27,15 @@ const envSchema = z.object({
   // Chiffrement données sensibles
   ENCRYPTION_KEY: z.string().length(64, 'ENCRYPTION_KEY doit faire 64 caractères hex (32 bytes)'),
 
-  // SMS OTP
+  // SMS OTP (Twilio)
   TWILIO_ACCOUNT_SID:  z.string().optional(),
   TWILIO_AUTH_TOKEN:   z.string().optional(),
   TWILIO_PHONE_NUMBER: z.string().optional(),
+
+  // Email transactionnel (Brevo / ex-Sendinblue)
+  BREVO_API_KEY:    z.string().optional(),
+  BREVO_FROM_EMAIL: z.string().email().default('noreply@bla-app.com'),
+  BREVO_FROM_NAME:  z.string().default('BLA Services'),
 
   // Stockage fichiers (Cloudinary)
   CLOUDINARY_CLOUD_NAME: z.string().optional(),

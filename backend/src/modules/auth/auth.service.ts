@@ -15,6 +15,7 @@ import {
 } from '../../utils/jwt.util';
 import { generateOTP, hashOTP, verifyOTP, otpExpiresAt } from '../../utils/otp.util';
 import { sendSMS } from '../../utils/sms.util';
+import { sendEmail, emailTemplates } from '../../config/email';
 import type { RegisterInput, LoginInput } from './auth.schemas';
 
 const MAX_LOGIN_ATTEMPTS = 5;
@@ -219,6 +220,13 @@ export class AuthService {
                    : 'otp_password_reset';
 
     if (phone) await sendSMS(phone, template, [code]);
+
+    if (email) {
+      const emailData = purpose === 'registration' ? emailTemplates.otpRegister(code)
+                      : purpose === 'login'        ? emailTemplates.otpLogin(code)
+                      : emailTemplates.otpPasswordReset(code);
+      await sendEmail({ to: email, ...emailData });
+    }
 
     // En dev, afficher l'OTP dans les logs
     if (process.env.NODE_ENV !== 'production') {
