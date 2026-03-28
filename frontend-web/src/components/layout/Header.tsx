@@ -68,7 +68,6 @@ export default function Header() {
   ];
 
   const firstName =
-    user?.profile?.firstName ??
     (user?.email ? user.email.split('@')[0] : null) ??
     (user?.phone ?? 'Mon compte');
 
