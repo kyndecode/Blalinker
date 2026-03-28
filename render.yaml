@@ -100,7 +100,6 @@ services:
   - type: web
     name: bla-app
     runtime: static
-    plan: free          # Sites statiques = GRATUIT sur Render
     rootDir: frontend-web
     buildCommand: npm ci && npm run build
     staticPublishPath: dist
@@ -144,7 +143,6 @@ services:
   - type: web
     name: bla-admin
     runtime: static
-    plan: free
     rootDir: frontend-admin
     buildCommand: npm ci && npm run build
     staticPublishPath: dist
