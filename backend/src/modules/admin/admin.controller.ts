@@ -37,7 +37,7 @@ export const adminController = {
         monthlyCommissions: Number(monthlyRevenue._sum.commission ?? 0),
       });
     } catch {
-      res.status(500).json({ error: 'Erreur serveur' });
+      return res.status(500).json({ error: 'Erreur serveur' });
     }
   },
 
@@ -72,7 +72,7 @@ export const adminController = {
 
       res.json(paginate(users, total, { page, limit }));
     } catch {
-      res.status(500).json({ error: 'Erreur serveur' });
+      return res.status(500).json({ error: 'Erreur serveur' });
     }
   },
 
@@ -91,7 +91,7 @@ export const adminController = {
       if (!user) return res.status(404).json({ error: 'Utilisateur introuvable' });
       res.json(user);
     } catch {
-      res.status(500).json({ error: 'Erreur serveur' });
+      return res.status(500).json({ error: 'Erreur serveur' });
     }
   },
 
@@ -107,9 +107,9 @@ export const adminController = {
         where: { id: req.params.id },
         data: { status },
       });
-      res.json({ message: 'Statut mis à jour' });
+      return res.json({ message: 'Statut mis à jour' });
     } catch {
-      res.status(500).json({ error: 'Erreur serveur' });
+      return res.status(500).json({ error: 'Erreur serveur' });
     }
   },
 
@@ -133,7 +133,7 @@ export const adminController = {
       }
       res.json({ message: approved ? 'Identité validée' : 'Identité rejetée', comment });
     } catch {
-      res.status(500).json({ error: 'Erreur serveur' });
+      return res.status(500).json({ error: 'Erreur serveur' });
     }
   },
 
@@ -157,7 +157,7 @@ export const adminController = {
       ]);
       res.json(paginate(reviews, total, { page, limit }));
     } catch {
-      res.status(500).json({ error: 'Erreur serveur' });
+      return res.status(500).json({ error: 'Erreur serveur' });
     }
   },
 
@@ -186,7 +186,7 @@ export const adminController = {
 
       res.json({ message: 'Avis approuvé' });
     } catch {
-      res.status(500).json({ error: 'Erreur serveur' });
+      return res.status(500).json({ error: 'Erreur serveur' });
     }
   },
 
@@ -196,7 +196,7 @@ export const adminController = {
       await prisma.review.delete({ where: { id: req.params.id } });
       res.json({ message: 'Avis supprimé' });
     } catch {
-      res.status(500).json({ error: 'Erreur serveur' });
+      return res.status(500).json({ error: 'Erreur serveur' });
     }
   },
 
@@ -221,7 +221,7 @@ export const adminController = {
       ]);
       res.json(paginate(reports, total, { page, limit }));
     } catch {
-      res.status(500).json({ error: 'Erreur serveur' });
+      return res.status(500).json({ error: 'Erreur serveur' });
     }
   },
 
@@ -235,7 +235,7 @@ export const adminController = {
       });
       res.json({ message: 'Signalement résolu' });
     } catch {
-      res.status(500).json({ error: 'Erreur serveur' });
+      return res.status(500).json({ error: 'Erreur serveur' });
     }
   },
 
@@ -257,7 +257,7 @@ export const adminController = {
       ]);
       res.json(paginate(transactions, total, { page, limit }));
     } catch {
-      res.status(500).json({ error: 'Erreur serveur' });
+      return res.status(500).json({ error: 'Erreur serveur' });
     }
   },
 
@@ -270,7 +270,7 @@ export const adminController = {
       });
       res.json(categories);
     } catch {
-      res.status(500).json({ error: 'Erreur serveur' });
+      return res.status(500).json({ error: 'Erreur serveur' });
     }
   },
 
@@ -296,7 +296,7 @@ export const adminController = {
       });
       res.json(cat);
     } catch {
-      res.status(500).json({ error: 'Erreur serveur' });
+      return res.status(500).json({ error: 'Erreur serveur' });
     }
   },
 };

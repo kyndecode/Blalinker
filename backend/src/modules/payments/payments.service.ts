@@ -181,7 +181,7 @@ export class PaymentService {
     }
 
     if (event.type === 'checkout.session.completed') {
-      const session = event.data.object as { id: string; metadata: { bookingId: string } };
+      const session = event.data.object as unknown as { id: string; metadata: { bookingId: string } };
       const transaction = await prisma.transaction.findFirst({ where: { externalRef: session.id } });
       if (transaction) {
         await this._confirmPayment(session.metadata.bookingId, transaction.id, session.id);

@@ -24,7 +24,7 @@ jest.mock('../../src/config/env', () => ({
 jest.mock('../../src/config/database', () => ({
   prisma: {
     user:        { findFirst: jest.fn(), findUnique: jest.fn(), create: jest.fn(), update: jest.fn() },
-    userSession: { create: jest.fn(), delete: jest.fn(), deleteMany: jest.fn(), findFirst: jest.fn() },
+    userSession: { create: jest.fn(), delete: jest.fn(), deleteMany: jest.fn(), findFirst: jest.fn(), findMany: jest.fn().mockResolvedValue([]) },
     otpCode:     { create: jest.fn(), findFirst: jest.fn(), update: jest.fn(), deleteMany: jest.fn() },
   },
 }));
@@ -39,7 +39,11 @@ jest.mock('../../src/config/logger', () => ({
 
 jest.mock('../../src/config/email', () => ({
   sendEmail:      jest.fn().mockResolvedValue(undefined),
-  emailTemplates: { otpVerification: jest.fn().mockReturnValue({ subject: 'OTP', html: '<p>test</p>' }) },
+  emailTemplates: {
+    otpRegister:      jest.fn().mockReturnValue({ subject: 'OTP', html: '<p>test</p>' }),
+    otpLogin:         jest.fn().mockReturnValue({ subject: 'OTP', html: '<p>test</p>' }),
+    otpPasswordReset: jest.fn().mockReturnValue({ subject: 'OTP', html: '<p>test</p>' }),
+  },
 }));
 
 jest.mock('../../src/utils/sms.util', () => ({

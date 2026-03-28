@@ -6,7 +6,6 @@ export const bookingsController = {
   async create(req: Request, res: Response) {
     const data = req.body as CreateBookingInput;
     try {
-      // Vérifier que le prestataire existe et est actif
       const provider = await prisma.user.findFirst({
         where: { id: data.providerId, role: 'provider', status: 'active', deletedAt: null },
       });
@@ -14,22 +13,21 @@ export const bookingsController = {
 
       const booking = await prisma.booking.create({
         data: {
-          clientId:     req.user!.id,
-          providerId:   data.providerId,
-          serviceId:    data.serviceId,
-          description:  data.description,
-          scheduledAt:  data.scheduledAt ? new Date(data.scheduledAt) : undefined,
-          clientLat:    data.clientLat,
-          clientLng:    data.clientLng,
+          clientId:      req.user!.id,
+          providerId:    data.providerId,
+          serviceId:     data.serviceId,
+          description:   data.description,
+          scheduledAt:   data.scheduledAt ? new Date(data.scheduledAt) : undefined,
+          clientLat:     data.clientLat,
+          clientLng:     data.clientLng,
           clientAddress: data.clientAddress,
-          amount:       data.amount,
-          status:       'pending',
+          amount:        data.amount,
+          status:        'pending',
         },
       });
-
-      res.status(201).json(booking);
+      return res.status(201).json(booking);
     } catch (err) {
-      res.status(500).json({ error: 'Erreur lors de la création de la réservation' });
+      return res.status(500).json({ error: 'Erreur lors de la création de la réservation' });
     }
   },
 
@@ -37,22 +35,18 @@ export const bookingsController = {
     const { id } = req.params;
     try {
       const booking = await prisma.booking.findFirst({
-        where: {
-          id,
-          OR: [{ clientId: req.user!.id }, { providerId: req.user!.id }],
-        },
+        where: { id, OR: [{ clientId: req.user!.id }, { providerId: req.user!.id }] },
         include: {
-          client:   { include: { profile: true } },
-          provider: { include: { profile: true, providerProfile: true } },
-          service:  { include: { category: true } },
+          client:      { include: { profile: true } },
+          provider:    { include: { profile: true, providerProfile: true } },
+          service:     { include: { category: true } },
           transaction: true,
         },
       });
-
       if (!booking) return res.status(404).json({ error: 'Réservation introuvable' });
-      res.json(booking);
+      return res.json(booking);
     } catch (err) {
-      res.status(500).json({ error: 'Erreur serveur' });
+      return res.status(500).json({ error: 'Erreur serveur' });
     }
   },
 
@@ -74,11 +68,11 @@ export const bookingsController = {
 
       const updated = await prisma.booking.update({
         where: { id },
-        data: { status: 'in_progress', startedAt: new Date() },
+        data:  { status: 'in_progress', startedAt: new Date() },
       });
-      res.json(updated);
+      return res.json(updated);
     } catch (err) {
-      res.status(500).json({ error: 'Erreur serveur' });
+      return res.status(500).json({ error: 'Erreur serveur' });
     }
   },
 
@@ -92,11 +86,11 @@ export const bookingsController = {
 
       const updated = await prisma.booking.update({
         where: { id },
-        data: { status: 'completed', completedAt: new Date() },
+        data:  { status: 'completed', completedAt: new Date() },
       });
-      res.json(updated);
+      return res.json(updated);
     } catch (err) {
-      res.status(500).json({ error: 'Erreur serveur' });
+      return res.status(500).json({ error: 'Erreur serveur' });
     }
   },
 
@@ -110,11 +104,11 @@ export const bookingsController = {
 
       const updated = await prisma.booking.update({
         where: { id },
-        data: { status: 'validated', validatedAt: new Date() },
+        data:  { status: 'validated', validatedAt: new Date() },
       });
-      res.json(updated);
+      return res.json(updated);
     } catch (err) {
-      res.status(500).json({ error: 'Erreur serveur' });
+      return res.status(500).json({ error: 'Erreur serveur' });
     }
   },
 
@@ -133,15 +127,14 @@ export const bookingsController = {
 
       const updated = await prisma.booking.update({
         where: { id },
-        data: { status: 'cancelled', cancellationReason: reason },
+        data:  { status: 'cancelled', cancellationReason: reason },
       });
-      res.json(updated);
+      return res.json(updated);
     } catch (err) {
-      res.status(500).json({ error: 'Erreur serveur' });
+      return res.status(500).json({ error: 'Erreur serveur' });
     }
   },
 
-  // Helper privé
   async _updateStatus(req: Request, res: Response, status: string, requiredRole: string) {
     const { id } = req.params;
     if (req.user!.role !== requiredRole && req.user!.role !== 'admin') {
@@ -157,11 +150,11 @@ export const bookingsController = {
 
       const updated = await prisma.booking.update({
         where: { id },
-        data: { status: status as 'accepted' | 'rejected' },
+        data:  { status: status as 'accepted' | 'rejected' },
       });
-      res.json(updated);
+      return res.json(updated);
     } catch (err) {
-      res.status(500).json({ error: 'Erreur serveur' });
+      return res.status(500).json({ error: 'Erreur serveur' });
     }
   },
 };

@@ -109,9 +109,9 @@ export const providersController = {
 
       if (!provider) return res.status(404).json({ error: 'Prestataire introuvable' });
 
-      res.json(provider);
+      return res.json(provider);
     } catch (err) {
-      res.status(500).json({ error: 'Erreur serveur' });
+      return res.status(500).json({ error: 'Erreur serveur' });
     }
   },
 
