@@ -4,14 +4,13 @@ import { paginate, getSkip } from '../../utils/pagination.util';
 import type { SearchInput } from './providers.schemas';
 
 export const providersController = {
-  /** GET /providers/search — Recherche géolocalisée */
+  /** GET /providers/search — Recherche géolocalisée (Haversine — sans PostGIS) */
   async search(req: Request, res: Response) {
     try {
       const q = req.query as unknown as SearchInput;
-      const skip   = getSkip({ page: q.page, limit: q.limit });
-      const radius = q.radius * 1000; // km → mètres
+      const skip = getSkip({ page: q.page, limit: q.limit });
 
-      // Requête SQL avec PostGIS pour la géolocalisation
+      // Formule Haversine en SQL pur (compatible PostgreSQL standard, sans PostGIS)
       const providers = await prisma.$queryRaw<Array<Record<string, unknown>>>`
         SELECT
           u.id,
@@ -27,10 +26,11 @@ export const providersController = {
           pp.completed_jobs AS "completedJobs",
           pp.is_premium    AS "isPremium",
           ROUND(
-            ST_Distance(
-              ST_SetSRID(ST_MakePoint(p.longitude::float, p.latitude::float), 4326)::geography,
-              ST_SetSRID(ST_MakePoint(${q.lng}::float, ${q.lat}::float), 4326)::geography
-            ) / 1000, 1
+            (6371.0 * 2.0 * ASIN(SQRT(
+              POWER(SIN(RADIANS((p.latitude::float  - ${q.lat}::float) / 2.0)), 2) +
+              COS(RADIANS(${q.lat}::float)) * COS(RADIANS(p.latitude::float)) *
+              POWER(SIN(RADIANS((p.longitude::float - ${q.lng}::float) / 2.0)), 2)
+            )))::numeric, 1
           ) AS "distanceKm",
           json_agg(DISTINCT c.name) AS categories
         FROM users u
@@ -47,11 +47,11 @@ export const providersController = {
           AND (${q.category_id ?? null}::uuid IS NULL OR ps.category_id = ${q.category_id ?? null}::uuid)
           AND p.latitude  IS NOT NULL
           AND p.longitude IS NOT NULL
-          AND ST_DWithin(
-            ST_SetSRID(ST_MakePoint(p.longitude::float, p.latitude::float), 4326)::geography,
-            ST_SetSRID(ST_MakePoint(${q.lng}::float, ${q.lat}::float), 4326)::geography,
-            ${radius}
-          )
+          AND (6371.0 * 2.0 * ASIN(SQRT(
+            POWER(SIN(RADIANS((p.latitude::float  - ${q.lat}::float) / 2.0)), 2) +
+            COS(RADIANS(${q.lat}::float)) * COS(RADIANS(p.latitude::float)) *
+            POWER(SIN(RADIANS((p.longitude::float - ${q.lng}::float) / 2.0)), 2)
+          ))) <= ${q.radius}
         GROUP BY
           u.id, p.first_name, p.last_name, p.avatar_url, p.city,
           p.id_verified, pp.rating_average, pp.rating_count, pp.hourly_rate,
@@ -71,11 +71,11 @@ export const providersController = {
           AND u.status = 'active'
           AND p.id_verified = true
           AND p.latitude IS NOT NULL
-          AND ST_DWithin(
-            ST_SetSRID(ST_MakePoint(p.longitude::float, p.latitude::float), 4326)::geography,
-            ST_SetSRID(ST_MakePoint(${q.lng}::float, ${q.lat}::float), 4326)::geography,
-            ${radius}
-          )
+          AND (6371.0 * 2.0 * ASIN(SQRT(
+            POWER(SIN(RADIANS((p.latitude::float  - ${q.lat}::float) / 2.0)), 2) +
+            COS(RADIANS(${q.lat}::float)) * COS(RADIANS(p.latitude::float)) *
+            POWER(SIN(RADIANS((p.longitude::float - ${q.lng}::float) / 2.0)), 2)
+          ))) <= ${q.radius}
       `;
 
       const total = Number(countResult[0]?.count ?? 0);

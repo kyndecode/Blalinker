@@ -10,11 +10,12 @@ import { applySecurityMiddlewares, requestLogger } from './middlewares/security.
 import { logger } from './config/logger';
 
 // Routes
-import authRoutes     from './modules/auth/auth.routes';
-import providersRoutes from './modules/providers/providers.routes';
-import bookingsRoutes from './modules/bookings/bookings.routes';
-import adminRoutes    from './modules/admin/admin.routes';
-import paymentsRoutes from './modules/payments/payments.routes';
+import authRoutes       from './modules/auth/auth.routes';
+import categoriesRoutes from './modules/categories/categories.routes';
+import providersRoutes  from './modules/providers/providers.routes';
+import bookingsRoutes   from './modules/bookings/bookings.routes';
+import adminRoutes      from './modules/admin/admin.routes';
+import paymentsRoutes   from './modules/payments/payments.routes';
 
 export const app = express();
 
@@ -59,8 +60,9 @@ app.get('/health', (_req, res) => {
 // ─── Routes API ───────────────────────────────────────────────
 const API = '/api/v1';
 
-app.use(`${API}/auth`,      authRoutes);
-app.use(`${API}/providers`, providersRoutes);
+app.use(`${API}/auth`,       authRoutes);
+app.use(`${API}/categories`, categoriesRoutes);
+app.use(`${API}/providers`,  providersRoutes);
 app.use(`${API}/bookings`,  bookingsRoutes);
 app.use(`${API}/admin`,     adminRoutes);
 app.use(`${API}/payments`,  paymentsRoutes);

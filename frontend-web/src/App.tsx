@@ -1,3 +1,4 @@
+import { type ReactNode } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './store/authStore';
 import { useNetworkStatus } from './hooks/useNetworkStatus';
@@ -21,7 +22,7 @@ import BookingNew      from './pages/Booking/BookingNew';
 import BookingDetail   from './pages/Booking/BookingDetail';
 import ProfilePage     from './pages/Profile/ProfilePage';
 
-function RequireAuth({ children }: { children: React.ReactNode }) {
+function RequireAuth({ children }: { children: ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
 }

@@ -1,18 +1,67 @@
-import { useState } from 'react';
+import { type FormEvent, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
 // ── Données ────────────────────────────────────────────────────────────────────
 
+/** Catégories parentes — correspond au seed DB (slug = clé de filtre) */
 const CATEGORIES = [
-  { slug: 'plomberie',     label: 'Plomberie',     icon: '🔧', bg: 'bg-blue-50   dark:bg-blue-950/40',  border: 'border-blue-100   dark:border-blue-900',  dot: 'bg-blue-500'   },
-  { slug: 'electricite',   label: 'Électricité',   icon: '⚡', bg: 'bg-yellow-50 dark:bg-yellow-950/40', border: 'border-yellow-100 dark:border-yellow-900', dot: 'bg-yellow-500' },
-  { slug: 'menuiserie',    label: 'Menuiserie',    icon: '🪚', bg: 'bg-amber-50  dark:bg-amber-950/40',  border: 'border-amber-100  dark:border-amber-900',  dot: 'bg-amber-500'  },
-  { slug: 'climatisation', label: 'Climatisation', icon: '❄️', bg: 'bg-sky-50    dark:bg-sky-950/40',    border: 'border-sky-100    dark:border-sky-900',    dot: 'bg-sky-500'    },
-  { slug: 'peinture',      label: 'Peinture',      icon: '🎨', bg: 'bg-pink-50   dark:bg-pink-950/40',   border: 'border-pink-100   dark:border-pink-900',   dot: 'bg-pink-500'   },
-  { slug: 'jardinage',     label: 'Jardinage',     icon: '🌿', bg: 'bg-green-50  dark:bg-green-950/40',  border: 'border-green-100  dark:border-green-900',  dot: 'bg-green-500'  },
-  { slug: 'nettoyage',     label: 'Nettoyage',     icon: '🧹', bg: 'bg-purple-50 dark:bg-purple-950/40', border: 'border-purple-100 dark:border-purple-900', dot: 'bg-purple-500' },
-  { slug: 'informatique',  label: 'Informatique',  icon: '💻', bg: 'bg-indigo-50 dark:bg-indigo-950/40', border: 'border-indigo-100 dark:border-indigo-900', dot: 'bg-indigo-500' },
+  {
+    slug: 'batiment', label: 'Bâtiment',
+    icon: '🏗️',
+    bg: 'bg-orange-50  dark:bg-orange-950/40',
+    border: 'border-orange-100 dark:border-orange-900',
+    sub: ['Maçonnerie', 'Électricité', 'Plomberie', 'Peinture'],
+  },
+  {
+    slug: 'transport', label: 'Transport',
+    icon: '🚗',
+    bg: 'bg-blue-50    dark:bg-blue-950/40',
+    border: 'border-blue-100   dark:border-blue-900',
+    sub: ['Chauffeur', 'Taxi', 'Livraison', 'Déménagement'],
+  },
+  {
+    slug: 'beaute', label: 'Beauté',
+    icon: '💇',
+    bg: 'bg-pink-50    dark:bg-pink-950/40',
+    border: 'border-pink-100   dark:border-pink-900',
+    sub: ['Coiffeur', 'Esthétique', 'Massage', 'Maquillage'],
+  },
+  {
+    slug: 'education', label: 'Éducation',
+    icon: '🎓',
+    bg: 'bg-violet-50  dark:bg-violet-950/40',
+    border: 'border-violet-100 dark:border-violet-900',
+    sub: ['Cours à domicile', 'Soutien scolaire', 'Formation'],
+  },
+  {
+    slug: 'nettoyage-menage', label: 'Nettoyage',
+    icon: '🧹',
+    bg: 'bg-teal-50    dark:bg-teal-950/40',
+    border: 'border-teal-100   dark:border-teal-900',
+    sub: ['Ménage', 'Bureaux', 'Pressing', 'Jardinage'],
+  },
+  {
+    slug: 'numerique', label: 'Informatique',
+    icon: '💻',
+    bg: 'bg-indigo-50  dark:bg-indigo-950/40',
+    border: 'border-indigo-100 dark:border-indigo-900',
+    sub: ['Développement web', 'Réparation PC', 'Réseau'],
+  },
+  {
+    slug: 'reparation', label: 'Réparation',
+    icon: '🔧',
+    bg: 'bg-amber-50   dark:bg-amber-950/40',
+    border: 'border-amber-100  dark:border-amber-900',
+    sub: ['Mécanicien', 'Électroménager', 'Téléphone'],
+  },
+  {
+    slug: 'emploi', label: 'Emploi',
+    icon: '💼',
+    bg: 'bg-green-50   dark:bg-green-950/40',
+    border: 'border-green-100  dark:border-green-900',
+    sub: ['Freelance', 'Recrutement', 'Assistance RH'],
+  },
 ];
 
 const STATS = [
@@ -40,7 +89,7 @@ export default function Home() {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = (e: FormEvent) => {
     e.preventDefault();
     navigate(`/search?q=${encodeURIComponent(query.trim())}`);
   };
@@ -151,10 +200,17 @@ export default function Home() {
               <button
                 key={cat.slug}
                 onClick={() => navigate(`/search?category=${cat.slug}`)}
-                className={`group flex flex-col items-center gap-3 rounded-2xl border p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 ${cat.bg} ${cat.border}`}
+                className={`group flex flex-col items-start gap-2 rounded-2xl border p-4 sm:p-5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 ${cat.bg} ${cat.border}`}
               >
                 <span className="text-3xl transition-transform duration-200 group-hover:scale-110">{cat.icon}</span>
-                <span className="text-center text-sm font-semibold text-gray-800 dark:text-gray-200">{cat.label}</span>
+                <span className="text-sm font-bold text-gray-900 dark:text-white">{cat.label}</span>
+                <div className="hidden sm:flex flex-wrap gap-1 mt-0.5">
+                  {cat.sub.slice(0, 3).map((s) => (
+                    <span key={s} className="text-[10px] text-gray-500 dark:text-gray-400 bg-white/60 dark:bg-black/20 rounded-full px-1.5 py-0.5">
+                      {s}
+                    </span>
+                  ))}
+                </div>
               </button>
             ))}
           </div>
