@@ -16,28 +16,27 @@ import {
 import { generateOTP, hashOTP, verifyOTP, otpExpiresAt } from '../../utils/otp.util';
 import { sendSMS } from '../../utils/sms.util';
 import { sendEmail, emailTemplates } from '../../config/email';
-import type { RegisterInput, LoginInput } from './auth.schemas';
+import type { RegisterInput, LoginInput, ResendOtpInput } from './auth.schemas';
 
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCK_DURATION_MIN  = 30;
+type OtpFlowPurpose = 'registration' | 'login' | 'password_reset' | 'payment_confirm';
 
 export class AuthService {
   /** Inscription — crée le compte et envoie l'OTP */
   async register(data: RegisterInput, ip: string) {
+    const contactFilters = this._buildContactFilters(data.phone, data.email);
     // Vérifier unicité
     const existing = await prisma.user.findFirst({
       where: {
-        OR: [
-          data.phone ? { phone: data.phone } : {},
-          data.email ? { email: data.email } : {},
-        ],
+        OR: contactFilters,
         deletedAt: null,
       },
     });
 
     if (existing) {
-      const field = existing.phone === data.phone ? 'téléphone' : 'email';
-      throw Object.assign(new Error(`Ce ${field} est déjà utilisé`), { code: 'DUPLICATE', status: 409 });
+      const field = data.phone && existing.phone === data.phone ? 'téléphone' : 'email';
+      throw Object.assign(new Error(`Ce ${field} est deja utilise`), { code: 'DUPLICATE', status: 409 });
     }
 
     const passwordHash = await bcrypt.hash(data.password, 12);
@@ -74,6 +73,28 @@ export class AuthService {
 
     const tokens = await this._generateTokens(user.id, user.role);
     return { ...tokens, user: { id: user.id, role: user.role } };
+  }
+
+  /** Renvoi OTP pour reprise de flux d'inscription/login/reset */
+  async resendOtp(
+    phone: string | undefined,
+    email: string | undefined,
+    purpose: ResendOtpInput['purpose'] = 'registration',
+    ip: string
+  ) {
+    const user = await this._findUserByContact(phone, email);
+    if (!user) throw Object.assign(new Error('Utilisateur introuvable'), { status: 404 });
+
+    if (purpose === 'registration' && user.status === 'active') {
+      throw Object.assign(new Error('Compte déjà vérifié'), { status: 409 });
+    }
+
+    await prisma.otpCode.deleteMany({
+      where: { userId: user.id, purpose, usedAt: null },
+    });
+
+    await this._sendOtp(user.id, user.phone ?? undefined, user.email ?? undefined, purpose, ip);
+    return { message: 'Nouveau code envoyé.' };
   }
 
   /** Connexion — vérifie les credentials et envoie l'OTP MFA */
@@ -182,22 +203,29 @@ export class AuthService {
   // ─── Méthodes privées ──────────────────────────────────────
 
   private async _findUserByContact(phone?: string, email?: string) {
+    const contactFilters = this._buildContactFilters(phone, email);
+    if (contactFilters.length === 0) return null;
+
     return prisma.user.findFirst({
       where: {
-        OR: [
-          phone ? { phone } : undefined,
-          email ? { email } : undefined,
-        ].filter(Boolean) as object[],
+        OR: contactFilters,
         deletedAt: null,
       },
     });
+  }
+
+  private _buildContactFilters(phone?: string, email?: string) {
+    const filters: Array<{ phone: string } | { email: string }> = [];
+    if (phone) filters.push({ phone });
+    if (email) filters.push({ email });
+    return filters;
   }
 
   private async _sendOtp(
     userId: string,
     phone: string | undefined,
     email: string | undefined,
-    purpose: 'registration' | 'login' | 'password_reset' | 'payment_confirm',
+    purpose: OtpFlowPurpose,
     ip: string
   ) {
     const code     = generateOTP();
@@ -237,12 +265,12 @@ export class AuthService {
   private async _validateOtp(
     userId: string,
     code: string,
-    purpose: string
+    purpose: OtpFlowPurpose
   ) {
     const otp = await prisma.otpCode.findFirst({
       where: {
         userId,
-        purpose: purpose as 'registration' | 'login',
+        purpose,
         usedAt:  null,
         expiresAt: { gt: new Date() },
       },

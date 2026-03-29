@@ -52,6 +52,14 @@ export const refreshTokenSchema = z.object({
   refreshToken: z.string().min(1),
 });
 
+export const resendOtpSchema = z.object({
+  phone: z.string().optional(),
+  email: z.string().email().optional(),
+  purpose: z.enum(['registration', 'login', 'password_reset']).default('registration'),
+}).refine((d) => d.phone || d.email, {
+  message: 'Phone ou email requis',
+});
+
 export const forgotPasswordSchema = z.object({
   phone: z.string().optional(),
   email: z.string().email().optional(),
@@ -80,3 +88,4 @@ export type LoginInput            = z.infer<typeof loginSchema>;
 export type LoginMfaInput         = z.infer<typeof loginMfaSchema>;
 export type ForgotPasswordInput   = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordInput    = z.infer<typeof resetPasswordSchema>;
+export type ResendOtpInput        = z.infer<typeof resendOtpSchema>;

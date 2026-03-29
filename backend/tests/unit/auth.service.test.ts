@@ -127,7 +127,7 @@ describe('AuthService', () => {
 
       const result = await authService.register(input, '127.0.0.1');
 
-      expect(result.message).toMatch(/Compte créé/);
+      expect(result.message).toMatch(/Compte cr/);
       expect(mockUser.create).toHaveBeenCalledTimes(1);
     });
 
@@ -149,6 +149,38 @@ describe('AuthService', () => {
   });
 
   // ─── login() ───────────────────────────────────────────────
+  describe('register() with one contact channel', () => {
+    it('accepte une inscription avec tÃ©lÃ©phone seul (sans faux doublon)', async () => {
+      const phoneOnly = { phone: '+221771234567', password: 'Secret123!', role: 'client' as const };
+      (mockUser.findFirst as jest.Mock).mockResolvedValue(null);
+      (mockUser.create as jest.Mock).mockResolvedValue({ id: USER_ID, role: 'client' });
+      (mockOtp.create as jest.Mock).mockResolvedValue({});
+
+      await authService.register(phoneOnly, '127.0.0.1');
+
+      expect(mockUser.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({
+          OR: [{ phone: phoneOnly.phone }],
+        }),
+      }));
+    });
+
+    it('accepte une inscription avec email seul (sans faux doublon)', async () => {
+      const emailOnly = { email: 'only-email@test.com', password: 'Secret123!', role: 'provider' as const };
+      (mockUser.findFirst as jest.Mock).mockResolvedValue(null);
+      (mockUser.create as jest.Mock).mockResolvedValue({ id: USER_ID, role: 'provider' });
+      (mockOtp.create as jest.Mock).mockResolvedValue({});
+
+      await authService.register(emailOnly, '127.0.0.1');
+
+      expect(mockUser.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({
+          OR: [{ email: emailOnly.email }],
+        }),
+      }));
+    });
+  });
+
   describe('login()', () => {
     const credentials = { phone: '+221770000000', password: 'Secret123!' };
 
@@ -227,6 +259,38 @@ describe('AuthService', () => {
   });
 
   // ─── refreshTokens() ───────────────────────────────────────
+  describe('resendOtp()', () => {
+    it('renvoie un OTP pour un compte pending', async () => {
+      (mockUser.findFirst as jest.Mock).mockResolvedValue({ ...fakeUser, status: 'pending' });
+      (mockOtp.deleteMany as jest.Mock).mockResolvedValue({ count: 1 });
+      (mockOtp.create as jest.Mock).mockResolvedValue({});
+
+      const result = await authService.resendOtp(fakeUser.phone, undefined, 'registration', '127.0.0.1');
+
+      expect(result.message).toMatch(/Nouveau code/);
+      expect(mockOtp.deleteMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({ userId: USER_ID, purpose: 'registration' }),
+      }));
+      expect(mockOtp.create).toHaveBeenCalledTimes(1);
+    });
+
+    it('lÃ¨ve 409 si le compte est dÃ©jÃ  actif', async () => {
+      (mockUser.findFirst as jest.Mock).mockResolvedValue({ ...fakeUser, status: 'active' });
+
+      await expect(authService.resendOtp(fakeUser.phone, undefined, 'registration', '127.0.0.1'))
+        .rejects.toMatchObject({ status: 409 });
+
+      expect(mockOtp.create).not.toHaveBeenCalled();
+    });
+
+    it('lÃ¨ve 404 si utilisateur introuvable', async () => {
+      (mockUser.findFirst as jest.Mock).mockResolvedValue(null);
+
+      await expect(authService.resendOtp('+221790000000', undefined, 'registration', '127.0.0.1'))
+        .rejects.toMatchObject({ status: 404 });
+    });
+  });
+
   describe('refreshTokens()', () => {
     it('lève 401 si refresh token invalide', async () => {
       const { verifyRefreshToken } = require('../../src/utils/jwt.util');

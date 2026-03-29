@@ -26,6 +26,17 @@ export const authController = {
     }
   },
 
+  async resendOtp(req: Request, res: Response) {
+    try {
+      const { phone, email, purpose } = req.body;
+      const result = await authService.resendOtp(phone, email, purpose, req.ip ?? '');
+      res.json(result);
+    } catch (err: unknown) {
+      const e = err as { message: string; status?: number };
+      res.status(e.status ?? 500).json({ error: e.message });
+    }
+  },
+
   async login(req: Request, res: Response) {
     try {
       const result = await authService.login(req.body, req.ip ?? '');

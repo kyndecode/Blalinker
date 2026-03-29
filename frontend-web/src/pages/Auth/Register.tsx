@@ -50,7 +50,17 @@ export default function Register() {
       });
       navigate(`/verify?phone=${encodeURIComponent(data.phone || '')}&email=${encodeURIComponent(data.email || '')}`);
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { error?: string } } };
+      const e = err as { response?: { data?: { error?: string; errors?: Record<string, string[]> } } };
+      const validationErrors = e?.response?.data?.errors;
+
+      if (validationErrors && Object.keys(validationErrors).length > 0) {
+        const firstFieldErrors = Object.values(validationErrors)[0];
+        if (firstFieldErrors?.length) {
+          setApiError(firstFieldErrors[0]);
+          return;
+        }
+      }
+
       setApiError(e?.response?.data?.error || "Erreur lors de l'inscription");
     }
   };

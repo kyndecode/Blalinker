@@ -8,6 +8,7 @@ import {
   loginSchema,
   loginMfaSchema,
   refreshTokenSchema,
+  resendOtpSchema,
 } from './auth.schemas';
 
 const router = Router();
@@ -22,6 +23,12 @@ router.post('/register',
 router.post('/verify-otp',
   validate(verifyOtpSchema),
   authController.verifyOtp
+);
+
+// POST /api/v1/auth/resend-otp
+router.post('/resend-otp',
+  validate(resendOtpSchema),
+  authController.resendOtp
 );
 
 // POST /api/v1/auth/login
