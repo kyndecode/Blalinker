@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware';
 
 interface AdminUser {
   id:    string;
-  email: string;
+  email?: string;
   role:  'admin' | 'super_admin';
 }
 

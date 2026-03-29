@@ -100,6 +100,10 @@ services:
       - key: SENTRY_DSN
         sync: false
 
+      # Auth sociale
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+
   # ──────────────────────────────────────────────────────────
   #  Frontend Web — React (site statique)
   # ──────────────────────────────────────────────────────────
@@ -137,6 +141,10 @@ services:
           name: bla-backend
           type: web
           property: host
+      - key: VITE_API_FALLBACK_URLS
+        value: https://bla-backend.onrender.com/api/v1
+      - key: VITE_GOOGLE_CLIENT_ID
+        sync: false
       - key: VITE_WS_URL
         fromService:
           name: bla-backend
@@ -181,6 +189,8 @@ services:
           name: bla-backend
           type: web
           property: host
+      - key: VITE_API_FALLBACK_URLS
+        value: https://bla-backend.onrender.com/api/v1
 
   # ──────────────────────────────────────────────────────────
   #  Redis — Cache & Sessions

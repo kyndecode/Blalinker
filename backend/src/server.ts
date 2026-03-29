@@ -181,7 +181,7 @@ async function ensureSystemData() {
         passwordHash,
         role: 'super_admin',
         status: 'active',
-        mfaEnabled: false,
+        mfaEnabled: true,
         profile: {
           create: {
             firstName: 'Super',
@@ -198,13 +198,13 @@ async function ensureSystemData() {
     const updates: {
       role?: 'super_admin';
       status?: 'active';
-      mfaEnabled?: false;
+      mfaEnabled?: true;
       passwordHash?: string;
     } = {};
 
     if (existingAdmin.role !== 'super_admin') updates.role = 'super_admin';
     if (existingAdmin.status !== 'active') updates.status = 'active';
-    if (existingAdmin.mfaEnabled !== false) updates.mfaEnabled = false;
+    if (existingAdmin.mfaEnabled !== true) updates.mfaEnabled = true;
 
     const passwordMatches = await bcrypt.compare(env.ADMIN_PASSWORD, existingAdmin.passwordHash)
       .catch(() => false);

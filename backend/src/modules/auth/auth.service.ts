@@ -80,6 +80,24 @@ export class AuthService {
       data:  { status: 'active' },
     });
 
+    if (user.email) {
+      void sendEmail({
+        to: user.email,
+        subject: 'BLA - Compte active avec succes',
+        html: `
+          <p>Bonjour,</p>
+          <p>Votre compte BLA est maintenant actif.</p>
+          <p>Vous pouvez vous connecter et commencer a utiliser la marketplace.</p>
+        `,
+      }).catch((err) => {
+        logger.error('Echec email activation compte', {
+          userId: user.id,
+          email: user.email,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      });
+    }
+
     const tokens = await this._generateTokens(user.id, user.role);
     return { ...tokens, user: { id: user.id, role: user.role } };
   }
@@ -141,7 +159,11 @@ export class AuthService {
     if (user.mfaEnabled) {
       const tempToken = await this._createMfaTempToken(user.id, ip);
       await this._sendOtp(user.id, user.phone ?? undefined, user.email ?? undefined, 'login', ip);
-      return { mfaRequired: true, tempToken };
+      return {
+        mfaRequired: true,
+        tempToken,
+        user: { id: user.id, role: user.role, email: user.email, phone: user.phone },
+      };
     }
 
     // MFA désactivé → connexion directe

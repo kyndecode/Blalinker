@@ -24,7 +24,10 @@ export default function LoginScreen() {
         router.replace('/(tabs)/');
       }
     } catch (err: any) {
-      Alert.alert('Erreur', err?.response?.data?.error || 'Identifiants incorrects');
+      const message = !err?.response
+        ? 'Connection problem. Check your network.'
+        : err?.response?.data?.error || 'Identifiants incorrects';
+      Alert.alert('Erreur', message);
     } finally { setLoading(false); }
   };
 

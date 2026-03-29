@@ -1,7 +1,201 @@
 import { Request, Response } from 'express';
 import { prisma } from '../../config/database';
+import { sendEmail } from '../../config/email';
+import { logger } from '../../config/logger';
 import { getPaginationParams, getSkip, paginate } from '../../utils/pagination.util';
 import type { CreateBookingInput } from './bookings.schemas';
+
+type BookingStatus = 'pending' | 'accepted' | 'rejected' | 'in_progress' | 'completed' | 'validated' | 'cancelled' | 'disputed';
+
+type BookingNotificationContext = {
+  id: string;
+  status: BookingStatus;
+  scheduledAt: Date | null;
+  amount: unknown;
+  currency: string;
+  service: { title: string } | null;
+  client: {
+    email: string | null;
+    profile: { firstName: string; lastName: string } | null;
+  };
+  provider: {
+    email: string | null;
+    profile: { firstName: string; lastName: string } | null;
+  };
+};
+
+const STATUS_LABELS: Record<BookingStatus, string> = {
+  pending: 'En attente',
+  accepted: 'Acceptee',
+  rejected: 'Refusee',
+  in_progress: 'En cours',
+  completed: 'Terminee',
+  validated: 'Validee',
+  cancelled: 'Annulee',
+  disputed: 'En litige',
+};
+
+function bookingRef(id: string): string {
+  return id.slice(0, 8).toUpperCase();
+}
+
+function formatFullName(profile: { firstName: string; lastName: string } | null, fallback: string): string {
+  if (!profile) return fallback;
+  const fullName = `${profile.firstName} ${profile.lastName}`.trim();
+  return fullName || fallback;
+}
+
+function formatScheduledAt(value: Date | null): string {
+  if (!value) return 'A planifier';
+  return value.toLocaleString('fr-FR', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function formatAmount(amount: unknown, currency: string): string {
+  const value = Number(amount ?? 0);
+  if (!Number.isFinite(value) || value <= 0) return `0 ${currency}`;
+  return `${value.toLocaleString('fr-FR')} ${currency}`;
+}
+
+async function loadBookingNotificationContext(bookingId: string): Promise<BookingNotificationContext | null> {
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    select: {
+      id: true,
+      status: true,
+      scheduledAt: true,
+      amount: true,
+      currency: true,
+      service: { select: { title: true } },
+      client: {
+        select: {
+          email: true,
+          profile: { select: { firstName: true, lastName: true } },
+        },
+      },
+      provider: {
+        select: {
+          email: true,
+          profile: { select: { firstName: true, lastName: true } },
+        },
+      },
+    },
+  });
+
+  if (!booking) return null;
+
+  return {
+    ...booking,
+    status: booking.status as BookingStatus,
+  };
+}
+
+async function safeSendEmail(payload: { to: string; subject: string; html: string }, tag: string): Promise<void> {
+  try {
+    await sendEmail(payload);
+  } catch (error) {
+    logger.error(`Erreur email reservation (${tag})`, error);
+  }
+}
+
+async function notifyBookingCreated(bookingId: string): Promise<void> {
+  const booking = await loadBookingNotificationContext(bookingId);
+  if (!booking) return;
+
+  const ref = bookingRef(booking.id);
+  const clientName = formatFullName(booking.client.profile, 'Client');
+  const providerName = formatFullName(booking.provider.profile, 'Prestataire');
+  const scheduledAt = formatScheduledAt(booking.scheduledAt);
+  const amount = formatAmount(booking.amount, booking.currency);
+  const serviceTitle = booking.service?.title ?? 'Service';
+
+  if (booking.client.email) {
+    await safeSendEmail({
+      to: booking.client.email,
+      subject: `BLA - Reservation envoyee #${ref}`,
+      html: `
+        <p>Bonjour <strong>${clientName}</strong>,</p>
+        <p>Votre demande de reservation a bien ete enregistree.</p>
+        <p><strong>Reference:</strong> ${ref}</p>
+        <p><strong>Prestataire:</strong> ${providerName}</p>
+        <p><strong>Service:</strong> ${serviceTitle}</p>
+        <p><strong>Date souhaitee:</strong> ${scheduledAt}</p>
+        <p><strong>Montant estime:</strong> ${amount}</p>
+        <p>Vous recevrez un email des que le prestataire repondra.</p>
+      `,
+    }, 'create-client');
+  }
+
+  if (booking.provider.email) {
+    await safeSendEmail({
+      to: booking.provider.email,
+      subject: `BLA - Nouvelle reservation #${ref}`,
+      html: `
+        <p>Bonjour <strong>${providerName}</strong>,</p>
+        <p>Vous avez recu une nouvelle demande de reservation.</p>
+        <p><strong>Reference:</strong> ${ref}</p>
+        <p><strong>Client:</strong> ${clientName}</p>
+        <p><strong>Service:</strong> ${serviceTitle}</p>
+        <p><strong>Date souhaitee:</strong> ${scheduledAt}</p>
+        <p><strong>Montant estime:</strong> ${amount}</p>
+        <p>Connectez-vous pour accepter ou refuser la demande.</p>
+      `,
+    }, 'create-provider');
+  }
+}
+
+async function notifyBookingStatusChanged(bookingId: string, status: BookingStatus): Promise<void> {
+  const booking = await loadBookingNotificationContext(bookingId);
+  if (!booking) return;
+
+  const ref = bookingRef(booking.id);
+  const clientName = formatFullName(booking.client.profile, 'Client');
+  const providerName = formatFullName(booking.provider.profile, 'Prestataire');
+  const statusLabel = STATUS_LABELS[status];
+  const serviceTitle = booking.service?.title ?? 'Service';
+  const amount = formatAmount(booking.amount, booking.currency);
+  const scheduledAt = formatScheduledAt(booking.scheduledAt);
+
+  const notifyClientStatuses: BookingStatus[] = ['accepted', 'rejected', 'in_progress', 'completed', 'cancelled'];
+  const notifyProviderStatuses: BookingStatus[] = ['validated', 'cancelled'];
+
+  if (booking.client.email && notifyClientStatuses.includes(status)) {
+    await safeSendEmail({
+      to: booking.client.email,
+      subject: `BLA - Reservation ${statusLabel.toLowerCase()} #${ref}`,
+      html: `
+        <p>Bonjour <strong>${clientName}</strong>,</p>
+        <p>Le statut de votre reservation est passe a: <strong>${statusLabel}</strong>.</p>
+        <p><strong>Reference:</strong> ${ref}</p>
+        <p><strong>Prestataire:</strong> ${providerName}</p>
+        <p><strong>Service:</strong> ${serviceTitle}</p>
+        <p><strong>Date:</strong> ${scheduledAt}</p>
+        <p><strong>Montant:</strong> ${amount}</p>
+      `,
+    }, `status-client-${status}`);
+  }
+
+  if (booking.provider.email && notifyProviderStatuses.includes(status)) {
+    await safeSendEmail({
+      to: booking.provider.email,
+      subject: `BLA - Reservation ${statusLabel.toLowerCase()} #${ref}`,
+      html: `
+        <p>Bonjour <strong>${providerName}</strong>,</p>
+        <p>Le statut de la reservation est passe a: <strong>${statusLabel}</strong>.</p>
+        <p><strong>Reference:</strong> ${ref}</p>
+        <p><strong>Client:</strong> ${clientName}</p>
+        <p><strong>Service:</strong> ${serviceTitle}</p>
+        <p><strong>Date:</strong> ${scheduledAt}</p>
+        <p><strong>Montant:</strong> ${amount}</p>
+      `,
+    }, `status-provider-${status}`);
+  }
+}
 
 export const bookingsController = {
   async list(req: Request, res: Response) {
@@ -110,6 +304,9 @@ export const bookingsController = {
           status:        'pending',
         },
       });
+      void notifyBookingCreated(booking.id).catch((error) => {
+        logger.error(`Erreur notifications reservation create (${booking.id})`, error);
+      });
       return res.status(201).json(booking);
     } catch (err) {
       return res.status(500).json({ error: 'Erreur lors de la création de la réservation' });
@@ -155,6 +352,9 @@ export const bookingsController = {
         where: { id },
         data:  { status: 'in_progress', startedAt: new Date() },
       });
+      void notifyBookingStatusChanged(updated.id, 'in_progress').catch((error) => {
+        logger.error(`Erreur notifications reservation start (${updated.id})`, error);
+      });
       return res.json(updated);
     } catch (err) {
       return res.status(500).json({ error: 'Erreur serveur' });
@@ -173,6 +373,9 @@ export const bookingsController = {
         where: { id },
         data:  { status: 'completed', completedAt: new Date() },
       });
+      void notifyBookingStatusChanged(updated.id, 'completed').catch((error) => {
+        logger.error(`Erreur notifications reservation complete (${updated.id})`, error);
+      });
       return res.json(updated);
     } catch (err) {
       return res.status(500).json({ error: 'Erreur serveur' });
@@ -190,6 +393,9 @@ export const bookingsController = {
       const updated = await prisma.booking.update({
         where: { id },
         data:  { status: 'validated', validatedAt: new Date() },
+      });
+      void notifyBookingStatusChanged(updated.id, 'validated').catch((error) => {
+        logger.error(`Erreur notifications reservation validate (${updated.id})`, error);
       });
       return res.json(updated);
     } catch (err) {
@@ -214,6 +420,9 @@ export const bookingsController = {
         where: { id },
         data:  { status: 'cancelled', cancellationReason: reason },
       });
+      void notifyBookingStatusChanged(updated.id, 'cancelled').catch((error) => {
+        logger.error(`Erreur notifications reservation cancel (${updated.id})`, error);
+      });
       return res.json(updated);
     } catch (err) {
       return res.status(500).json({ error: 'Erreur serveur' });
@@ -236,6 +445,10 @@ export const bookingsController = {
       const updated = await prisma.booking.update({
         where: { id },
         data:  { status: status as 'accepted' | 'rejected' },
+      });
+      const nextStatus = status as 'accepted' | 'rejected';
+      void notifyBookingStatusChanged(updated.id, nextStatus).catch((error) => {
+        logger.error(`Erreur notifications reservation status (${updated.id})`, error);
       });
       return res.json(updated);
     } catch (err) {
