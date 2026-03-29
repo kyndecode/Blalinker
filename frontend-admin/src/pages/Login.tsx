@@ -38,8 +38,9 @@ export default function AdminLogin() {
 
       setTokens(accessToken, refreshToken, user);
       navigate('/dashboard');
-    } catch (err: any) {
-      const msg = err.response?.data?.message ?? 'Identifiants incorrects';
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { error?: string; message?: string } } };
+      const msg = e.response?.data?.error ?? e.response?.data?.message ?? 'Identifiants incorrects';
       setError(msg);
     } finally {
       setLoading(false);

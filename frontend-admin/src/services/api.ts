@@ -1,8 +1,23 @@
 import axios from 'axios';
 import { useAdminAuthStore } from '../store/adminAuthStore';
 
+function normalizeApiBaseUrl(rawBaseUrl: string | undefined): string {
+  if (!rawBaseUrl) return '/api/v1';
+
+  const trimmed = rawBaseUrl.trim().replace(/\/+$/, '');
+  if (!trimmed) return '/api/v1';
+  if (trimmed.startsWith('/')) return trimmed;
+
+  const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+
+  if (/\/api\/v\d+$/i.test(withProtocol)) return withProtocol;
+  if (/\/api$/i.test(withProtocol)) return `${withProtocol}/v1`;
+
+  return `${withProtocol}/api/v1`;
+}
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL ?? '/api/v1',
+  baseURL: normalizeApiBaseUrl(import.meta.env.VITE_API_URL),
   timeout: 15_000,
 });
 

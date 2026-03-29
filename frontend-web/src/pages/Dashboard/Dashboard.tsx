@@ -44,7 +44,7 @@ const QUICK_ACTIONS_CLIENT = [
 const QUICK_ACTIONS_PROVIDER = [
   { to: '/bookings', icon: '📋', label: 'Mes missions', color: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' },
   { to: '/profile', icon: '⚙️', label: 'Mon profil', color: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800' },
-  { to: '/earnings', icon: '💰', label: 'Mes revenus', color: 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800' },
+  { to: '/search', icon: '🔎', label: 'Explorer services', color: 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800' },
 ];
 
 function getGreeting() {
@@ -64,7 +64,17 @@ export default function Dashboard() {
 
   useEffect(() => {
     api.get('/bookings?limit=5')
-      .then((r) => setBookings(r.data?.bookings || r.data || []))
+      .then((r) => {
+        const payload = r.data;
+        const rows = Array.isArray(payload?.bookings)
+          ? payload.bookings
+          : Array.isArray(payload?.data)
+            ? payload.data
+            : Array.isArray(payload)
+              ? payload
+              : [];
+        setBookings(rows);
+      })
       .catch(() => setBookings([]))
       .finally(() => setLoading(false));
   }, []);

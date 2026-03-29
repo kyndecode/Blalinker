@@ -13,6 +13,7 @@ const STATUS_COLORS: Record<string, string> = {
   active:   'bg-green-900/50 text-green-400',
   pending:  'bg-yellow-900/50 text-yellow-400',
   banned:   'bg-red-900/50 text-red-400',
+  suspended: 'bg-orange-900/50 text-orange-400',
   inactive: 'bg-white/10 text-gray-400',
 };
 
@@ -36,7 +37,7 @@ export default function Users() {
   });
 
   const verifyId = useMutation({
-    mutationFn: (id: string) => api.post(`/admin/users/${id}/verify-id`),
+    mutationFn: (id: string) => api.post(`/admin/users/${id}/verify-id`, { approved: true }),
     onSuccess:  () => qc.invalidateQueries({ queryKey: ['admin-users'] }),
   });
 

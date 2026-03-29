@@ -7,6 +7,10 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+if (!process.env.APP_URL && process.env.APP_UR) {
+  process.env.APP_URL = process.env.APP_UR;
+}
+
 function normalizeUrl(rawValue: unknown, fallback: string): string {
   if (typeof rawValue !== 'string' || rawValue.trim() === '') return fallback;
   const trimmed = rawValue.trim();
@@ -85,3 +89,24 @@ if (!parsed.success) {
 
 export const env = parsed.data;
 export type Env = typeof env;
+
+const DEFAULT_CORS_ORIGINS = [
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'https://blaservices-app.onrender.com',
+  'https://bla-admin.onrender.com',
+  'https://bla-app.onrender.com',
+];
+
+function normalizeCorsOrigin(origin: string): string {
+  return origin.trim().replace(/\/+$/, '');
+}
+
+export function getCorsOrigins(rawOrigins: string = env.CORS_ORIGIN): string[] {
+  const explicitOrigins = rawOrigins
+    .split(',')
+    .map(normalizeCorsOrigin)
+    .filter(Boolean);
+
+  return Array.from(new Set([...DEFAULT_CORS_ORIGINS, ...explicitOrigins]));
+}

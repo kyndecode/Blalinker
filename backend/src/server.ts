@@ -4,8 +4,9 @@
  */
 import http from 'http';
 import { Server as SocketIOServer } from 'socket.io';
+import bcrypt from 'bcryptjs';
 import { app } from './app';
-import { env } from './config/env';
+import { env, getCorsOrigins } from './config/env';
 import { logger } from './config/logger';
 import { prisma } from './config/database';
 import { redis } from './config/redis';
@@ -17,7 +18,7 @@ const httpServer = http.createServer(app);
 // ─── Socket.IO — Temps réel ────────────────────────────────────
 export const io = new SocketIOServer(httpServer, {
   cors: {
-    origin: env.CORS_ORIGIN.split(','),
+    origin: getCorsOrigins(),
     credentials: true,
   },
   transports: ['websocket', 'polling'], // polling = fallback 2G
@@ -148,6 +149,8 @@ async function bootstrap() {
     await prisma.$connect();
     logger.info('PostgreSQL connecté');
 
+    await ensureSystemData();
+
     await redis.connect();
 
     httpServer.listen(env.PORT, () => {
@@ -160,6 +163,51 @@ async function bootstrap() {
   } catch (err) {
     logger.error('Erreur de démarrage:', err);
     process.exit(1);
+  }
+}
+
+async function ensureSystemData() {
+  const adminEmail = env.ADMIN_EMAIL.toLowerCase();
+  const existingAdmin = await prisma.user.findUnique({
+    where: { email: adminEmail },
+    select: { id: true, role: true, status: true },
+  });
+
+  if (!existingAdmin) {
+    const passwordHash = await bcrypt.hash(env.ADMIN_PASSWORD, 12);
+    await prisma.user.create({
+      data: {
+        email: adminEmail,
+        passwordHash,
+        role: 'super_admin',
+        status: 'active',
+        mfaEnabled: false,
+        profile: {
+          create: {
+            firstName: 'Super',
+            lastName: 'Admin',
+            country: 'SN',
+            idVerified: true,
+            idVerifiedAt: new Date(),
+          },
+        },
+      },
+    });
+    logger.info(`Compte admin bootstrap créé: ${adminEmail}`);
+  }
+
+  const categoriesCount = await prisma.category.count();
+  if (categoriesCount === 0) {
+    await prisma.category.createMany({
+      data: [
+        { name: 'Bâtiment & Travaux', slug: 'batiment', isActive: true, sortOrder: 1, iconUrl: '🏗️' },
+        { name: 'Transport & Déplacement', slug: 'transport', isActive: true, sortOrder: 2, iconUrl: '🚗' },
+        { name: 'Beauté & Bien-être', slug: 'beaute', isActive: true, sortOrder: 3, iconUrl: '💇' },
+        { name: 'Informatique & Digital', slug: 'numerique', isActive: true, sortOrder: 4, iconUrl: '💻' },
+      ],
+      skipDuplicates: true,
+    });
+    logger.info('Catégories minimales bootstrap créées');
   }
 }
 

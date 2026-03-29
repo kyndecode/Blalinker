@@ -1,8 +1,68 @@
 import { Request, Response } from 'express';
 import { prisma } from '../../config/database';
+import { getPaginationParams, getSkip, paginate } from '../../utils/pagination.util';
 import type { CreateBookingInput } from './bookings.schemas';
 
 export const bookingsController = {
+  async list(req: Request, res: Response) {
+    const { page, limit } = getPaginationParams(req.query as Record<string, unknown>);
+    const status = typeof req.query.status === 'string' ? req.query.status : undefined;
+
+    const roleFilter =
+      req.user!.role === 'client'
+        ? { clientId: req.user!.id }
+        : req.user!.role === 'provider'
+          ? { providerId: req.user!.id }
+          : {};
+
+    const where = {
+      ...roleFilter,
+      ...(status ? { status: status as 'pending' | 'accepted' | 'rejected' | 'in_progress' | 'completed' | 'validated' | 'cancelled' | 'disputed' } : {}),
+    };
+
+    try {
+      const [bookings, total] = await Promise.all([
+        prisma.booking.findMany({
+          where,
+          orderBy: { createdAt: 'desc' },
+          skip: getSkip({ page, limit }),
+          take: limit,
+          include: {
+            client: {
+              include: {
+                profile: { select: { firstName: true, lastName: true } },
+              },
+            },
+            provider: {
+              include: {
+                profile: { select: { firstName: true, lastName: true } },
+              },
+            },
+            service: {
+              select: { id: true, title: true, price: true, category: { select: { name: true, slug: true } } },
+            },
+          },
+        }),
+        prisma.booking.count({ where }),
+      ]);
+
+      const normalized = bookings.map((booking) => ({
+        ...booking,
+        service: booking.service
+          ? { ...booking.service, name: booking.service.title }
+          : null,
+      }));
+
+      const paged = paginate(normalized, total, { page, limit });
+      return res.json({
+        ...paged,
+        bookings: paged.data,
+      });
+    } catch {
+      return res.status(500).json({ error: 'Erreur lors du chargement des réservations' });
+    }
+  },
+
   async create(req: Request, res: Response) {
     const data = req.body as CreateBookingInput;
     try {

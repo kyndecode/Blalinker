@@ -9,6 +9,7 @@ const router = Router();
 // Toutes les routes requièrent une authentification
 router.use(authenticate);
 
+router.get('/', bookingsController.list);
 router.post('/', validate(createBookingSchema), bookingsController.create);
 router.get('/:id', bookingsController.getOne);
 router.put('/:id/accept',   bookingsController.accept);

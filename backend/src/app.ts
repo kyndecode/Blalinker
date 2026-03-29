@@ -5,7 +5,7 @@
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import { env } from './config/env';
+import { env, getCorsOrigins } from './config/env';
 import { applySecurityMiddlewares, requestLogger } from './middlewares/security.middleware';
 import { logger } from './config/logger';
 
@@ -21,9 +21,10 @@ export const app = express();
 
 // ─── Middlewares de base ──────────────────────────────────────
 app.set('trust proxy', 1); // Nécessaire derrière Nginx
+const corsOrigins = getCorsOrigins();
 
 app.use(cors({
-  origin: env.CORS_ORIGIN.split(','),
+  origin: corsOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],

@@ -35,7 +35,12 @@ export default function BookingNew() {
 
   const mutation = useMutation({
     mutationFn: (form: BookingForm) =>
-      api.post('/bookings', { providerId, ...form }).then((r) => r.data),
+      api.post('/bookings', {
+        providerId,
+        scheduledAt: form.scheduledAt || undefined,
+        description: form.description.trim(),
+        clientAddress: form.address.trim(),
+      }).then((r) => r.data),
     onSuccess: (data) => {
       const bookingId = data?.data?.id ?? data?.id;
       navigate(bookingId ? `/bookings/${bookingId}` : '/dashboard');
@@ -53,7 +58,7 @@ export default function BookingNew() {
     <div className="max-w-lg mx-auto px-4 py-8">
       {/* Back */}
       <button
-        onClick={() => navigate(providerId ? `/providers/${providerId}` : '/search')}
+        onClick={() => navigate(providerId ? `/provider/${providerId}` : '/search')}
         className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 transition-colors mb-6"
       >
         <ArrowLeft className="w-4 h-4" />
@@ -115,8 +120,16 @@ export default function BookingNew() {
               rows={4}
               placeholder="Décrivez votre besoin..."
               className={`input resize-none ${errors.description ? 'input-error' : ''}`}
-              {...register('description')}
+              {...register('description', {
+                required: 'La description est obligatoire',
+                minLength: { value: 10, message: 'Minimum 10 caractères' },
+              })}
             />
+            {errors.description && (
+              <p className="text-xs text-red-600 dark:text-red-400" role="alert">
+                {errors.description.message}
+              </p>
+            )}
           </div>
 
           {/* Error */}

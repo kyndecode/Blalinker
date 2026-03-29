@@ -5,36 +5,108 @@ import { getPaginationParams, paginate, getSkip } from '../../utils/pagination.u
 export const adminController = {
   /** GET /admin/dashboard — KPIs */
   async dashboard(_req: Request, res: Response) {
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const startOfWeek = new Date();
+    startOfWeek.setDate(startOfWeek.getDate() - 7);
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
     try {
       const [
         totalUsers,
+        activeUsers,
+        newUsersThisWeek,
         totalProviders,
+        activeProviders,
+        pendingProviders,
+        totalBookings,
+        todayBookings,
         activeBookings,
+        completedBookings,
         pendingVerifications,
         pendingReports,
+        pendingReviews,
         monthlyRevenue,
+        totalRevenue,
+        monthlyCommissions,
       ] = await Promise.all([
         prisma.user.count({ where: { deletedAt: null } }),
+        prisma.user.count({ where: { deletedAt: null, status: 'active' } }),
+        prisma.user.count({ where: { deletedAt: null, createdAt: { gte: startOfWeek } } }),
         prisma.user.count({ where: { role: 'provider', deletedAt: null } }),
+        prisma.user.count({ where: { role: 'provider', deletedAt: null, status: 'active' } }),
+        prisma.user.count({ where: { role: 'provider', deletedAt: null, status: 'pending' } }),
+        prisma.booking.count(),
+        prisma.booking.count({ where: { createdAt: { gte: startOfDay } } }),
         prisma.booking.count({ where: { status: { in: ['pending', 'accepted', 'in_progress'] } } }),
+        prisma.booking.count({ where: { status: { in: ['completed', 'validated'] } } }),
         prisma.profile.count({ where: { idVerified: false, idCardUrl: { not: null } } }),
         prisma.report.count({ where: { status: 'pending' } }),
+        prisma.review.count({ where: { isApproved: false } }),
         prisma.transaction.aggregate({
           where: {
             status: 'completed',
-            createdAt: { gte: new Date(new Date().setDate(1)) },
+            createdAt: { gte: startOfMonth },
+          },
+          _sum: { amount: true },
+        }),
+        prisma.transaction.aggregate({
+          where: {
+            status: 'completed',
+          },
+          _sum: { amount: true },
+        }),
+        prisma.transaction.aggregate({
+          where: {
+            status: 'completed',
+            createdAt: { gte: startOfMonth },
           },
           _sum: { commission: true },
         }),
       ]);
 
       res.json({
+        users: {
+          total: totalUsers,
+          active: activeUsers,
+          pendingVerification: pendingVerifications,
+          newThisWeek: newUsersThisWeek,
+        },
+        providers: {
+          total: totalProviders,
+          active: activeProviders,
+          pendingApproval: pendingProviders,
+        },
+        bookings: {
+          total: totalBookings,
+          today: todayBookings,
+          inProgress: activeBookings,
+          completed: completedBookings,
+        },
+        revenue: {
+          total: Number(totalRevenue._sum.amount ?? 0),
+          thisMonth: Number(monthlyRevenue._sum.amount ?? 0),
+          currency: 'XOF',
+        },
+        reports: {
+          open: pendingReports,
+        },
+        reviews: {
+          pending: pendingReviews,
+        },
+
+        // Compatibilité avec les anciennes pages admin
         totalUsers,
         totalProviders,
         activeBookings,
         pendingVerifications,
         pendingReports,
-        monthlyCommissions: Number(monthlyRevenue._sum.commission ?? 0),
+        monthlyCommissions: Number(monthlyCommissions._sum.commission ?? 0),
       });
     } catch {
       return res.status(500).json({ error: 'Erreur serveur' });
@@ -71,6 +143,155 @@ export const adminController = {
       ]);
 
       res.json(paginate(users, total, { page, limit }));
+    } catch {
+      return res.status(500).json({ error: 'Erreur serveur' });
+    }
+  },
+
+  /** GET /admin/providers */
+  async listProviders(req: Request, res: Response) {
+    const { page, limit } = getPaginationParams(req.query as Record<string, unknown>);
+    const { search } = req.query;
+
+    try {
+      const where = {
+        role: 'provider' as const,
+        deletedAt: null,
+        ...(search ? {
+          OR: [
+            { email: { contains: search as string, mode: 'insensitive' as const } },
+            { phone: { contains: search as string } },
+            { profile: { is: { firstName: { contains: search as string, mode: 'insensitive' as const } } } },
+            { profile: { is: { lastName: { contains: search as string, mode: 'insensitive' as const } } } },
+          ],
+        } : {}),
+      };
+
+      const [providers, total] = await Promise.all([
+        prisma.user.findMany({
+          where,
+          skip: getSkip({ page, limit }),
+          take: limit,
+          orderBy: { createdAt: 'desc' },
+          include: {
+            profile: { select: { firstName: true, lastName: true, city: true, idVerified: true } },
+            providerProfile: { select: { isAvailable: true, ratingAverage: true, ratingCount: true } },
+          },
+        }),
+        prisma.user.count({ where }),
+      ]);
+
+      const rows = providers.map((provider) => ({
+        id: provider.id,
+        user: {
+          email: provider.email,
+          phone: provider.phone,
+        },
+        firstName: provider.profile?.firstName ?? '',
+        lastName: provider.profile?.lastName ?? '',
+        city: provider.profile?.city ?? null,
+        isVerified: provider.profile?.idVerified ?? false,
+        isAvailable: provider.providerProfile?.isAvailable ?? false,
+        ratingAverage: Number(provider.providerProfile?.ratingAverage ?? 0),
+        ratingCount: provider.providerProfile?.ratingCount ?? 0,
+        createdAt: provider.createdAt,
+      }));
+
+      return res.json(paginate(rows, total, { page, limit }));
+    } catch {
+      return res.status(500).json({ error: 'Erreur serveur' });
+    }
+  },
+
+  /** GET /admin/bookings */
+  async listBookings(req: Request, res: Response) {
+    const { page, limit } = getPaginationParams(req.query as Record<string, unknown>);
+    const status = typeof req.query.status === 'string' ? req.query.status : undefined;
+
+    try {
+      const where = status
+        ? { status: status as 'pending' | 'accepted' | 'rejected' | 'in_progress' | 'completed' | 'validated' | 'cancelled' | 'disputed' }
+        : {};
+
+      const [bookings, total] = await Promise.all([
+        prisma.booking.findMany({
+          where,
+          skip: getSkip({ page, limit }),
+          take: limit,
+          orderBy: { createdAt: 'desc' },
+          include: {
+            client: { include: { profile: { select: { firstName: true, lastName: true } } } },
+            provider: { include: { profile: { select: { firstName: true, lastName: true } } } },
+            service: { select: { id: true, title: true } },
+          },
+        }),
+        prisma.booking.count({ where }),
+      ]);
+
+      const rows = bookings.map((booking) => ({
+        ...booking,
+        client: {
+          ...booking.client,
+          firstName: booking.client.profile?.firstName ?? '',
+          lastName: booking.client.profile?.lastName ?? '',
+        },
+        provider: {
+          ...booking.provider,
+          firstName: booking.provider.profile?.firstName ?? '',
+          lastName: booking.provider.profile?.lastName ?? '',
+        },
+        service: booking.service
+          ? { ...booking.service, name: booking.service.title }
+          : null,
+      }));
+
+      return res.json(paginate(rows, total, { page, limit }));
+    } catch {
+      return res.status(500).json({ error: 'Erreur serveur' });
+    }
+  },
+
+  /** GET /admin/reviews */
+  async listReviews(req: Request, res: Response) {
+    const { page, limit } = getPaginationParams(req.query as Record<string, unknown>);
+
+    try {
+      const [reviews, total] = await Promise.all([
+        prisma.review.findMany({
+          skip: getSkip({ page, limit }),
+          take: limit,
+          orderBy: { createdAt: 'desc' },
+          include: {
+            reviewer: {
+              include: {
+                profile: { select: { firstName: true, lastName: true } },
+              },
+            },
+            reviewed: {
+              include: {
+                profile: { select: { firstName: true, lastName: true } },
+              },
+            },
+          },
+        }),
+        prisma.review.count(),
+      ]);
+
+      const rows = reviews.map((review) => ({
+        ...review,
+        client: {
+          email: review.reviewer.email,
+          firstName: review.reviewer.profile?.firstName ?? '',
+          lastName: review.reviewer.profile?.lastName ?? '',
+        },
+        provider: {
+          email: review.reviewed.email,
+          firstName: review.reviewed.profile?.firstName ?? '',
+          lastName: review.reviewed.profile?.lastName ?? '',
+        },
+      }));
+
+      return res.json(paginate(rows, total, { page, limit }));
     } catch {
       return res.status(500).json({ error: 'Erreur serveur' });
     }
@@ -227,11 +448,15 @@ export const adminController = {
 
   /** PUT /admin/reports/:id/resolve */
   async resolveReport(req: Request, res: Response) {
-    const { status } = req.body;
+    const status = req.body?.status ?? 'resolved';
+    const allowed = ['pending', 'reviewed', 'resolved', 'dismissed'];
+    if (!allowed.includes(status)) {
+      return res.status(422).json({ error: 'Statut invalide' });
+    }
     try {
       await prisma.report.update({
         where: { id: req.params.id },
-        data:  { status, resolvedBy: req.user!.id, resolvedAt: new Date() },
+        data:  { status: status as 'pending' | 'reviewed' | 'resolved' | 'dismissed', resolvedBy: req.user!.id, resolvedAt: new Date() },
       });
       res.json({ message: 'Signalement résolu' });
     } catch {

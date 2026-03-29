@@ -7,6 +7,8 @@ export default function Categories() {
     queryFn: () => api.get('/admin/categories').then((r) => r.data),
   });
 
+  const categories = Array.isArray(data) ? data : data?.data ?? [];
+
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold text-white">Catégories</h1>
@@ -15,9 +17,11 @@ export default function Categories() {
           ? Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="bg-[#1a2744] border border-white/10 rounded-xl p-4 animate-pulse h-20" />
           ))
-          : data?.data?.map((c: any) => (
+          : categories.map((c: any) => (
             <div key={c.id} className="bg-[#1a2744] border border-white/10 rounded-xl p-4 flex items-center gap-3 hover:border-green-700 transition-colors">
-              {c.iconUrl && <img src={c.iconUrl} alt={c.name} className="w-10 h-10 rounded-lg object-cover" />}
+              {c.iconUrl && /^https?:\/\//i.test(c.iconUrl)
+                ? <img src={c.iconUrl} alt={c.name} className="w-10 h-10 rounded-lg object-cover" />
+                : <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center text-xl">{c.iconUrl || '🏷️'}</div>}
               <div>
                 <p className="text-white font-semibold">{c.name}</p>
                 <p className="text-gray-500 text-xs">{c._count?.services ?? 0} services</p>
@@ -25,7 +29,7 @@ export default function Categories() {
             </div>
           ))
         }
-        {!isLoading && (!data?.data || data.data.length === 0) && (
+        {!isLoading && categories.length === 0 && (
           <p className="text-gray-500 text-sm col-span-3">Aucune catégorie pour le moment.</p>
         )}
       </div>

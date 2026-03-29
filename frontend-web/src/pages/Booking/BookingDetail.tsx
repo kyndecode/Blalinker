@@ -5,12 +5,14 @@ import api from '../../services/api';
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   pending:   { label: 'En attente',  color: 'text-yellow-700 dark:text-yellow-400', bg: 'bg-yellow-50 dark:bg-yellow-900/20' },
-  confirmed: { label: 'Confirmée',   color: 'text-blue-700 dark:text-blue-400',    bg: 'bg-blue-50 dark:bg-blue-900/20'   },
+  accepted:  { label: 'Acceptée',    color: 'text-blue-700 dark:text-blue-400',    bg: 'bg-blue-50 dark:bg-blue-900/20'   },
+  in_progress: { label: 'En cours',  color: 'text-blue-700 dark:text-blue-400',    bg: 'bg-blue-50 dark:bg-blue-900/20'   },
   completed: { label: 'Terminée',    color: 'text-green-700 dark:text-green-400',  bg: 'bg-green-50 dark:bg-green-900/20' },
+  validated: { label: 'Validée',     color: 'text-green-700 dark:text-green-400',  bg: 'bg-green-50 dark:bg-green-900/20' },
   cancelled: { label: 'Annulée',     color: 'text-red-700 dark:text-red-400',      bg: 'bg-red-50 dark:bg-red-900/20'     },
 };
 
-const TIMELINE = ['pending', 'confirmed', 'completed'];
+const TIMELINE = ['pending', 'accepted', 'in_progress', 'completed', 'validated'];
 
 function SkeletonBlock({ className = '' }: { className?: string }) {
   return <div className={`bg-gray-200 dark:bg-gray-700 rounded animate-pulse ${className}`} />;
@@ -30,7 +32,7 @@ export default function BookingDetail() {
   const booking = data?.data ?? data;
 
   const cancel = useMutation({
-    mutationFn: () => api.patch(`/bookings/${id}/cancel`).then((r) => r.data),
+    mutationFn: () => api.put(`/bookings/${id}/cancel`).then((r) => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['booking', id] }),
   });
 
@@ -68,8 +70,9 @@ export default function BookingDetail() {
   const statusCfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.pending;
   const currentStep = TIMELINE.indexOf(status);
   const provider = booking.provider ?? booking.providerProfile;
-  const providerName = provider
-    ? `${provider.firstName ?? ''} ${provider.lastName ?? ''}`.trim()
+  const providerProfile = provider?.profile ?? provider;
+  const providerName = providerProfile
+    ? `${providerProfile.firstName ?? ''} ${providerProfile.lastName ?? ''}`.trim()
     : null;
 
   const scheduledAt = booking.scheduledAt
@@ -147,12 +150,12 @@ export default function BookingDetail() {
               </div>
             </div>
           )}
-          {booking.address && (
+          {booking.clientAddress && (
             <div className="flex items-start gap-3">
               <MapPin className="w-4 h-4 text-green-600 dark:text-green-400 mt-0.5 shrink-0" />
               <div>
                 <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Adresse</p>
-                <p className="text-sm text-gray-800 dark:text-gray-200">{booking.address}</p>
+                <p className="text-sm text-gray-800 dark:text-gray-200">{booking.clientAddress}</p>
               </div>
             </div>
           )}
@@ -179,7 +182,7 @@ export default function BookingDetail() {
         </div>
 
         {/* Actions */}
-        {status === 'pending' && (
+        {(status === 'pending' || status === 'accepted') && (
           <>
             <div className="h-px bg-gray-100 dark:bg-gray-700" />
             <div className="flex gap-3">
