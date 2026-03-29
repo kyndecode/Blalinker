@@ -114,7 +114,7 @@ async function main() {
   console.log(`✅ ${totalChildren} sous-catégories créées`);
 
   // ─── 3. Admin par défaut ───────────────────────────────────
-  const adminEmail    = process.env.ADMIN_EMAIL    || 'admin@bla-app.com';
+  const adminEmail    = process.env.ADMIN_EMAIL    || 'admin@blalinker.com';
   const adminPassword = process.env.ADMIN_PASSWORD || 'BlaAdmin2024!';
   const passwordHash  = await bcrypt.hash(adminPassword, 12);
 

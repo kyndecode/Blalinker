@@ -66,7 +66,7 @@ const envSchema = z.object({
 
   // Email transactionnel (Brevo / ex-Sendinblue)
   BREVO_API_KEY:    optionalStringEnv(),
-  BREVO_FROM_EMAIL: z.string().email().default('noreply@bla-app.com'),
+  BREVO_FROM_EMAIL: z.string().email().default('noreply@blalinker.com'),
   BREVO_FROM_NAME:  z.string().default('BLA Services'),
 
   // Stockage fichiers (Cloudinary)
@@ -100,7 +100,7 @@ const envSchema = z.object({
   SENTRY_DSN: optionalStringEnv(),
 
   // Admin seed
-  ADMIN_EMAIL:    z.string().email().default('admin@bla-app.com'),
+  ADMIN_EMAIL:    z.string().email().default('admin@blalinker.com'),
   ADMIN_PASSWORD: z.string().min(8).default('BlaAdmin2024!'),
 });
 
@@ -118,6 +118,8 @@ export type Env = typeof env;
 const DEFAULT_CORS_ORIGINS = [
   'http://localhost:5173',
   'http://localhost:5174',
+  'https://www.blalinker.com',
+  'https://blalinker.com',
   'https://blaservices-app.onrender.com',
   'https://bla-admin.onrender.com',
   'https://bla-app.onrender.com',

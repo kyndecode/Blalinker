@@ -6,7 +6,7 @@ const DEMO_BOOKING_MARKER = 'DEMO_BOOKING_CLIENT_PROVIDER_V1';
 
 const demoAccounts = {
   client: {
-    email: 'client.demo@bla-app.com',
+    email: 'client.demo@blalinker.com',
     phone: '+221770001001',
     password: 'ClientDemo123!',
     firstName: 'Awa',
@@ -15,7 +15,7 @@ const demoAccounts = {
     address: 'Mermoz, Dakar',
   },
   provider: {
-    email: 'prestataire.demo@bla-app.com',
+    email: 'prestataire.demo@blalinker.com',
     phone: '+221770001002',
     password: 'ProviderDemo123!',
     firstName: 'Moussa',
@@ -25,7 +25,7 @@ const demoAccounts = {
     businessName: 'Ndiaye Plomberie Express',
   },
   admin: {
-    email: 'admin.demo@bla-app.com',
+    email: 'admin.demo@blalinker.com',
     phone: '+221770001003',
     password: 'AdminDemo123!',
     firstName: 'Fatou',
