@@ -37,11 +37,14 @@ export default function BookingNew() {
   const profile = provider?.profile ?? provider;
   const firstName = profile?.firstName ?? '';
   const lastName = profile?.lastName ?? '';
-  const providerServices = (provider?.services ?? []) as ProviderService[];
+  const selectedServiceFromParams = params.get('service');
+  const providerServices = useMemo(() => {
+    return Array.isArray(provider?.services) ? (provider.services as ProviderService[]) : [];
+  }, [provider?.services]);
 
   const selectedService = useMemo(() => {
-    return providerServices.find((service) => service.id === params.get('service'));
-  }, [providerServices, params]);
+    return providerServices.find((service) => service.id === selectedServiceFromParams);
+  }, [providerServices, selectedServiceFromParams]);
 
   const {
     register,

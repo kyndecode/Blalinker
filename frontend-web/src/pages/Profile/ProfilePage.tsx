@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -126,7 +126,7 @@ export default function ProfilePage() {
     });
   }, [categories]);
 
-  const loadProviderData = async () => {
+  const loadProviderData = useCallback(async () => {
     if (!isProvider) return;
 
     setProviderLoading(true);
@@ -176,7 +176,7 @@ export default function ProfilePage() {
       setProviderLoading(false);
       setServiceLoading(false);
     }
-  };
+  }, [isProvider]);
 
   useEffect(() => {
     api.get('/users/me')
@@ -198,7 +198,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     loadProviderData();
-  }, [isProvider]);
+  }, [loadProviderData]);
 
   const onSubmit = async (data: FormData) => {
     setSaving(true);

@@ -1,4 +1,4 @@
-﻿-- CreateEnum
+-- CreateEnum
 CREATE TYPE "ContactRequestStatus" AS ENUM ('new', 'read', 'answered', 'done', 'closed');
 
 -- CreateTable
