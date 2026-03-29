@@ -3,6 +3,47 @@ import { useQuery } from '@tanstack/react-query';
 import { MapPin, Star, CheckCircle, MessageSquare, Calendar } from 'lucide-react';
 import api from '../../services/api';
 
+type ProviderCategory = {
+  id?: string | number;
+  name?: string;
+  category?: { name?: string };
+};
+
+type ProviderReview = {
+  id: string | number;
+  rating?: number;
+  comment?: string;
+  createdAt: string | Date;
+  client?: {
+    firstName?: string;
+    email?: string;
+  };
+};
+
+type ProviderData = {
+  profile?: {
+    firstName?: string;
+    lastName?: string;
+    avatarUrl?: string;
+    bio?: string;
+    city?: string;
+  };
+  firstName?: string;
+  lastName?: string;
+  avatarUrl?: string;
+  bio?: string;
+  city?: string;
+  rating?: number;
+  reviewCount?: number;
+  _count?: {
+    reviews?: number;
+  };
+  categories?: ProviderCategory[];
+  services?: ProviderCategory[];
+  reviews?: ProviderReview[];
+  isVerified?: boolean;
+};
+
 function SkeletonBlock({ className = '' }: { className?: string }) {
   return <div className={`bg-gray-200 dark:bg-gray-700 rounded animate-pulse ${className}`} />;
 }
@@ -11,13 +52,13 @@ export default function ProviderProfile() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError } = useQuery<ProviderData | { data: ProviderData }>({
     queryKey: ['provider', id],
     queryFn: () => api.get(`/providers/${id}`).then((r) => r.data),
     enabled: !!id,
   });
 
-  const provider = data?.data ?? data;
+  const provider = (data && 'data' in data ? data.data : data) ?? null;
   const profile = provider?.profile ?? provider;
   const firstName = profile?.firstName ?? '';
   const lastName = profile?.lastName ?? '';
@@ -26,8 +67,8 @@ export default function ProviderProfile() {
   const reviewCount = provider?.reviewCount ?? provider?._count?.reviews ?? 0;
   const bio = profile?.bio ?? provider?.bio ?? '';
   const city = profile?.city ?? provider?.city ?? '';
-  const categories: any[] = provider?.categories ?? provider?.services ?? [];
-  const reviews: any[] = provider?.reviews ?? [];
+  const categories: ProviderCategory[] = provider?.categories ?? provider?.services ?? [];
+  const reviews: ProviderReview[] = provider?.reviews ?? [];
 
   if (isLoading) {
     return (
@@ -174,7 +215,7 @@ export default function ProviderProfile() {
             Services proposés
           </h2>
           <div className="flex flex-wrap gap-2">
-            {categories.map((cat: any) => (
+            {categories.map((cat) => (
               <span
                 key={cat.id ?? cat.name}
                 className="px-3 py-1 rounded-full text-sm font-medium bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-100 dark:border-green-800"
@@ -196,7 +237,7 @@ export default function ProviderProfile() {
           <p className="text-sm text-gray-400 dark:text-gray-500">Aucun avis pour le moment.</p>
         ) : (
           <div className="space-y-4">
-            {reviews.map((rev: any) => (
+            {reviews.map((rev) => (
               <div key={rev.id} className="pb-4 border-b border-gray-100 dark:border-gray-700 last:border-0 last:pb-0">
                 <div className="flex items-center justify-between mb-1.5">
                   <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
@@ -207,7 +248,7 @@ export default function ProviderProfile() {
                       <Star
                         key={i}
                         className={`w-3.5 h-3.5 ${
-                          i < rev.rating
+                          i < Math.round(Number(rev.rating ?? 0))
                             ? 'text-yellow-400 fill-yellow-400'
                             : 'text-gray-300 dark:text-gray-600'
                         }`}

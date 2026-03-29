@@ -3,6 +3,18 @@ import { paymentService } from './payments.service';
 import { initPaymentSchema, verifyPaymentSchema } from './payments.schemas';
 import { logger } from '../../config/logger';
 
+type HttpLikeError = {
+  status?: number;
+  message?: string;
+};
+
+function asHttpLikeError(error: unknown): HttpLikeError {
+  if (error && typeof error === 'object') {
+    return error as HttpLikeError;
+  }
+  return {};
+}
+
 export const paymentsController = {
 
   /** POST /payments/init — Initier un paiement */
@@ -25,9 +37,10 @@ export const paymentsController = {
         return res.status(400).json({ error: 'Provider non supporté' });
       }
       return res.json(result);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const httpError = asHttpLikeError(err);
       logger.error('Payment init error', err);
-      return res.status(err.status ?? 500).json({ error: err.message });
+      return res.status(httpError.status ?? 500).json({ error: httpError.message ?? 'Payment init failed' });
     }
   },
 
@@ -41,8 +54,9 @@ export const paymentsController = {
     try {
       const result = await paymentService.verifyCinetPay(parsed.data.transactionId);
       return res.json(result);
-    } catch (err: any) {
-      return res.status(err.status ?? 500).json({ error: err.message });
+    } catch (err: unknown) {
+      const httpError = asHttpLikeError(err);
+      return res.status(httpError.status ?? 500).json({ error: httpError.message ?? 'Payment verify failed' });
     }
   },
 
@@ -64,8 +78,9 @@ export const paymentsController = {
     try {
       await paymentService.handleStripeWebhook(req.body as Buffer, signature);
       return res.json({ received: true });
-    } catch (err: any) {
-      return res.status(err.status ?? 400).json({ error: err.message });
+    } catch (err: unknown) {
+      const httpError = asHttpLikeError(err);
+      return res.status(httpError.status ?? 400).json({ error: httpError.message ?? 'Stripe webhook failed' });
     }
   },
 };

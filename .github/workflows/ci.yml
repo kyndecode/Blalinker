@@ -11,8 +11,13 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+  packages: write
+
 env:
-  NODE_VERSION: '20'
+  NODE_VERSION: '22'
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 jobs:
 
@@ -189,8 +194,8 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ secrets.GHCR_USERNAME != '' && secrets.GHCR_USERNAME || github.repository_owner }}
+          password: ${{ secrets.GHCR_TOKEN != '' && secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Extraire les métadonnées (tags)
         id: meta-backend
@@ -250,7 +255,7 @@ jobs:
             cd /opt/bla
 
             echo "📦 Pulling images..."
-            echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            echo "${{ secrets.GHCR_TOKEN != '' && secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME != '' && secrets.GHCR_USERNAME || github.repository_owner }}" --password-stdin
             docker pull ghcr.io/${{ github.repository }}/backend:develop
             docker pull ghcr.io/${{ github.repository }}/frontend:${{ github.sha }}
 
@@ -297,7 +302,7 @@ jobs:
             cd /opt/bla
 
             echo "📦 Pulling images production..."
-            echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            echo "${{ secrets.GHCR_TOKEN != '' && secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME != '' && secrets.GHCR_USERNAME || github.repository_owner }}" --password-stdin
             docker pull ghcr.io/${{ github.repository }}/backend:main
             docker pull ghcr.io/${{ github.repository }}/frontend:${{ github.sha }}
 
