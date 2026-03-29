@@ -35,6 +35,11 @@ export async function sendSMS(
 ): Promise<boolean> {
   const c = getClient();
   if (!c) {
+    const isTestRuntime = process.env.NODE_ENV === 'test' || typeof process.env.JEST_WORKER_ID !== 'undefined';
+    if (env.NODE_ENV === 'production' && !isTestRuntime) {
+      logger.warn(`[SMS] Twilio non configuré en production, SMS non envoyé à ${phone}`);
+      return false;
+    }
     logger.debug(`[SMS DEV] À: ${phone} — ${(SMS_TEMPLATES[template] as (...args: unknown[]) => string)(...(params as unknown[]))}`);
     return true;
   }

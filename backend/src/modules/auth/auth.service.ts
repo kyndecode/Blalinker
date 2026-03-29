@@ -247,13 +247,26 @@ export class AuthService {
                    : purpose === 'login'        ? 'otp_login'
                    : 'otp_password_reset';
 
-    if (phone) await sendSMS(phone, template, [code]);
+    let delivered = false;
+
+    if (phone) {
+      const smsSent = await sendSMS(phone, template, [code]);
+      delivered = delivered || smsSent;
+    }
 
     if (email) {
       const emailData = purpose === 'registration' ? emailTemplates.otpRegister(code)
                       : purpose === 'login'        ? emailTemplates.otpLogin(code)
                       : emailTemplates.otpPasswordReset(code);
-      await sendEmail({ to: email, ...emailData });
+      const emailSent = await sendEmail({ to: email, ...emailData });
+      delivered = delivered || emailSent;
+    }
+
+    if (!delivered) {
+      throw Object.assign(
+        new Error('Aucun canal OTP disponible. Utilisez un email valide ou contactez le support.'),
+        { status: 503 }
+      );
     }
 
     // En dev, afficher l'OTP dans les logs

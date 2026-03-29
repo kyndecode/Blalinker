@@ -38,7 +38,7 @@ jest.mock('../../src/config/logger', () => ({
 }));
 
 jest.mock('../../src/config/email', () => ({
-  sendEmail:      jest.fn().mockResolvedValue(undefined),
+  sendEmail:      jest.fn().mockResolvedValue(true),
   emailTemplates: {
     otpRegister:      jest.fn().mockReturnValue({ subject: 'OTP', html: '<p>test</p>' }),
     otpLogin:         jest.fn().mockReturnValue({ subject: 'OTP', html: '<p>test</p>' }),
@@ -47,7 +47,7 @@ jest.mock('../../src/config/email', () => ({
 }));
 
 jest.mock('../../src/utils/sms.util', () => ({
-  sendSMS: jest.fn().mockResolvedValue(undefined),
+  sendSMS: jest.fn().mockResolvedValue(true),
 }));
 
 jest.mock('../../src/utils/jwt.util', () => ({

@@ -19,6 +19,11 @@ interface EmailPayload {
 
 export async function sendEmail(payload: EmailPayload): Promise<boolean> {
   if (!env.BREVO_API_KEY) {
+    const isTestRuntime = process.env.NODE_ENV === 'test' || typeof process.env.JEST_WORKER_ID !== 'undefined';
+    if (env.NODE_ENV === 'production' && !isTestRuntime) {
+      logger.warn('[EMAIL] BREVO_API_KEY manquante en production, envoi annulé');
+      return false;
+    }
     logger.debug(`[EMAIL DEV] À: ${payload.to} | Sujet: ${payload.subject}`);
     return true;
   }
