@@ -2,7 +2,10 @@
  * BLA — Service d'authentification
  * Gère : inscription, OTP, connexion MFA, rotation tokens, déconnexion
  */
+import crypto from 'crypto';
+import axios from 'axios';
 import bcrypt from 'bcryptjs';
+import { env } from '../../config/env';
 import { prisma } from '../../config/database';
 import { redis } from '../../config/redis';
 import { logger } from '../../config/logger';
@@ -16,7 +19,7 @@ import {
 import { generateOTP, hashOTP, verifyOTP, otpExpiresAt } from '../../utils/otp.util';
 import { sendSMS } from '../../utils/sms.util';
 import { sendEmail, emailTemplates } from '../../config/email';
-import type { RegisterInput, LoginInput, ResendOtpInput } from './auth.schemas';
+import type { RegisterInput, LoginInput, ResendOtpInput, GoogleLoginInput } from './auth.schemas';
 
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCK_DURATION_MIN  = 30;
@@ -166,6 +169,98 @@ export class AuthService {
     return { ...tokens, user: { id: userId, role: user.role } };
   }
 
+  /** Connexion/inscription Google via ID Token */
+  async googleLogin(data: GoogleLoginInput, ip: string) {
+    const googleUser = await this._verifyGoogleIdToken(data.idToken);
+    const email = googleUser.email.toLowerCase();
+
+    let user = await prisma.user.findFirst({
+      where: { email, deletedAt: null },
+    });
+
+    if (!user) {
+      const passwordHash = await bcrypt.hash(crypto.randomBytes(24).toString('hex'), 12);
+      user = await prisma.user.create({
+        data: {
+          email,
+          passwordHash,
+          role: data.role,
+          status: 'active',
+          mfaEnabled: false,
+          lastLoginAt: new Date(),
+          profile: {
+            create: {
+              firstName: googleUser.firstName || 'Utilisateur',
+              lastName: googleUser.lastName || 'Google',
+              country: data.countryCode ?? 'SN',
+            },
+          },
+          ...(data.role === 'provider'
+            ? {
+              providerProfile: {
+                create: {
+                  isAvailable: true,
+                },
+              },
+            }
+            : {}),
+        },
+      });
+    } else {
+      if (user.status === 'banned') {
+        throw Object.assign(new Error('Compte suspendu. Contactez le support.'), { status: 403 });
+      }
+
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          status: 'active',
+          lastLoginAt: new Date(),
+        },
+      });
+
+      await prisma.profile.upsert({
+        where: { userId: user.id },
+        update: {
+          firstName: googleUser.firstName || undefined,
+          lastName: googleUser.lastName || undefined,
+          country: data.countryCode ?? undefined,
+        },
+        create: {
+          userId: user.id,
+          firstName: googleUser.firstName || 'Utilisateur',
+          lastName: googleUser.lastName || 'Google',
+          country: data.countryCode ?? 'SN',
+        },
+      });
+
+      if (user.role === 'provider') {
+        await prisma.providerProfile.upsert({
+          where: { userId: user.id },
+          update: {},
+          create: {
+            userId: user.id,
+            isAvailable: true,
+          },
+        });
+      }
+    }
+
+    const tokens = await this._generateTokens(user.id, user.role);
+    logger.info(`Connexion Google réussie: ${user.id} (${ip})`);
+
+    return {
+      mfaRequired: false,
+      ...tokens,
+      user: {
+        id: user.id,
+        role: user.role,
+        email: user.email,
+        phone: user.phone,
+      },
+    };
+  }
+
   /** Rotation du refresh token */
   async refreshTokens(refreshToken: string) {
     let payload;
@@ -225,6 +320,46 @@ export class AuthService {
     if (phone) filters.push({ phone });
     if (email) filters.push({ email });
     return filters;
+  }
+
+  private async _verifyGoogleIdToken(idToken: string) {
+    try {
+      const response = await axios.get('https://oauth2.googleapis.com/tokeninfo', {
+        params: { id_token: idToken },
+        timeout: 10_000,
+      });
+
+      const payload = response.data as {
+        aud?: string;
+        iss?: string;
+        sub?: string;
+        email?: string;
+        email_verified?: string;
+        given_name?: string;
+        family_name?: string;
+      };
+
+      if (!payload.email || payload.email_verified !== 'true') {
+        throw Object.assign(new Error('Compte Google non vérifié'), { status: 401 });
+      }
+
+      if (env.GOOGLE_CLIENT_ID && payload.aud !== env.GOOGLE_CLIENT_ID) {
+        throw Object.assign(new Error('Audience Google invalide'), { status: 401 });
+      }
+
+      if (!payload.iss || !['accounts.google.com', 'https://accounts.google.com'].includes(payload.iss)) {
+        throw Object.assign(new Error('Émetteur Google invalide'), { status: 401 });
+      }
+
+      return {
+        id: payload.sub || '',
+        email: payload.email,
+        firstName: payload.given_name || '',
+        lastName: payload.family_name || '',
+      };
+    } catch {
+      throw Object.assign(new Error('Google login impossible. Vérifiez votre token.'), { status: 401 });
+    }
   }
 
   private async _sendOtp(

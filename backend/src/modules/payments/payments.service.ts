@@ -23,6 +23,10 @@ export class PaymentService {
     const amount = Math.round(Number(booking.amount ?? 0));
     if (!amount) throw Object.assign(new Error('Montant de réservation invalide'), { status: 400 });
 
+    if (!env.CINETPAY_API_KEY || !env.CINETPAY_SITE_ID) {
+      return this._simulateMobileMoneyPayment(bookingId, userId, booking.providerId, amount, currency, returnUrl);
+    }
+
     // CinetPay exige un multiple de 5 pour XOF/XAF
     const roundedAmount = currency !== 'USD' ? Math.ceil(amount / 5) * 5 : amount;
     const transactionId = `BLA-${bookingId.slice(0, 8)}-${Date.now()}`;
@@ -69,6 +73,57 @@ export class PaymentService {
 
     logger.info(`Paiement CinetPay initié: ${transactionId} (${roundedAmount} ${currency})`);
     return { paymentUrl: payment_url, transactionId, token: payment_token };
+  }
+
+  async getBookingPaymentStatus(bookingId: string, userId: string) {
+    const booking = await prisma.booking.findFirst({
+      where: {
+        id: bookingId,
+        OR: [{ clientId: userId }, { providerId: userId }],
+      },
+      select: { id: true, status: true, amount: true, currency: true },
+    });
+
+    if (!booking) {
+      throw Object.assign(new Error('Réservation introuvable'), { status: 404 });
+    }
+
+    const transaction = await prisma.transaction.findUnique({
+      where: { bookingId },
+      select: {
+        id: true,
+        status: true,
+        method: true,
+        amount: true,
+        currency: true,
+        paidAt: true,
+        externalRef: true,
+        externalStatus: true,
+      },
+    });
+
+    if (!transaction) {
+      return {
+        bookingId,
+        bookingStatus: booking.status,
+        paymentStatus: 'unpaid',
+        amount: booking.amount ? Number(booking.amount) : 0,
+        currency: booking.currency,
+      };
+    }
+
+    return {
+      bookingId,
+      bookingStatus: booking.status,
+      paymentStatus: transaction.status,
+      transactionId: transaction.id,
+      method: transaction.method,
+      amount: Number(transaction.amount),
+      currency: transaction.currency,
+      paidAt: transaction.paidAt,
+      externalRef: transaction.externalRef,
+      externalStatus: transaction.externalStatus,
+    };
   }
 
   async verifyCinetPay(transactionId: string) {
@@ -203,6 +258,67 @@ export class PaymentService {
       }),
     ]);
     logger.info(`Paiement confirmé: booking=${bookingId} tx=${externalRef}`);
+  }
+
+  private async _simulateMobileMoneyPayment(
+    bookingId: string,
+    userId: string,
+    payeeId: string,
+    amount: number,
+    currency: string,
+    returnUrl?: string
+  ) {
+    const simulationRef = `SIM-${bookingId.slice(0, 8)}-${Date.now()}`;
+
+    const transaction = await prisma.transaction.upsert({
+      where: { bookingId },
+      update: {
+        status: 'completed',
+        method: 'wave',
+        amount,
+        netAmount: amount,
+        currency,
+        paidAt: new Date(),
+        externalRef: simulationRef,
+        externalStatus: 'SIMULATED_SUCCESS',
+        metadata: {
+          provider: 'simulation',
+          simulatedAt: new Date().toISOString(),
+        },
+      },
+      create: {
+        bookingId,
+        payerId: userId,
+        payeeId,
+        amount,
+        netAmount: amount,
+        currency,
+        method: 'wave',
+        status: 'completed',
+        paidAt: new Date(),
+        externalRef: simulationRef,
+        externalStatus: 'SIMULATED_SUCCESS',
+        metadata: {
+          provider: 'simulation',
+          simulatedAt: new Date().toISOString(),
+        },
+      },
+    });
+
+    await prisma.booking.updateMany({
+      where: { id: bookingId, status: 'pending' },
+      data: { status: 'accepted' },
+    });
+
+    logger.warn(`Paiement simulé (CinetPay non configuré): booking=${bookingId} ref=${simulationRef}`);
+
+    return {
+      simulated: true,
+      paymentUrl: returnUrl ?? `${env.APP_URL}/payment/success?simulated=1&booking=${bookingId}`,
+      transactionId: transaction.id,
+      externalRef: simulationRef,
+      status: 'paid',
+    };
   }
 }
 

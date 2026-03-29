@@ -7,6 +7,7 @@ import {
   verifyOtpSchema,
   loginSchema,
   loginMfaSchema,
+  googleLoginSchema,
   refreshTokenSchema,
   resendOtpSchema,
 } from './auth.schemas';
@@ -41,6 +42,12 @@ router.post('/login',
 router.post('/login/verify-mfa',
   validate(loginMfaSchema),
   authController.verifyMfa
+);
+
+// POST /api/v1/auth/google
+router.post('/google',
+  validate(googleLoginSchema),
+  authController.googleLogin
 );
 
 // POST /api/v1/auth/refresh-token

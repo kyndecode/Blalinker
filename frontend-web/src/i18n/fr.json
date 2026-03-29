@@ -35,7 +35,7 @@
     "register_subtitle": "Rejoignez des milliers d'utilisateurs BLA",
     "role_client": "Client",
     "role_provider": "Prestataire",
-    "first_name": "Pr?nom",
+    "first_name": "Prénom",
     "first_name_placeholder": "Jean",
     "last_name": "Nom",
     "last_name_placeholder": "Dupont",
@@ -43,20 +43,23 @@
     "phone_local_placeholder": "77 000 00 00",
     "phone_format_helper": "Le numero sera envoye au format international ({{dialCode}}...). Longueur attendue: {{min}} a {{max}} chiffres.",
     "email_placeholder": "vous@exemple.com",
-    "password_rules": "8 caract?res minimum, une majuscule et un chiffre",
-    "register_submit": "Cr?er mon compte",
+    "password_rules": "8 caractères minimum, une majuscule et un chiffre",
+    "register_submit": "Créer mon compte",
     "register_error": "Erreur lors de l'inscription",
-    "login_subtitle": "Acc?dez ? votre espace BLA Services",
-    "phone_or_email": "T?l?phone ou email",
+    "login_subtitle": "Accédez à votre espace BLA Services",
+    "phone_or_email": "Téléphone ou email",
     "phone_or_email_placeholder": "+221 77 000 00 00 ou email@exemple.com",
     "otp_label": "Code OTP",
     "otp_invalid": "Code incorrect",
-    "otp_sent_to": "Code envoy? au",
-    "otp_input_label": "Entrer le code OTP ? 6 chiffres",
+    "otp_sent_to": "Code envoyé au",
+    "otp_input_label": "Entrer le code OTP à 6 chiffres",
     "otp_digit": "Chiffre",
     "otp_resend_in": "Renvoyer dans {{seconds}}s",
     "otp_resend_error": "Erreur lors du renvoi du code",
-    "logged_as": "Connect? en tant que"
+    "logged_as": "Connecté en tant que",
+    "google_continue": "Continuer avec Google",
+    "google_loading": "Connexion Google...",
+    "google_unavailable": "Google login indisponible. Configurez VITE_GOOGLE_CLIENT_ID."
   },
   "search": {
     "title": "Trouver un prestataire",
@@ -151,20 +154,20 @@
     "testimonials_title": "Ce que disent nos utilisateurs",
     "search_btn": "Chercher",
     "available_countries": "Disponible en Cote d'Ivoire ? TOGO ? Mali ? Burkina Faso",
-    "hero_subtitle": "Plombiers, ?lectriciens, menuisiers: des prestataires v?rifi?s et not?s, pr?s de chez vous.",
+    "hero_subtitle": "Plombiers, électriciens, menuisiers: des prestataires vérifiés et notés, près de chez vous.",
     "search_placeholder": "Quel service recherchez-vous ?",
     "search_aria": "Rechercher un service",
     "quick": {
       "plumber": "Plombier",
-      "electrician": "?lectricien",
+      "electrician": "Électricien",
       "carpenter": "Menuisier",
       "ac": "Climatisation"
     },
     "categories": {
       "batiment": {
-        "label": "B?timent",
-        "sub1": "Ma?onnerie",
-        "sub2": "?lectricit?",
+        "label": "Bâtiment",
+        "sub1": "Maçonnerie",
+        "sub2": "Électricité",
         "sub3": "Plomberie"
       },
       "transport": {
@@ -174,34 +177,34 @@
         "sub3": "Livraison"
       },
       "beaute": {
-        "label": "Beaut?",
+        "label": "Beauté",
         "sub1": "Coiffeur",
-        "sub2": "Esth?tique",
+        "sub2": "Esthétique",
         "sub3": "Massage"
       },
       "education": {
-        "label": "?ducation",
-        "sub1": "Cours ? domicile",
+        "label": "Éducation",
+        "sub1": "Cours à domicile",
         "sub2": "Soutien scolaire",
         "sub3": "Formation"
       },
       "nettoyage": {
         "label": "Nettoyage",
-        "sub1": "M?nage",
+        "sub1": "Ménage",
         "sub2": "Bureaux",
         "sub3": "Jardinage"
       },
       "numerique": {
         "label": "Informatique",
-        "sub1": "D?veloppement web",
-        "sub2": "R?paration PC",
-        "sub3": "R?seau"
+        "sub1": "Développement web",
+        "sub2": "Réparation PC",
+        "sub3": "Réseau"
       },
       "reparation": {
-        "label": "R?paration",
-        "sub1": "M?canicien",
-        "sub2": "?lectrom?nager",
-        "sub3": "T?l?phone"
+        "label": "Réparation",
+        "sub1": "Mécanicien",
+        "sub2": "Électroménager",
+        "sub3": "Téléphone"
       },
       "emploi": {
         "label": "Emploi",
@@ -211,12 +214,12 @@
       }
     },
     "testimonials": {
-      "client_dakar": "Cliente ? Dakar",
-      "provider_abidjan": "Prestataire ? Abidjan",
-      "client_bamako": "Cliente ? Bamako",
-      "text1": "Plombier trouv? en 10 minutes. Travail impeccable, paiement via Wave. Je recommande vivement !",
+      "client_dakar": "Cliente à Dakar",
+      "provider_abidjan": "Prestataire à Abidjan",
+      "client_bamako": "Cliente à Bamako",
+      "text1": "Plombier trouvé en 10 minutes. Travail impeccable, paiement via Wave. Je recommande vivement !",
       "text2": "Depuis que j'ai rejoint BLA, mon agenda est plein. La plateforme est simple et les paiements arrivent vite.",
-      "text3": "Interface facile m?me avec une connexion lente. Le prestataire ?tait v?rifi? et tr?s professionnel."
+      "text3": "Interface facile même avec une connexion lente. Le prestataire était vérifié et très professionnel."
     }
   },
   "footer": {
@@ -242,13 +245,13 @@
     "navigation": "Navigation",
     "nav_search": "Rechercher",
     "nav_faq": "FAQ",
-    "brand_subtitle": "Votre plateforme de services ? domicile",
+    "brand_subtitle": "Votre plateforme de services à domicile",
     "brand_description": "Connectez-vous aux meilleurs prestataires verifies en Cote d'Ivoire, au Togo, au Mali et au Burkina Faso.",
     "follow_us": "Suivez-nous",
-    "legal_notice": "Mentions l?gales",
-    "payments": "Paiements accept?s",
+    "legal_notice": "Mentions légales",
+    "payments": "Paiements acceptés",
     "email_label": "Email :",
-    "phone_label": "T?l?phone :",
+    "phone_label": "Téléphone :",
     "available_in": "Disponible dans :",
     "available_country_hint": "Disponible dans ce pays",
     "made_for_africa": "Made with love for Africa"

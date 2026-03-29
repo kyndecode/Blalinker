@@ -9,6 +9,7 @@ import { Button } from '../../components/common/Button';
 import { useAuthStore } from '../../store/authStore';
 import Logo from '../../components/common/Logo';
 import api from '../../services/api';
+import { requestGoogleIdToken } from '../../services/googleAuth';
 
 const schema = z.object({
   identifier: z.string().min(1, 'Requis'),
@@ -25,11 +26,13 @@ export default function Login() {
   const navigate = useNavigate();
   const { setTokens, setUser } = useAuthStore();
   const [apiError, setApiError] = useState('');
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [mfaState, setMfaState] = useState<{ required: boolean; tempToken: string }>({
     required: false,
     tempToken: '',
   });
   const [otpCode, setOtpCode] = useState('');
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID?.toString().trim();
 
   const {
     register,
@@ -74,6 +77,31 @@ export default function Login() {
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string } } };
       setApiError(e?.response?.data?.error || t('auth.otp_invalid'));
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setApiError('');
+    if (!googleClientId) {
+      setApiError(t('auth.google_unavailable'));
+      return;
+    }
+
+    setGoogleLoading(true);
+    try {
+      const idToken = await requestGoogleIdToken(googleClientId);
+      const res = await api.post('/auth/google', {
+        idToken,
+        role: 'client',
+      });
+      setTokens(res.data.accessToken, res.data.refreshToken);
+      setUser(res.data.user);
+      navigate('/dashboard');
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { error?: string } }; message?: string };
+      setApiError(e?.response?.data?.error || e?.message || t('errors.server'));
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -154,6 +182,15 @@ export default function Login() {
           <Button type="submit" loading={isSubmitting} className="w-full">
             {t('auth.login')}
           </Button>
+
+          <button
+            type="button"
+            onClick={handleGoogleLogin}
+            disabled={googleLoading}
+            className="w-full border border-gray-200 dark:border-gray-700 rounded-xl py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-60 transition-colors"
+          >
+            {googleLoading ? t('auth.google_loading') : t('auth.google_continue')}
+          </button>
         </form>
 
         <div className="mt-6 pt-5 border-t border-gray-100 dark:border-gray-800 text-center">

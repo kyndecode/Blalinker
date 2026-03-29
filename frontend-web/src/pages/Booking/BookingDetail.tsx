@@ -2,6 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Calendar, MapPin, FileText, CheckCircle, XCircle, Clock, Loader2 } from 'lucide-react';
 import api from '../../services/api';
+import { useAuthStore } from '../../store/authStore';
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   pending:   { label: 'En attente',  color: 'text-yellow-700 dark:text-yellow-400', bg: 'bg-yellow-50 dark:bg-yellow-900/20' },
@@ -22,6 +23,7 @@ export default function BookingDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const user = useAuthStore((state) => state.user);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['booking', id],
@@ -34,6 +36,27 @@ export default function BookingDetail() {
   const cancel = useMutation({
     mutationFn: () => api.put(`/bookings/${id}/cancel`).then((r) => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['booking', id] }),
+  });
+
+  const pay = useMutation({
+    mutationFn: () => api.post('/payments/initiate', {
+      bookingId: id,
+      provider: 'cinetpay',
+      currency: booking?.currency || 'XOF',
+      returnUrl: window.location.href,
+    }).then((r) => r.data),
+    onSuccess: (data) => {
+      if (data?.simulated) {
+        qc.invalidateQueries({ queryKey: ['booking', id] });
+        qc.invalidateQueries({ queryKey: ['bookings-list'] });
+        return;
+      }
+      if (data?.paymentUrl) {
+        window.location.href = data.paymentUrl;
+        return;
+      }
+      qc.invalidateQueries({ queryKey: ['booking', id] });
+    },
   });
 
   if (isLoading) {
@@ -81,6 +104,11 @@ export default function BookingDetail() {
         hour: '2-digit', minute: '2-digit',
       })
     : null;
+
+  const transactionStatus = booking.transaction?.status ?? null;
+  const canPay = user?.role === 'client'
+    && booking.status === 'pending'
+    && transactionStatus !== 'completed';
 
   return (
     <div className="max-w-lg mx-auto px-4 py-8">
@@ -179,13 +207,34 @@ export default function BookingDetail() {
               </div>
             </div>
           )}
+          {transactionStatus && (
+            <div className="flex items-start gap-3">
+              <Clock className="w-4 h-4 text-green-600 dark:text-green-400 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Paiement</p>
+                <p className="text-sm text-gray-800 dark:text-gray-200 capitalize">
+                  {transactionStatus}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Actions */}
-        {(status === 'pending' || status === 'accepted') && (
+        {(status === 'pending' || status === 'accepted' || canPay) && (
           <>
             <div className="h-px bg-gray-100 dark:bg-gray-700" />
             <div className="flex gap-3">
+              {canPay && (
+                <button
+                  onClick={() => pay.mutate()}
+                  disabled={pay.isPending}
+                  className="flex-1 flex items-center justify-center gap-2 bg-green-600 text-white hover:bg-green-700 font-medium py-2.5 rounded-xl transition-colors disabled:opacity-60"
+                >
+                  {pay.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                  {pay.isPending ? 'Paiement...' : 'Payer maintenant'}
+                </button>
+              )}
               <button
                 onClick={() => cancel.mutate()}
                 disabled={cancel.isPending}
@@ -205,6 +254,11 @@ export default function BookingDetail() {
         {cancel.isError && (
           <p className="text-xs text-red-600 dark:text-red-400 text-center">
             Impossible d'annuler. Réessayez.
+          </p>
+        )}
+        {pay.isError && (
+          <p className="text-xs text-red-600 dark:text-red-400 text-center">
+            Impossible de lancer le paiement. Réessayez.
           </p>
         )}
       </div>

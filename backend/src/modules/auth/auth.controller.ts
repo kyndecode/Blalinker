@@ -58,6 +58,16 @@ export const authController = {
     }
   },
 
+  async googleLogin(req: Request, res: Response) {
+    try {
+      const result = await authService.googleLogin(req.body, req.ip ?? '');
+      res.json(result);
+    } catch (err: unknown) {
+      const e = err as { message: string; status?: number };
+      res.status(e.status ?? 500).json({ error: e.message });
+    }
+  },
+
   async refreshToken(req: Request, res: Response) {
     try {
       const { refreshToken } = req.body;

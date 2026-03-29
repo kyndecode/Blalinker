@@ -71,17 +71,42 @@ export const bookingsController = {
       });
       if (!provider) return res.status(404).json({ error: 'Prestataire introuvable ou inactif' });
 
+      let selectedService: { id: string; price: unknown } | null = null;
+      if (data.serviceId) {
+        selectedService = await prisma.providerService.findFirst({
+          where: {
+            id: data.serviceId,
+            providerId: data.providerId,
+            isActive: true,
+          },
+          select: { id: true, price: true },
+        });
+
+        if (!selectedService) {
+          return res.status(404).json({ error: 'Service introuvable pour ce prestataire' });
+        }
+      }
+
+      const amountFromService = selectedService?.price !== null && selectedService?.price !== undefined
+        ? Number(selectedService.price as number | string)
+        : undefined;
+      const amount = data.amount ?? amountFromService;
+
+      if (amount === undefined || Number(amount) <= 0) {
+        return res.status(400).json({ error: 'Montant invalide. Sélectionnez un service avec prix.' });
+      }
+
       const booking = await prisma.booking.create({
         data: {
           clientId:      req.user!.id,
           providerId:    data.providerId,
-          serviceId:     data.serviceId,
+          serviceId:     selectedService?.id ?? data.serviceId,
           description:   data.description,
           scheduledAt:   data.scheduledAt ? new Date(data.scheduledAt) : undefined,
           clientLat:     data.clientLat,
           clientLng:     data.clientLng,
           clientAddress: data.clientAddress,
-          amount:        data.amount,
+          amount,
           status:        'pending',
         },
       });

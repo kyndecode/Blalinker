@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
 import api from '../../services/api';
@@ -66,6 +66,7 @@ function getLocalPhoneFromE164(phone: string, countryCode: string): string {
 
 export default function Contact() {
   const { t, i18n } = useTranslation();
+  const [searchParams] = useSearchParams();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const [isPrefillLoading, setIsPrefillLoading] = useState(false);
   const [successPayload, setSuccessPayload] = useState<ContactResponsePayload | null>(null);
@@ -74,17 +75,23 @@ export default function Contact() {
   const language = (i18n.resolvedLanguage || i18n.language || 'fr').split('-')[0];
   const countries = useMemo(() => getCountryOptions(language), [language]);
   const detectedCountryCode = useMemo(() => detectDefaultCountryCode(countries), [countries]);
+  const subjectFromQuery = searchParams.get('subject');
+  const providerIdFromQuery = searchParams.get('providerId');
+  const defaultSubject = CONTACT_SUBJECTS.includes(subjectFromQuery as typeof CONTACT_SUBJECTS[number])
+    ? (subjectFromQuery as typeof CONTACT_SUBJECTS[number])
+    : 'support_account';
 
   const {
     register,
     handleSubmit,
     setValue,
+    getValues,
     watch,
     formState: { errors, isSubmitting },
   } = useForm<ContactFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      subject: 'support_account',
+      subject: defaultSubject,
       countryCode: detectedCountryCode,
     },
   });
@@ -95,6 +102,20 @@ export default function Contact() {
     [countries, selectedCountryCode]
   );
   const selectedPhoneRule = getPhoneLengthRule(selectedCountryCode || detectedCountryCode);
+
+  useEffect(() => {
+    setValue('subject', defaultSubject, { shouldValidate: true });
+    if (providerIdFromQuery) {
+      const currentMessage = getValues('message');
+      if (!currentMessage) {
+        setValue(
+          'message',
+          `Bonjour, je souhaite contacter le prestataire ${providerIdFromQuery} avant de confirmer ma réservation.`,
+          { shouldValidate: true }
+        );
+      }
+    }
+  }, [defaultSubject, providerIdFromQuery, setValue, getValues]);
 
   useEffect(() => {
     if (!isAuthenticated) return;

@@ -7,8 +7,8 @@ import api from '../../services/api';
 import Logo from '../common/Logo';
 
 const LANGUAGES = [
-  { code: 'fr', label: 'FR', flag: 'ðŸ‡«ðŸ‡·' },
-  { code: 'en', label: 'EN', flag: 'ðŸ‡¬ðŸ‡§' },
+  { code: 'fr', shortLabel: 'FR', label: 'Francais' },
+  { code: 'en', shortLabel: 'EN', label: 'English' },
 ];
 
 function useClickOutside(ref: React.RefObject<HTMLElement>, cb: () => void) {
@@ -151,7 +151,7 @@ export default function Header() {
             >
               {LANGUAGES.map((l) => (
                 <option key={l.code} value={l.code} className="text-gray-900 bg-white">
-                  {l.flag} {l.label}
+                  {l.shortLabel} - {l.label}
                 </option>
               ))}
             </select>
@@ -302,7 +302,7 @@ export default function Header() {
                   languageCode === l.code ? 'bg-green-600 text-white' : 'bg-white/10 text-white/60'
                 }`}
               >
-                {l.flag} {l.label}
+                {l.shortLabel}
               </button>
             ))}
           </div>

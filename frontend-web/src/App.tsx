@@ -1,8 +1,9 @@
-import { type ReactNode } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './store/authStore';
 import { useNetworkStatus } from './hooks/useNetworkStatus';
 import { useTranslation } from 'react-i18next';
+import api from './services/api';
 
 // Layout
 import Header from './components/layout/Header';
@@ -37,6 +38,53 @@ function RequireAuth({ children }: { children: ReactNode }) {
 export default function App() {
   const isOnline = useNetworkStatus();
   const { t }    = useTranslation();
+  const accessToken = useAuthStore((state) => state.accessToken);
+  const refreshToken = useAuthStore((state) => state.refreshToken);
+  const setTokens = useAuthStore((state) => state.setTokens);
+  const setUser = useAuthStore((state) => state.setUser);
+  const logout = useAuthStore((state) => state.logout);
+  const [authReady, setAuthReady] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const bootstrapAuth = async () => {
+      if (accessToken || !refreshToken) {
+        if (!cancelled) setAuthReady(true);
+        return;
+      }
+
+      try {
+        const refreshed = await api.post('/auth/refresh-token', { refreshToken });
+        setTokens(refreshed.data.accessToken, refreshed.data.refreshToken);
+
+        const me = await api.get('/users/me');
+        setUser({
+          id: me.data.id,
+          role: me.data.role,
+          email: me.data.email || undefined,
+          phone: me.data.phone || undefined,
+        });
+      } catch {
+        logout();
+      } finally {
+        if (!cancelled) setAuthReady(true);
+      }
+    };
+
+    bootstrapAuth();
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken, refreshToken, setTokens, setUser, logout]);
+
+  if (!authReady) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-950">
+        <p className="text-sm text-gray-500 dark:text-gray-400">Chargement de votre session...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-white dark:bg-gray-950 transition-colors duration-200">

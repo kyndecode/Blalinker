@@ -8,6 +8,8 @@ import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
 import Logo from '../../components/common/Logo';
 import api from '../../services/api';
+import { useAuthStore } from '../../store/authStore';
+import { requestGoogleIdToken } from '../../services/googleAuth';
 import {
   detectDefaultCountryCode,
   formatInternationalPhone,
@@ -79,9 +81,12 @@ const CARD = 'w-full max-w-sm bg-white dark:bg-gray-900 rounded-2xl border borde
 export default function Register() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const { setTokens, setUser } = useAuthStore();
   const [params] = useSearchParams();
   const [apiError, setApiError] = useState('');
+  const [googleLoading, setGoogleLoading] = useState(false);
   const defaultRole = (params.get('role') === 'provider' ? 'provider' : 'client') as 'client' | 'provider';
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID?.toString().trim();
 
   const lang = (i18n.resolvedLanguage || i18n.language || 'fr').split('-')[0];
   const countries = useMemo(() => getCountryOptions(lang), [lang]);
@@ -166,6 +171,37 @@ export default function Register() {
       }
 
       setApiError(e?.response?.data?.error || t('auth.register_error'));
+    }
+  };
+
+  const handleGoogleRegister = async () => {
+    setApiError('');
+
+    if (!googleClientId) {
+      setApiError(t('auth.google_unavailable'));
+      return;
+    }
+
+    setGoogleLoading(true);
+    try {
+      const idToken = await requestGoogleIdToken(googleClientId);
+      const role = getValues('role') ?? defaultRole;
+      const countryCode = getValues('countryCode') ?? detectedCountryCode;
+
+      const response = await api.post('/auth/google', {
+        idToken,
+        role,
+        countryCode,
+      });
+
+      setTokens(response.data.accessToken, response.data.refreshToken);
+      setUser(response.data.user);
+      navigate('/dashboard');
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { error?: string } }; message?: string };
+      setApiError(e?.response?.data?.error || e?.message || t('errors.server'));
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -299,6 +335,15 @@ export default function Register() {
           <Button type="submit" loading={isSubmitting} className="w-full mt-1">
             {t('auth.register_submit')}
           </Button>
+
+          <button
+            type="button"
+            onClick={handleGoogleRegister}
+            disabled={googleLoading}
+            className="w-full border border-gray-200 dark:border-gray-700 rounded-xl py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-60 transition-colors"
+          >
+            {googleLoading ? t('auth.google_loading') : t('auth.google_continue')}
+          </button>
         </form>
 
         <div className="mt-6 pt-5 border-t border-gray-100 dark:border-gray-800 text-center">

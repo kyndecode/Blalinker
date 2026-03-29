@@ -67,6 +67,9 @@ const envSchema = z.object({
   WAVE_API_KEY:               z.string().optional(),
   WAVE_WEBHOOK_SECRET:        z.string().optional(),
 
+  // Auth sociale
+  GOOGLE_CLIENT_ID: z.string().optional(),
+
   // IA
   AI_SERVICE_URL:      z.string().url().default('http://localhost:8000'),
   ANTHROPIC_API_KEY:   z.string().optional(),

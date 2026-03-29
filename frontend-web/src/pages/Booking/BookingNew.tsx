@@ -1,3 +1,4 @@
+import { useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -6,9 +7,19 @@ import api from '../../services/api';
 import { Input } from '../../components/common/Input';
 
 interface BookingForm {
+  serviceId: string;
   scheduledAt: string;
   address: string;
   description: string;
+}
+
+interface ProviderService {
+  id: string;
+  title: string;
+  description?: string | null;
+  price?: number | string | null;
+  priceType?: string | null;
+  category?: { name?: string };
 }
 
 export default function BookingNew() {
@@ -26,20 +37,44 @@ export default function BookingNew() {
   const profile = provider?.profile ?? provider;
   const firstName = profile?.firstName ?? '';
   const lastName = profile?.lastName ?? '';
+  const providerServices = (provider?.services ?? []) as ProviderService[];
+
+  const selectedService = useMemo(() => {
+    return providerServices.find((service) => service.id === params.get('service'));
+  }, [providerServices, params]);
 
   const {
     register,
     handleSubmit,
+    watch,
+    setValue,
     formState: { errors },
   } = useForm<BookingForm>();
+  const selectedServiceId = watch('serviceId');
+  const activeService = providerServices.find((service) => service.id === selectedServiceId) ?? selectedService;
+  const activeServicePrice = activeService?.price !== null && activeService?.price !== undefined
+    ? Number(activeService.price)
+    : null;
+
+  useEffect(() => {
+    if (selectedService?.id) {
+      setValue('serviceId', selectedService.id);
+      return;
+    }
+    if (providerServices.length === 1) {
+      setValue('serviceId', providerServices[0].id);
+    }
+  }, [selectedService?.id, providerServices, setValue]);
 
   const mutation = useMutation({
     mutationFn: (form: BookingForm) =>
       api.post('/bookings', {
         providerId,
+        serviceId: form.serviceId,
         scheduledAt: form.scheduledAt || undefined,
         description: form.description.trim(),
         clientAddress: form.address.trim(),
+        amount: activeServicePrice ?? undefined,
       }).then((r) => r.data),
     onSuccess: (data) => {
       const bookingId = data?.data?.id ?? data?.id;
@@ -78,7 +113,43 @@ export default function BookingNew() {
           </p>
         )}
 
+        {providerServices.length === 0 && (
+          <div className="mb-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-3 text-sm text-yellow-800 dark:text-yellow-300">
+            Aucun service actif disponible pour ce prestataire.
+          </div>
+        )}
+
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+          {/* Service */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              Service
+              <span className="text-red-500 ml-0.5" aria-hidden="true">*</span>
+            </label>
+            <select
+              className={`input ${errors.serviceId ? 'input-error' : ''}`}
+              {...register('serviceId', { required: 'Le service est obligatoire' })}
+            >
+              <option value="">Choisir un service</option>
+              {providerServices.map((service) => (
+                <option key={service.id} value={service.id}>
+                  {service.title} - {service.price ? `${Number(service.price).toLocaleString('fr-FR')} XOF` : 'Prix à définir'}
+                </option>
+              ))}
+            </select>
+            {errors.serviceId && (
+              <p className="text-xs text-red-600 dark:text-red-400" role="alert">
+                {errors.serviceId.message}
+              </p>
+            )}
+            {activeService && (
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                {activeService.category?.name ? `${activeService.category.name} • ` : ''}
+                {activeServicePrice ? `${activeServicePrice.toLocaleString('fr-FR')} XOF` : 'Prix à définir'}
+              </p>
+            )}
+          </div>
+
           {/* Date & time */}
           <div className="flex flex-col gap-1.5">
             <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -142,7 +213,7 @@ export default function BookingNew() {
           {/* Submit */}
           <button
             type="submit"
-            disabled={mutation.isPending}
+            disabled={mutation.isPending || providerServices.length === 0}
             className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 active:bg-green-800 disabled:opacity-60 text-white font-semibold py-3 rounded-xl transition-colors"
           >
             {mutation.isPending ? (

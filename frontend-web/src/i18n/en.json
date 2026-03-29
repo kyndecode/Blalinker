@@ -56,7 +56,10 @@
     "otp_digit": "Digit",
     "otp_resend_in": "Resend in {{seconds}}s",
     "otp_resend_error": "Failed to resend code",
-    "logged_as": "Logged in as"
+    "logged_as": "Logged in as",
+    "google_continue": "Continue with Google",
+    "google_loading": "Google sign-in...",
+    "google_unavailable": "Google login unavailable. Configure VITE_GOOGLE_CLIENT_ID."
   },
   "search": {
     "title": "Find a Provider",
@@ -150,7 +153,7 @@
     "cta_btn": "Join BLA",
     "testimonials_title": "What our users say",
     "search_btn": "Search",
-    "available_countries": "Available in C?te d'Ivoire ? TOGO ? Mali ? Burkina Faso",
+    "available_countries": "Available in Côte d'Ivoire, Togo, Mali, Burkina Faso",
     "hero_subtitle": "Plumbers, electricians, carpenters: verified and rated providers near you.",
     "search_placeholder": "What service are you looking for?",
     "search_aria": "Search for a service",
@@ -211,9 +214,9 @@
       }
     },
     "testimonials": {
-      "client_dakar": "Client ? Dakar",
-      "provider_abidjan": "Provider ? Abidjan",
-      "client_bamako": "Client ? Bamako",
+      "client_dakar": "Client in Dakar",
+      "provider_abidjan": "Provider in Abidjan",
+      "client_bamako": "Client in Bamako",
       "text1": "Found a plumber in 10 minutes. Excellent work and easy Wave payment. Highly recommended!",
       "text2": "Since joining BLA, my schedule is full. The platform is simple and payments are fast.",
       "text3": "Easy interface even with low connectivity. The provider was verified and very professional."
@@ -243,7 +246,7 @@
     "nav_search": "Search",
     "nav_faq": "FAQ",
     "brand_subtitle": "Your home services platform",
-    "brand_description": "Connect with top verified providers in C?te d'Ivoire, Togo, Mali and Burkina Faso.",
+    "brand_description": "Connect with top verified providers in Côte d'Ivoire, Togo, Mali and Burkina Faso.",
     "follow_us": "Follow us",
     "legal_notice": "Legal notice",
     "payments": "Accepted payments",
@@ -274,8 +277,8 @@
     "message_hint": "Maximum 1500 characters. Be precise for faster support.",
     "submit": "Send my request",
     "direct_title": "Direct support",
-    "direct_phone_label": "Available in C?te d'Ivoire ? TOGO ? Mali ? Burkina Faso",
-    "available_markets": "Available in: TG ? CI ? ML ? BF",
+    "direct_phone_label": "Available in Côte d'Ivoire, Togo, Mali, Burkina Faso",
+    "available_markets": "Available in: TG, CI, ML, BF",
     "quick_links": "Useful links",
     "link_find_provider": "Find a provider",
     "link_faq": "Read the FAQ",

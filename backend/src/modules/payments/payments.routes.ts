@@ -7,7 +7,9 @@ const router = Router();
 
 // Routes authentifiées
 router.post('/init',   authenticate, paymentsController.init);
+router.post('/initiate', authenticate, paymentsController.init);
 router.get('/verify',  authenticate, paymentsController.verify);
+router.get('/:bookingId/status', authenticate, paymentsController.bookingStatus);
 
 // Webhooks — PAS d'authentification JWT (appelés par CinetPay/Stripe)
 // Le webhook Stripe nécessite le body brut (Buffer)

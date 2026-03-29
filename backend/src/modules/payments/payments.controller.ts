@@ -29,7 +29,7 @@ export const paymentsController = {
 
     try {
       let result;
-      if (provider === 'cinetpay') {
+      if (provider === 'cinetpay' || provider === 'wave') {
         result = await paymentService.initCinetPay(bookingId, userId, currency, returnUrl);
       } else if (provider === 'stripe') {
         result = await paymentService.initStripe(bookingId, userId, currency);
@@ -41,6 +41,17 @@ export const paymentsController = {
       const httpError = asHttpLikeError(err);
       logger.error('Payment init error', err);
       return res.status(httpError.status ?? 500).json({ error: httpError.message ?? 'Payment init failed' });
+    }
+  },
+
+  /** GET /payments/:bookingId/status — statut paiement d'une réservation */
+  async bookingStatus(req: Request, res: Response) {
+    try {
+      const result = await paymentService.getBookingPaymentStatus(req.params.bookingId, req.user!.id);
+      return res.json(result);
+    } catch (err: unknown) {
+      const httpError = asHttpLikeError(err);
+      return res.status(httpError.status ?? 500).json({ error: httpError.message ?? 'Payment status failed' });
     }
   },
 

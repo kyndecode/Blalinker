@@ -201,7 +201,10 @@ export default function ProviderProfile() {
             <Calendar className="w-4 h-4" />
             Réserver
           </button>
-          <button className="flex items-center justify-center gap-2 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 font-medium py-2.5 px-5 rounded-xl transition-colors">
+          <button
+            onClick={() => navigate(`/contact?subject=support_booking&providerId=${id}`)}
+            className="flex items-center justify-center gap-2 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 font-medium py-2.5 px-5 rounded-xl transition-colors"
+          >
             <MessageSquare className="w-4 h-4" />
             Message
           </button>
