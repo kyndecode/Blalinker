@@ -12,7 +12,9 @@
     "logout": "Se déconnecter",
     "dashboard": "Tableau de bord",
     "become_provider": "Devenir prestataire",
-    "about": "À propos"
+    "about": "À propos",
+    "contact": "Contact",
+    "my_account": "Mon compte"
   },
   "auth": {
     "login": "Se connecter",
@@ -29,7 +31,32 @@
     "resend": "Renvoyer le code",
     "forgot_password": "Mot de passe oublié ?",
     "no_account": "Pas encore de compte ?",
-    "already_account": "Déjà un compte ?"
+    "already_account": "Déjà un compte ?",
+    "register_subtitle": "Rejoignez des milliers d'utilisateurs BLA",
+    "role_client": "Client",
+    "role_provider": "Prestataire",
+    "first_name": "Pr?nom",
+    "first_name_placeholder": "Jean",
+    "last_name": "Nom",
+    "last_name_placeholder": "Dupont",
+    "phone_country": "Indicatif pays",
+    "phone_local_placeholder": "77 000 00 00",
+    "phone_format_helper": "Le num?ro sera envoy? au format international ({{dialCode}}...)",
+    "email_placeholder": "vous@exemple.com",
+    "password_rules": "8 caract?res minimum, une majuscule et un chiffre",
+    "register_submit": "Cr?er mon compte",
+    "register_error": "Erreur lors de l'inscription",
+    "login_subtitle": "Acc?dez ? votre espace BLA Services",
+    "phone_or_email": "T?l?phone ou email",
+    "phone_or_email_placeholder": "+221 77 000 00 00 ou email@exemple.com",
+    "otp_label": "Code OTP",
+    "otp_invalid": "Code incorrect",
+    "otp_sent_to": "Code envoy? au",
+    "otp_input_label": "Entrer le code OTP ? 6 chiffres",
+    "otp_digit": "Chiffre",
+    "otp_resend_in": "Renvoyer dans {{seconds}}s",
+    "otp_resend_error": "Erreur lors du renvoi du code",
+    "logged_as": "Connect? en tant que"
   },
   "search": {
     "title": "Trouver un prestataire",
@@ -110,7 +137,75 @@
     "cta_desc": "Rejoignez BLA Services et développez votre clientèle. Inscription gratuite, commissions transparentes.",
     "cta_btn": "Rejoindre BLA",
     "testimonials_title": "Ce que disent nos utilisateurs",
-    "search_btn": "Chercher"
+    "search_btn": "Chercher",
+    "available_countries": "Disponible au S?n?gal ? C?te d'Ivoire ? Mali ? Burkina Faso",
+    "hero_subtitle": "Plombiers, ?lectriciens, menuisiers: des prestataires v?rifi?s et not?s, pr?s de chez vous.",
+    "search_placeholder": "Quel service recherchez-vous ?",
+    "search_aria": "Rechercher un service",
+    "quick": {
+      "plumber": "Plombier",
+      "electrician": "?lectricien",
+      "carpenter": "Menuisier",
+      "ac": "Climatisation"
+    },
+    "categories": {
+      "batiment": {
+        "label": "B?timent",
+        "sub1": "Ma?onnerie",
+        "sub2": "?lectricit?",
+        "sub3": "Plomberie"
+      },
+      "transport": {
+        "label": "Transport",
+        "sub1": "Chauffeur",
+        "sub2": "Taxi",
+        "sub3": "Livraison"
+      },
+      "beaute": {
+        "label": "Beaut?",
+        "sub1": "Coiffeur",
+        "sub2": "Esth?tique",
+        "sub3": "Massage"
+      },
+      "education": {
+        "label": "?ducation",
+        "sub1": "Cours ? domicile",
+        "sub2": "Soutien scolaire",
+        "sub3": "Formation"
+      },
+      "nettoyage": {
+        "label": "Nettoyage",
+        "sub1": "M?nage",
+        "sub2": "Bureaux",
+        "sub3": "Jardinage"
+      },
+      "numerique": {
+        "label": "Informatique",
+        "sub1": "D?veloppement web",
+        "sub2": "R?paration PC",
+        "sub3": "R?seau"
+      },
+      "reparation": {
+        "label": "R?paration",
+        "sub1": "M?canicien",
+        "sub2": "?lectrom?nager",
+        "sub3": "T?l?phone"
+      },
+      "emploi": {
+        "label": "Emploi",
+        "sub1": "Freelance",
+        "sub2": "Recrutement",
+        "sub3": "Assistance RH"
+      }
+    },
+    "testimonials": {
+      "client_dakar": "Cliente ? Dakar",
+      "provider_abidjan": "Prestataire ? Abidjan",
+      "client_bamako": "Cliente ? Bamako",
+      "text1": "Plombier trouv? en 10 minutes. Travail impeccable, paiement via Wave. Je recommande vivement !",
+      "text2": "Depuis que j'ai rejoint BLA, mon agenda est plein. La plateforme est simple et les paiements arrivent vite.",
+      "text3": "Interface facile m?me avec une connexion lente. Le prestataire ?tait v?rifi? et tr?s professionnel."
+    }
   },
   "footer": {
     "company": "Entreprise",
@@ -131,10 +226,28 @@
     "newsletter_placeholder": "Votre email",
     "newsletter_btn": "S'abonner",
     "copyright": "Tous droits réservés.",
-    "tagline": "La marketplace africaine de services"
+    "tagline": "La marketplace africaine de services",
+    "navigation": "Navigation",
+    "nav_search": "Rechercher",
+    "nav_faq": "FAQ",
+    "brand_subtitle": "Votre plateforme de services ? domicile",
+    "brand_description": "Connectez-vous aux meilleurs prestataires v?rifi?s et certifi?s autour de vous, au S?n?gal et en Afrique de l'Ouest.",
+    "follow_us": "Suivez-nous",
+    "legal_notice": "Mentions l?gales",
+    "payments": "Paiements accept?s",
+    "email_label": "Email :",
+    "phone_label": "T?l?phone :",
+    "available_in": "Disponible dans :",
+    "available_country_hint": "Disponible dans ce pays",
+    "made_for_africa": "Made with love for Africa"
   },
   "theme": {
     "dark": "Mode sombre",
     "light": "Mode clair"
+  },
+  "common": {
+    "ok": "OK",
+    "language": "Langue",
+    "menu": "Menu"
   }
 }

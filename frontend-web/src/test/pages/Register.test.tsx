@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+﻿import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -29,37 +29,25 @@ describe('Register page', () => {
     postMock.mockReset();
   });
 
-  it('envoie les donnees d\'inscription avec telephone seul', async () => {
+  it('submits required registration fields', async () => {
     const user = userEvent.setup();
     postMock.mockResolvedValue({ data: { message: 'ok' } });
     renderRegister();
 
-    await user.type(screen.getByPlaceholderText('+221 77 000 00 00'), '+221771234567');
-    await user.type(screen.getByLabelText(/mot de passe/i), 'Secret123');
-    await user.click(screen.getByRole('button', { name: /compte/i }));
+    await user.type(screen.getByLabelText(/auth.first_name/i), 'Awa');
+    await user.type(screen.getByLabelText(/auth.last_name/i), 'Ndiaye');
+    await user.selectOptions(screen.getByLabelText(/auth.phone_country/i), 'SN');
+    await user.type(screen.getByPlaceholderText(/auth.phone_local_placeholder/i), '0771234567');
+    await user.type(screen.getByLabelText(/auth.email/i), 'new-user@example.com');
+    await user.type(screen.getByLabelText(/auth.password/i), 'Secret123');
+    await user.click(screen.getByRole('button', { name: /auth.register_submit/i }));
 
     await waitFor(() => {
       expect(postMock).toHaveBeenCalledWith('/auth/register', {
+        firstName: 'Awa',
+        lastName: 'Ndiaye',
         phone: '+221771234567',
-        email: undefined,
-        password: 'Secret123',
-        role: 'client',
-      });
-    });
-  });
-
-  it('envoie les donnees d\'inscription avec email seul', async () => {
-    const user = userEvent.setup();
-    postMock.mockResolvedValue({ data: { message: 'ok' } });
-    renderRegister();
-
-    await user.type(screen.getByLabelText(/email/i), 'new-user@example.com');
-    await user.type(screen.getByLabelText(/mot de passe/i), 'Secret123');
-    await user.click(screen.getByRole('button', { name: /compte/i }));
-
-    await waitFor(() => {
-      expect(postMock).toHaveBeenCalledWith('/auth/register', {
-        phone: undefined,
+        countryCode: 'SN',
         email: 'new-user@example.com',
         password: 'Secret123',
         role: 'client',
@@ -67,14 +55,35 @@ describe('Register page', () => {
     });
   });
 
-  it('affiche le message backend de validation', async () => {
+  it('formats phone using selected country dial code', async () => {
+    const user = userEvent.setup();
+    postMock.mockResolvedValue({ data: { message: 'ok' } });
+    renderRegister();
+
+    await user.type(screen.getByLabelText(/auth.first_name/i), 'John');
+    await user.type(screen.getByLabelText(/auth.last_name/i), 'Doe');
+    await user.selectOptions(screen.getByLabelText(/auth.phone_country/i), 'US');
+    await user.type(screen.getByPlaceholderText(/auth.phone_local_placeholder/i), '4155550101');
+    await user.type(screen.getByLabelText(/auth.email/i), 'john@example.com');
+    await user.type(screen.getByLabelText(/auth.password/i), 'Secret123');
+    await user.click(screen.getByRole('button', { name: /auth.register_submit/i }));
+
+    await waitFor(() => {
+      expect(postMock).toHaveBeenCalledWith('/auth/register', expect.objectContaining({
+        phone: '+14155550101',
+        countryCode: 'US',
+      }));
+    });
+  });
+
+  it('shows backend validation message', async () => {
     const user = userEvent.setup();
     postMock.mockRejectedValue({
       response: {
         data: {
-          error: 'DonnÃ©es invalides',
+          error: 'Données invalides',
           errors: {
-            phone: ['Format tÃ©lÃ©phone invalide'],
+            phone: ['Format téléphone invalide'],
           },
         },
       },
@@ -82,10 +91,14 @@ describe('Register page', () => {
 
     renderRegister();
 
-    await user.type(screen.getByPlaceholderText('+221 77 000 00 00'), '+221771234567');
-    await user.type(screen.getByLabelText(/mot de passe/i), 'Secret123');
-    await user.click(screen.getByRole('button', { name: /compte/i }));
+    await user.type(screen.getByLabelText(/auth.first_name/i), 'Awa');
+    await user.type(screen.getByLabelText(/auth.last_name/i), 'Ndiaye');
+    await user.selectOptions(screen.getByLabelText(/auth.phone_country/i), 'SN');
+    await user.type(screen.getByPlaceholderText(/auth.phone_local_placeholder/i), '0771234567');
+    await user.type(screen.getByLabelText(/auth.email/i), 'new-user@example.com');
+    await user.type(screen.getByLabelText(/auth.password/i), 'Secret123');
+    await user.click(screen.getByRole('button', { name: /auth.register_submit/i }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Format tÃ©lÃ©phone invalide');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Format téléphone invalide');
   });
 });

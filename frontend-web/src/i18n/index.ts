@@ -1,20 +1,34 @@
-import i18n from 'i18next';
+﻿import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import fr from './fr.json';
 import en from './en.json';
 
-const savedLang = localStorage.getItem('bla_lang');
-const browserLang = navigator.language.split('-')[0];
-const defaultLang = savedLang || (['fr', 'en'].includes(browserLang) ? browserLang : 'fr');
+const SUPPORTED_LANGUAGES = ['fr', 'en'] as const;
+
+function toSupportedLanguage(language: string | null | undefined): 'fr' | 'en' | null {
+  const normalized = (language || '').toLowerCase().split('-')[0];
+  return SUPPORTED_LANGUAGES.includes(normalized as 'fr' | 'en')
+    ? (normalized as 'fr' | 'en')
+    : null;
+}
+
+const savedLanguage = toSupportedLanguage(localStorage.getItem('bla_lang'));
+const browserLanguage = toSupportedLanguage(navigator.language);
+const defaultLanguage = savedLanguage ?? browserLanguage ?? 'fr';
 
 i18n.use(initReactI18next).init({
   resources: {
     fr: { translation: fr },
     en: { translation: en },
   },
-  lng:        defaultLang,
-  fallbackLng:'fr',
+  lng: defaultLanguage,
+  fallbackLng: 'fr',
+  supportedLngs: SUPPORTED_LANGUAGES,
+  nonExplicitSupportedLngs: true,
+  load: 'languageOnly',
+  cleanCode: true,
   interpolation: { escapeValue: false },
+  returnNull: false,
 });
 
 export default i18n;

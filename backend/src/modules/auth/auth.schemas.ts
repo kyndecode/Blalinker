@@ -1,16 +1,31 @@
-import { z } from 'zod';
+﻿import { z } from 'zod';
 
 export const registerSchema = z.object({
+  firstName: z
+    .string()
+    .trim()
+    .min(2, 'Prénom requis')
+    .max(100, 'Prénom trop long'),
+  lastName: z
+    .string()
+    .trim()
+    .min(2, 'Nom requis')
+    .max(100, 'Nom trop long'),
+  countryCode: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z]{2}$/, 'Code pays invalide (ex: SN, CI, FR)'),
   phone: z
     .string()
-    .regex(/^\+[1-9]\d{7,14}$/, 'Format téléphone invalide (ex: +221771234567)')
-    .optional(),
+    .trim()
+    .regex(/^\+[1-9]\d{7,14}$/, 'Format téléphone invalide (ex: +221771234567)'),
   email: z
     .string()
+    .trim()
     .email('Email invalide')
     .max(255)
-    .transform((v) => v.toLowerCase())
-    .optional(),
+    .transform((v) => v.toLowerCase()),
   password: z
     .string()
     .min(8, 'Minimum 8 caractères')
@@ -21,23 +36,20 @@ export const registerSchema = z.object({
   role: z.enum(['client', 'provider'], {
     errorMap: () => ({ message: 'Rôle doit être "client" ou "provider"' }),
   }),
-}).refine((d) => d.phone || d.email, {
-  message: 'Un numéro de téléphone ou un email est requis',
-  path: ['phone'],
 });
 
 export const verifyOtpSchema = z.object({
   phone: z.string().optional(),
   email: z.string().email().optional(),
-  code:  z.string().length(6, 'Le code OTP doit faire 6 chiffres').regex(/^\d{6}$/),
+  code: z.string().length(6, 'Le code OTP doit faire 6 chiffres').regex(/^\d{6}$/),
   purpose: z.enum(['registration', 'login', 'password_reset', 'payment_confirm']).optional(),
 }).refine((d) => d.phone || d.email, {
   message: 'Phone ou email requis',
 });
 
 export const loginSchema = z.object({
-  phone:    z.string().optional(),
-  email:    z.string().email().optional(),
+  phone: z.string().optional(),
+  email: z.string().email().optional(),
   password: z.string().min(1, 'Mot de passe requis'),
 }).refine((d) => d.phone || d.email, {
   message: 'Phone ou email requis',
@@ -45,7 +57,7 @@ export const loginSchema = z.object({
 
 export const loginMfaSchema = z.object({
   tempToken: z.string().min(1),
-  otpCode:   z.string().length(6).regex(/^\d{6}$/),
+  otpCode: z.string().length(6).regex(/^\d{6}$/),
 });
 
 export const refreshTokenSchema = z.object({
@@ -68,9 +80,9 @@ export const forgotPasswordSchema = z.object({
 });
 
 export const resetPasswordSchema = z.object({
-  phone:    z.string().optional(),
-  email:    z.string().email().optional(),
-  code:     z.string().length(6).regex(/^\d{6}$/),
+  phone: z.string().optional(),
+  email: z.string().email().optional(),
+  code: z.string().length(6).regex(/^\d{6}$/),
   password: z
     .string()
     .min(8)
@@ -82,10 +94,10 @@ export const resetPasswordSchema = z.object({
   message: 'Phone ou email requis',
 });
 
-export type RegisterInput         = z.infer<typeof registerSchema>;
-export type VerifyOtpInput        = z.infer<typeof verifyOtpSchema>;
-export type LoginInput            = z.infer<typeof loginSchema>;
-export type LoginMfaInput         = z.infer<typeof loginMfaSchema>;
-export type ForgotPasswordInput   = z.infer<typeof forgotPasswordSchema>;
-export type ResetPasswordInput    = z.infer<typeof resetPasswordSchema>;
-export type ResendOtpInput        = z.infer<typeof resendOtpSchema>;
+export type RegisterInput = z.infer<typeof registerSchema>;
+export type VerifyOtpInput = z.infer<typeof verifyOtpSchema>;
+export type LoginInput = z.infer<typeof loginSchema>;
+export type LoginMfaInput = z.infer<typeof loginMfaSchema>;
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+export type ResendOtpInput = z.infer<typeof resendOtpSchema>;

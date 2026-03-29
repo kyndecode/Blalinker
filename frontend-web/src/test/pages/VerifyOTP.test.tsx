@@ -45,7 +45,7 @@ describe('VerifyOTP page', () => {
     postMock.mockResolvedValue({ data: { message: 'ok' } });
     renderVerify();
 
-    await user.click(screen.getByRole('button', { name: /renvoyer le code/i }));
+    await user.click(screen.getByRole('button', { name: /auth.resend/i }));
 
     await waitFor(() => {
       expect(postMock).toHaveBeenCalledWith('/auth/resend-otp', {

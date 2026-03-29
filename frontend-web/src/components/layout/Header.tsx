@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+﻿import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../store/authStore';
@@ -7,8 +7,8 @@ import api from '../../services/api';
 import Logo from '../common/Logo';
 
 const LANGUAGES = [
-  { code: 'fr', label: 'FR', flag: '🇫🇷' },
-  { code: 'en', label: 'EN', flag: '🇬🇧' },
+  { code: 'fr', label: 'FR', flag: 'ðŸ‡«ðŸ‡·' },
+  { code: 'en', label: 'EN', flag: 'ðŸ‡¬ðŸ‡§' },
 ];
 
 function useClickOutside(ref: React.RefObject<HTMLElement>, cb: () => void) {
@@ -56,6 +56,7 @@ export default function Header() {
     i18n.changeLanguage(code);
     localStorage.setItem('bla_lang', code);
   };
+  const languageCode = (i18n.resolvedLanguage || i18n.language || 'fr').split('-')[0];
 
   const isActive = (path: string) =>
     path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
@@ -63,13 +64,13 @@ export default function Header() {
   const navLinks = [
     { to: '/',        label: t('nav.home')   },
     { to: '/search',  label: t('nav.search') },
-    { to: '/contact', label: 'Contact'       },
+    { to: '/contact', label: t('nav.contact') },
     ...(isAuthenticated ? [{ to: '/dashboard', label: t('nav.dashboard') }] : []),
   ];
 
   const firstName =
     (user?.email ? user.email.split('@')[0] : null) ??
-    (user?.phone ?? 'Mon compte');
+    (user?.phone ?? t('nav.my_account'));
 
   const initial = (user?.email || user?.phone || 'U').slice(0, 1).toUpperCase();
 
@@ -83,7 +84,7 @@ export default function Header() {
             <Logo size="sm" variant="white" />
           </Link>
 
-          {/* Navigation — Desktop */}
+          {/* Navigation â€” Desktop */}
           <nav className="hidden lg:flex items-center gap-1 flex-1 justify-center">
             {navLinks.map((link) => (
               <Link
@@ -100,7 +101,7 @@ export default function Header() {
             ))}
           </nav>
 
-          {/* Actions — Desktop */}
+          {/* Actions â€” Desktop */}
           <div className="hidden lg:flex items-center gap-2">
 
             {/* Recherche rapide */}
@@ -108,7 +109,7 @@ export default function Header() {
               <button
                 onClick={() => setSearchOpen(!searchOpen)}
                 className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors"
-                aria-label="Rechercher"
+                aria-label={t('search.title')}
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -123,9 +124,7 @@ export default function Header() {
                     placeholder={t('search.placeholder')}
                     className="flex-1 px-3 py-2 text-sm bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500"
                   />
-                  <button type="submit" className="px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700">
-                    OK
-                  </button>
+                  <button type="submit" className="px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700">{t('common.ok')}</button>
                 </form>
               )}
             </div>
@@ -144,10 +143,10 @@ export default function Header() {
 
             {/* Langue */}
             <select
-              value={i18n.language}
+              value={languageCode}
               onChange={(e) => changeLang(e.target.value)}
               className="text-xs border border-white/20 rounded-lg bg-white/10 text-white/80 px-2 py-1.5 cursor-pointer focus:outline-none"
-              aria-label="Language"
+              aria-label={t('common.language')}
             >
               {LANGUAGES.map((l) => (
                 <option key={l.code} value={l.code} className="text-gray-900 bg-white">
@@ -177,7 +176,7 @@ export default function Header() {
                   {userMenu && (
                     <div className="absolute right-0 top-12 w-52 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl py-1.5 z-50">
                       <div className="px-4 py-2.5 border-b border-gray-100 dark:border-gray-700">
-                        <p className="text-xs text-gray-500 dark:text-gray-400">Connecté en tant que</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{t('auth.logged_as')}</p>
                         <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{user?.email || user?.phone}</p>
                       </div>
                       <Link to="/dashboard" onClick={() => setUserMenu(false)} className="flex items-center gap-2.5 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-green-50 dark:hover:bg-green-500/10 hover:text-green-700 dark:hover:text-green-400 transition-colors">
@@ -198,7 +197,7 @@ export default function Header() {
                   )}
                 </div>
 
-                {/* Bouton Déconnexion visible */}
+                {/* Bouton DÃ©connexion visible */}
                 <button
                   onClick={handleLogout}
                   className="px-4 py-1.5 rounded-lg border border-white/30 text-sm font-medium text-white/80 hover:bg-white/10 hover:text-white transition-colors"
@@ -218,7 +217,7 @@ export default function Header() {
             )}
           </div>
 
-          {/* Mobile — droite */}
+          {/* Mobile â€” droite */}
           <div className="flex lg:hidden items-center gap-2">
             {isAuthenticated && (
               <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center text-white text-sm font-bold">
@@ -237,7 +236,7 @@ export default function Header() {
             <button
               className="p-2 rounded-lg text-white/70 hover:bg-white/10"
               onClick={() => setMenuOpen(!menuOpen)}
-              aria-label="Menu"
+              aria-label={t('common.menu')}
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 {menuOpen
@@ -299,7 +298,7 @@ export default function Header() {
                 key={l.code}
                 onClick={() => changeLang(l.code)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                  i18n.language === l.code ? 'bg-green-600 text-white' : 'bg-white/10 text-white/60'
+                  languageCode === l.code ? 'bg-green-600 text-white' : 'bg-white/10 text-white/60'
                 }`}
               >
                 {l.flag} {l.label}
@@ -311,3 +310,4 @@ export default function Header() {
     </header>
   );
 }
+

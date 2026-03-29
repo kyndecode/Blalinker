@@ -12,7 +12,9 @@
     "logout": "Sign Out",
     "dashboard": "Dashboard",
     "become_provider": "Become a Provider",
-    "about": "About"
+    "about": "About",
+    "contact": "Contact",
+    "my_account": "My Account"
   },
   "auth": {
     "login": "Sign In",
@@ -29,7 +31,32 @@
     "resend": "Resend code",
     "forgot_password": "Forgot password?",
     "no_account": "No account yet?",
-    "already_account": "Already have an account?"
+    "already_account": "Already have an account?",
+    "register_subtitle": "Join thousands of BLA users",
+    "role_client": "Client",
+    "role_provider": "Provider",
+    "first_name": "First name",
+    "first_name_placeholder": "John",
+    "last_name": "Last name",
+    "last_name_placeholder": "Doe",
+    "phone_country": "Country code",
+    "phone_local_placeholder": "77 000 00 00",
+    "phone_format_helper": "Your number will be sent in international format ({{dialCode}}...)",
+    "email_placeholder": "you@example.com",
+    "password_rules": "Minimum 8 characters, one uppercase and one number",
+    "register_submit": "Create my account",
+    "register_error": "Registration failed",
+    "login_subtitle": "Access your BLA Services account",
+    "phone_or_email": "Phone or email",
+    "phone_or_email_placeholder": "+221 77 000 00 00 or email@example.com",
+    "otp_label": "OTP Code",
+    "otp_invalid": "Invalid code",
+    "otp_sent_to": "Code sent to",
+    "otp_input_label": "Enter the 6-digit OTP code",
+    "otp_digit": "Digit",
+    "otp_resend_in": "Resend in {{seconds}}s",
+    "otp_resend_error": "Failed to resend code",
+    "logged_as": "Logged in as"
   },
   "search": {
     "title": "Find a Provider",
@@ -110,7 +137,75 @@
     "cta_desc": "Join BLA Services and grow your client base. Free registration, transparent fees.",
     "cta_btn": "Join BLA",
     "testimonials_title": "What our users say",
-    "search_btn": "Search"
+    "search_btn": "Search",
+    "available_countries": "Available in Senegal ? C?te d'Ivoire ? Mali ? Burkina Faso",
+    "hero_subtitle": "Plumbers, electricians, carpenters: verified and rated providers near you.",
+    "search_placeholder": "What service are you looking for?",
+    "search_aria": "Search for a service",
+    "quick": {
+      "plumber": "Plumber",
+      "electrician": "Electrician",
+      "carpenter": "Carpenter",
+      "ac": "Air conditioning"
+    },
+    "categories": {
+      "batiment": {
+        "label": "Construction",
+        "sub1": "Masonry",
+        "sub2": "Electrical",
+        "sub3": "Plumbing"
+      },
+      "transport": {
+        "label": "Transport",
+        "sub1": "Driver",
+        "sub2": "Taxi",
+        "sub3": "Delivery"
+      },
+      "beaute": {
+        "label": "Beauty",
+        "sub1": "Hairdresser",
+        "sub2": "Aesthetic care",
+        "sub3": "Massage"
+      },
+      "education": {
+        "label": "Education",
+        "sub1": "Home lessons",
+        "sub2": "Tutoring",
+        "sub3": "Training"
+      },
+      "nettoyage": {
+        "label": "Cleaning",
+        "sub1": "House cleaning",
+        "sub2": "Office cleaning",
+        "sub3": "Gardening"
+      },
+      "numerique": {
+        "label": "Tech",
+        "sub1": "Web development",
+        "sub2": "PC repair",
+        "sub3": "Networking"
+      },
+      "reparation": {
+        "label": "Repair",
+        "sub1": "Mechanic",
+        "sub2": "Appliance repair",
+        "sub3": "Phone repair"
+      },
+      "emploi": {
+        "label": "Jobs",
+        "sub1": "Freelance",
+        "sub2": "Recruitment",
+        "sub3": "HR support"
+      }
+    },
+    "testimonials": {
+      "client_dakar": "Client ? Dakar",
+      "provider_abidjan": "Provider ? Abidjan",
+      "client_bamako": "Client ? Bamako",
+      "text1": "Found a plumber in 10 minutes. Excellent work and easy Wave payment. Highly recommended!",
+      "text2": "Since joining BLA, my schedule is full. The platform is simple and payments are fast.",
+      "text3": "Easy interface even with low connectivity. The provider was verified and very professional."
+    }
   },
   "footer": {
     "company": "Company",
@@ -131,10 +226,28 @@
     "newsletter_placeholder": "Your email",
     "newsletter_btn": "Subscribe",
     "copyright": "All rights reserved.",
-    "tagline": "The African service marketplace"
+    "tagline": "The African service marketplace",
+    "navigation": "Navigation",
+    "nav_search": "Search",
+    "nav_faq": "FAQ",
+    "brand_subtitle": "Your home services platform",
+    "brand_description": "Connect with the best verified and certified providers near you, in Senegal and West Africa.",
+    "follow_us": "Follow us",
+    "legal_notice": "Legal notice",
+    "payments": "Accepted payments",
+    "email_label": "Email:",
+    "phone_label": "Phone:",
+    "available_in": "Available in:",
+    "available_country_hint": "Available in this country",
+    "made_for_africa": "Made with love for Africa"
   },
   "theme": {
     "dark": "Dark Mode",
     "light": "Light Mode"
+  },
+  "common": {
+    "ok": "OK",
+    "language": "Language",
+    "menu": "Menu"
   }
 }

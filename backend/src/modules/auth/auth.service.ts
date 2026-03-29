@@ -48,7 +48,13 @@ export class AuthService {
         passwordHash,
         role:   data.role as 'client' | 'provider',
         status: 'pending',
-        profile: { create: { firstName: '', lastName: '', country: 'SN' } },
+        profile: {
+          create: {
+            firstName: data.firstName,
+            lastName: data.lastName,
+            country: data.countryCode,
+          },
+        },
       },
     });
 
