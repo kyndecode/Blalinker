@@ -18,6 +18,7 @@ permissions:
 env:
   NODE_VERSION: '22'
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+  GHCR_IMAGE_PREFIX: ghcr.io/j-y-kpangban/blaservices
 
 jobs:
 
@@ -201,7 +202,7 @@ jobs:
         id: meta-backend
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}/backend
+          images: ${{ env.GHCR_IMAGE_PREFIX }}/backend
           tags: |
             type=ref,event=branch
             type=sha,prefix={{branch}}-
@@ -223,7 +224,7 @@ jobs:
           context:   ./frontend-web
           target:    production
           push:      true
-          tags:      ghcr.io/${{ github.repository }}/frontend:${{ github.sha }}
+          tags:      ${{ env.GHCR_IMAGE_PREFIX }}/frontend:${{ github.sha }}
           cache-from: type=gha
           cache-to:   type=gha,mode=max
           build-args: |
@@ -256,8 +257,8 @@ jobs:
 
             echo "📦 Pulling images..."
             echo "${{ secrets.GHCR_TOKEN != '' && secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME != '' && secrets.GHCR_USERNAME || github.repository_owner }}" --password-stdin
-            docker pull ghcr.io/${{ github.repository }}/backend:develop
-            docker pull ghcr.io/${{ github.repository }}/frontend:${{ github.sha }}
+            docker pull ${{ env.GHCR_IMAGE_PREFIX }}/backend:develop
+            docker pull ${{ env.GHCR_IMAGE_PREFIX }}/frontend:${{ github.sha }}
 
             echo "🔄 Redémarrage des services..."
             docker compose -f docker-compose.prod.yml up -d --no-deps backend frontend
@@ -303,8 +304,8 @@ jobs:
 
             echo "📦 Pulling images production..."
             echo "${{ secrets.GHCR_TOKEN != '' && secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME != '' && secrets.GHCR_USERNAME || github.repository_owner }}" --password-stdin
-            docker pull ghcr.io/${{ github.repository }}/backend:main
-            docker pull ghcr.io/${{ github.repository }}/frontend:${{ github.sha }}
+            docker pull ${{ env.GHCR_IMAGE_PREFIX }}/backend:main
+            docker pull ${{ env.GHCR_IMAGE_PREFIX }}/frontend:${{ github.sha }}
 
             echo "🔄 Démarrage du nouveau backend (sans downtime)..."
             docker compose -f docker-compose.prod.yml up -d --no-deps --scale backend=2 backend
