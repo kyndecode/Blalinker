@@ -8,7 +8,25 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import { useAuthStore } from '../store/authStore';
 
-const API_URL = import.meta.env.VITE_API_URL || '/api/v1';
+function normalizeApiBaseUrl(rawBaseUrl: string | undefined): string {
+  if (!rawBaseUrl) return '/api/v1';
+
+  const trimmed = rawBaseUrl.trim().replace(/\/+$/, '');
+  if (!trimmed) return '/api/v1';
+
+  // Relative API path for same-origin deployments
+  if (trimmed.startsWith('/')) return trimmed;
+
+  // Render host often comes without protocol; default to https in production-like contexts
+  const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+
+  if (/\/api\/v\d+$/i.test(withProtocol)) return withProtocol;
+  if (/\/api$/i.test(withProtocol)) return `${withProtocol}/v1`;
+
+  return `${withProtocol}/api/v1`;
+}
+
+const API_URL = normalizeApiBaseUrl(import.meta.env.VITE_API_URL);
 
 export const api = axios.create({
   baseURL: API_URL,

@@ -7,11 +7,17 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+function normalizeUrl(rawValue: unknown, fallback: string): string {
+  if (typeof rawValue !== 'string' || rawValue.trim() === '') return fallback;
+  const trimmed = rawValue.trim();
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+}
+
 const envSchema = z.object({
   // Application
   NODE_ENV:     z.enum(['development', 'staging', 'production', 'test']).default('development'),
   PORT:         z.coerce.number().default(3000),
-  APP_URL:      z.string().url().default('http://localhost:3000'),
+  APP_URL:      z.preprocess((v) => normalizeUrl(v, 'http://localhost:3000'), z.string().url()),
   CORS_ORIGIN:  z.string().default('http://localhost:5173'),
 
   // Base de données
