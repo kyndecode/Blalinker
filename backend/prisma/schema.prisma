@@ -79,6 +79,14 @@ enum ReportStatus {
   dismissed
 }
 
+enum ContactRequestStatus {
+  new
+  read
+  answered
+  done
+  closed
+}
+
 // ─── USERS ────────────────────────────────────────────────────
 model User {
   id             String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
@@ -107,6 +115,7 @@ model User {
   sentReports     Report[]         @relation("SentReports")
   receivedReports Report[]         @relation("ReceivedReports")
   notifications   Notification[]
+  contactRequests ContactRequest[]
   otpCodes        OtpCode[]
   locations       Location[]
   auditLogs       AuditLog[]
@@ -347,6 +356,33 @@ model Notification {
   @@index([userId])
   @@index([userId, isRead])
   @@map("notifications")
+}
+
+// ─── CONTACT REQUESTS ──────────────────────────────────────────────────────
+model ContactRequest {
+  id             String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId         String?              @map("user_id") @db.Uuid
+  firstName      String               @map("first_name") @db.VarChar(100)
+  lastName       String               @map("last_name") @db.VarChar(100)
+  email          String               @db.VarChar(255)
+  phone          String               @db.VarChar(25)
+  countryCode    String               @map("country_code") @db.VarChar(10)
+  subject        String               @db.VarChar(150)
+  message        String               @db.Text
+  status         ContactRequestStatus @default(new)
+  adminResponse  String?              @map("admin_response") @db.Text
+  handledBy      String?              @map("handled_by") @db.Uuid
+  handledAt      DateTime?            @map("handled_at")
+  closedAt       DateTime?            @map("closed_at")
+  createdAt      DateTime             @default(now()) @map("created_at")
+  updatedAt      DateTime             @updatedAt @map("updated_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt(sort: Desc)])
+  @@map("contact_requests")
 }
 
 // ─── REPORTS ──────────────────────────────────────────────────

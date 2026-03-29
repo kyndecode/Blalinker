@@ -1,4 +1,5 @@
 ﻿import { z } from 'zod';
+import { isValidE164ForCountry } from '../../utils/phone.validation';
 
 export const registerSchema = z.object({
   firstName: z
@@ -36,6 +37,14 @@ export const registerSchema = z.object({
   role: z.enum(['client', 'provider'], {
     errorMap: () => ({ message: 'Rôle doit être "client" ou "provider"' }),
   }),
+}).superRefine((data, ctx) => {
+  if (!isValidE164ForCountry(data.phone, data.countryCode)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['phone'],
+      message: `Numéro invalide pour ${data.countryCode}`,
+    });
+  }
 });
 
 export const verifyOtpSchema = z.object({

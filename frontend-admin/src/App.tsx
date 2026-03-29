@@ -10,6 +10,7 @@ import Transactions from './pages/Transactions';
 import Reviews      from './pages/Reviews';
 import Reports      from './pages/Reports';
 import Categories   from './pages/Categories';
+import Contacts     from './pages/Contacts';
 
 function RequireAdmin({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAdminAuthStore((s) => s.isAuthenticated);
@@ -33,6 +34,7 @@ export default function App() {
         <Route path="transactions" element={<Transactions />} />
         <Route path="reviews"      element={<Reviews />} />
         <Route path="reports"      element={<Reports />} />
+        <Route path="contacts"     element={<Contacts />} />
         <Route path="categories"   element={<Categories />} />
         <Route path="*"            element={<Navigate to="/dashboard" replace />} />
       </Route>

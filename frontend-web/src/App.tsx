@@ -11,6 +11,11 @@ import Footer from './components/layout/Footer';
 // Pages publiques
 import Home      from './pages/Home/Home';
 import Contact   from './pages/Contact/Contact';
+import AboutPage from './pages/About/AboutPage';
+import FaqPage   from './pages/Help/FaqPage';
+import LegalNoticePage from './pages/Legal/LegalNoticePage';
+import PrivacyPage from './pages/Legal/PrivacyPage';
+import TermsPage from './pages/Legal/TermsPage';
 import Login     from './pages/Auth/Login';
 import Register  from './pages/Auth/Register';
 import VerifyOTP from './pages/Auth/VerifyOTP';
@@ -52,6 +57,11 @@ export default function App() {
           <Route path="/register"     element={<Register />} />
           <Route path="/verify"       element={<VerifyOTP />} />
           <Route path="/contact"      element={<Contact />} />
+          <Route path="/about"        element={<AboutPage />} />
+          <Route path="/help"         element={<FaqPage />} />
+          <Route path="/legal-notice" element={<LegalNoticePage />} />
+          <Route path="/privacy"      element={<PrivacyPage />} />
+          <Route path="/terms"        element={<TermsPage />} />
           <Route path="/search"       element={<SearchPage />} />
           <Route path="/provider/:id" element={<ProviderProfile />} />
 

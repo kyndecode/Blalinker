@@ -64,6 +64,7 @@ export default function Header() {
   const navLinks = [
     { to: '/',        label: t('nav.home')   },
     { to: '/search',  label: t('nav.search') },
+    { to: '/about',   label: t('nav.about') },
     { to: '/contact', label: t('nav.contact') },
     ...(isAuthenticated ? [{ to: '/dashboard', label: t('nav.dashboard') }] : []),
   ];

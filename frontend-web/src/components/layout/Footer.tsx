@@ -61,7 +61,7 @@ export default function Footer() {
   ];
 
   const legalLinks = [
-    { label: t('footer.legal_notice'), to: '/terms' },
+    { label: t('footer.legal_notice'), to: '/legal-notice' },
     { label: t('footer.privacy'), to: '/privacy' },
     { label: t('footer.terms'), to: '/terms' },
   ];
@@ -149,14 +149,14 @@ export default function Footer() {
               </li>
               <li>
                 <p className="text-xs text-white/40 mb-0.5">{t('footer.phone_label')}</p>
-                <a href="tel:+221338001234" className="text-sm text-white/70 hover:text-white transition-colors">
-                  +221 33 800 12 34
+                <a href="tel:+2250720333997" className="text-sm text-white/70 hover:text-white transition-colors">
+                  +225 07 20 33 39 97
                 </a>
               </li>
               <li>
                 <p className="text-xs text-white/40 mb-0.5">{t('footer.available_in')}</p>
                 <div className="flex items-center gap-1.5 mt-1">
-                  {['🇸🇳', '🇨🇮', '🇲🇱', '🇧🇫', '🇬🇳'].map((flag) => (
+                  {['🇹🇬', '🇨🇮', '🇲🇱', '🇧🇫'].map((flag) => (
                     <span key={flag} className="text-lg" title={t('footer.available_country_hint')}>
                       {flag}
                     </span>

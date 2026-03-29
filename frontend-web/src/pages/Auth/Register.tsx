@@ -11,7 +11,9 @@ import api from '../../services/api';
 import {
   detectDefaultCountryCode,
   formatInternationalPhone,
+  getPhoneLengthRule,
   getCountryOptions,
+  isValidLocalPhoneForCountry,
 } from '../../utils/phoneCountries';
 
 const E164_PHONE_REGEX = /^\+[1-9]\d{7,14}$/;
@@ -48,6 +50,17 @@ const schema = z.object({
     .regex(/[0-9]/, 'Au moins un chiffre'),
   role: z.enum(['client', 'provider']),
 }).superRefine((data, ctx) => {
+  if (!isValidLocalPhoneForCountry(data.phoneLocal, data.countryCode)) {
+    const rule = getPhoneLengthRule(data.countryCode);
+    const lengthMessage = rule.min === rule.max ? `${rule.min}` : `${rule.min}-${rule.max}`;
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `Numero invalide pour ce pays (${lengthMessage} chiffres)`,
+      path: ['phoneLocal'],
+    });
+    return;
+  }
+
   const phone = formatInternationalPhone(data.phoneLocal, data.countryCode);
   if (!E164_PHONE_REGEX.test(phone)) {
     ctx.addIssue({
@@ -93,6 +106,7 @@ export default function Register() {
   const currentRole = watch('role');
   const selectedCountryCode = watch('countryCode');
   const selectedCountry = countries.find((country) => country.code === selectedCountryCode);
+  const selectedPhoneRule = getPhoneLengthRule(selectedCountryCode || detectedCountryCode);
 
   useEffect(() => {
     setValue('role', defaultRole);
@@ -110,6 +124,16 @@ export default function Register() {
     setApiError('');
 
     const internationalPhone = formatInternationalPhone(data.phoneLocal, data.countryCode);
+    if (!isValidLocalPhoneForCountry(data.phoneLocal, data.countryCode)) {
+      const rule = getPhoneLengthRule(data.countryCode);
+      const lengthMessage = rule.min === rule.max ? `${rule.min}` : `${rule.min}-${rule.max}`;
+      setError('phoneLocal', {
+        type: 'manual',
+        message: `Numero invalide (${lengthMessage} chiffres)`,
+      });
+      return;
+    }
+
     if (!E164_PHONE_REGEX.test(internationalPhone)) {
       setError('phoneLocal', { type: 'manual', message: 'Format téléphone invalide' });
       return;
@@ -231,6 +255,7 @@ export default function Register() {
                 required
                 autoComplete="tel-national"
                 placeholder={t('auth.phone_local_placeholder')}
+                inputMode="numeric"
                 className={`input ${errors.phoneLocal?.message ? 'input-error' : ''}`}
                 {...register('phoneLocal')}
               />
@@ -244,6 +269,8 @@ export default function Register() {
               <p className="text-xs text-gray-500 dark:text-gray-400">
                 {t('auth.phone_format_helper', {
                   dialCode: selectedCountry?.dialCode ? `+${selectedCountry.dialCode}` : '+',
+                  min: selectedPhoneRule.min,
+                  max: selectedPhoneRule.max,
                 })}
               </p>
             )}

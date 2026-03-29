@@ -1,6 +1,54 @@
 import { Request, Response } from 'express';
 import { prisma } from '../../config/database';
 import { getPaginationParams, paginate, getSkip } from '../../utils/pagination.util';
+import { sendEmail } from '../../config/email';
+import { contactLabels } from '../contact/contact.controller';
+
+type ContactRequestStatus = 'new' | 'read' | 'answered' | 'done' | 'closed';
+
+type ContactRequestRecord = {
+  id: string;
+  userId: string | null;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  countryCode: string;
+  subject: string;
+  message: string;
+  status: ContactRequestStatus;
+  adminResponse: string | null;
+  handledBy: string | null;
+  handledAt: Date | null;
+  closedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+type ContactRequestDelegate = {
+  count: (args?: unknown) => Promise<number>;
+  findMany: (args?: unknown) => Promise<ContactRequestRecord[]>;
+  findUnique: (args?: unknown) => Promise<ContactRequestRecord | null>;
+  update: (args?: unknown) => Promise<ContactRequestRecord>;
+};
+
+const contactRequestModel = (
+  prisma as unknown as { contactRequest: ContactRequestDelegate }
+).contactRequest;
+
+const OPEN_CONTACT_STATUSES: ContactRequestStatus[] = ['new', 'read', 'answered', 'done'];
+
+const CONTACT_STATUS_LABELS: Record<ContactRequestStatus, string> = {
+  new: 'Nouveau',
+  read: 'Lu',
+  answered: 'Repondu',
+  done: 'Termine',
+  closed: 'Cloture',
+};
+
+function getContactStatusLabel(status: ContactRequestStatus): string {
+  return CONTACT_STATUS_LABELS[status] ?? status;
+}
 
 export const adminController = {
   /** GET /admin/dashboard — KPIs */
@@ -31,6 +79,7 @@ export const adminController = {
         pendingVerifications,
         pendingReports,
         pendingReviews,
+        pendingContacts,
         monthlyRevenue,
         totalRevenue,
         monthlyCommissions,
@@ -48,6 +97,7 @@ export const adminController = {
         prisma.profile.count({ where: { idVerified: false, idCardUrl: { not: null } } }),
         prisma.report.count({ where: { status: 'pending' } }),
         prisma.review.count({ where: { isApproved: false } }),
+        contactRequestModel.count({ where: { status: { in: OPEN_CONTACT_STATUSES } } }),
         prisma.transaction.aggregate({
           where: {
             status: 'completed',
@@ -99,6 +149,9 @@ export const adminController = {
         reviews: {
           pending: pendingReviews,
         },
+        contacts: {
+          pending: pendingContacts,
+        },
 
         // Compatibilité avec les anciennes pages admin
         totalUsers,
@@ -106,6 +159,7 @@ export const adminController = {
         activeBookings,
         pendingVerifications,
         pendingReports,
+        pendingContacts,
         monthlyCommissions: Number(monthlyCommissions._sum.commission ?? 0),
       });
     } catch {
@@ -464,6 +518,127 @@ export const adminController = {
     }
   },
 
+  /** GET /admin/contacts */
+  async listContacts(req: Request, res: Response) {
+    const { page, limit } = getPaginationParams(req.query as Record<string, unknown>);
+    const statusQuery = typeof req.query.status === 'string' ? req.query.status : undefined;
+    const search = typeof req.query.search === 'string' ? req.query.search.trim() : '';
+
+    const where: Record<string, unknown> = {};
+    if (statusQuery && ['new', 'read', 'answered', 'done', 'closed'].includes(statusQuery)) {
+      where.status = statusQuery as ContactRequestStatus;
+    }
+    if (search) {
+      where.OR = [
+        { firstName: { contains: search, mode: 'insensitive' } },
+        { lastName: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { phone: { contains: search } },
+        { subject: { contains: search, mode: 'insensitive' } },
+        { message: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    try {
+      const [contacts, total] = await Promise.all([
+        contactRequestModel.findMany({
+          where,
+          orderBy: { createdAt: 'desc' },
+          skip: getSkip({ page, limit }),
+          take: limit,
+        }),
+        contactRequestModel.count({ where }),
+      ]);
+
+      const rows = contacts.map((contact) => ({
+        ...contact,
+        subjectLabel: contactLabels.subject(contact.subject),
+        statusLabel: getContactStatusLabel(contact.status),
+      }));
+
+      return res.json(paginate(rows, total, { page, limit }));
+    } catch {
+      return res.status(500).json({ error: 'Erreur serveur' });
+    }
+  },
+
+  /** PATCH /admin/contacts/:id/status */
+  async updateContactStatus(req: Request, res: Response) {
+    const status = req.body?.status as ContactRequestStatus;
+    const rawAdminResponse = typeof req.body?.adminResponse === 'string'
+      ? req.body.adminResponse.trim()
+      : '';
+
+    if (!['read', 'answered', 'done', 'closed'].includes(status)) {
+      return res.status(422).json({ error: 'Statut invalide' });
+    }
+
+    try {
+      const existing = await contactRequestModel.findUnique({
+        where: { id: req.params.id },
+      });
+
+      if (!existing) {
+        return res.status(404).json({ error: 'Demande introuvable' });
+      }
+
+      const now = new Date();
+      const updated = await contactRequestModel.update({
+        where: { id: req.params.id },
+        data: {
+          status,
+          handledBy: req.user!.id,
+          handledAt: now,
+          closedAt: status === 'closed' ? now : null,
+          ...(rawAdminResponse ? { adminResponse: rawAdminResponse } : {}),
+        },
+      });
+
+      const subjectLabel = contactLabels.subject(updated.subject);
+      const statusLabel = getContactStatusLabel(updated.status);
+      const message = `Votre demande "${subjectLabel}" est maintenant: ${statusLabel}.`;
+
+      if (updated.userId) {
+        await prisma.notification.create({
+          data: {
+            userId: updated.userId,
+            type: 'contact_status',
+            title: 'Mise a jour de votre demande',
+            body: message,
+            data: {
+              requestId: updated.id,
+              status: updated.status,
+              adminResponse: updated.adminResponse ?? null,
+            },
+          },
+        });
+      }
+
+      await sendEmail({
+        to: updated.email,
+        subject: `BLA Services - Mise a jour de votre demande (${subjectLabel})`,
+        html: `
+          <p>Bonjour <strong>${updated.firstName}</strong>,</p>
+          <p>${message}</p>
+          ${updated.adminResponse ? `<p><strong>Message de notre equipe:</strong><br/>${updated.adminResponse.replace(/\n/g, '<br/>')}</p>` : ''}
+          <p><strong>Reference:</strong> ${updated.id}</p>
+          <p>Merci de votre confiance,<br/>L'equipe BLA Services</p>
+        `,
+      });
+
+      return res.json({
+        message: 'Statut de la demande mis a jour',
+        data: {
+          ...updated,
+          subjectLabel,
+          statusLabel,
+        },
+      });
+    } catch {
+      return res.status(500).json({ error: 'Erreur serveur' });
+    }
+  },
+
   /** GET /admin/transactions */
   async listTransactions(req: Request, res: Response) {
     const { page, limit } = getPaginationParams(req.query as Record<string, unknown>);
@@ -525,3 +700,4 @@ export const adminController = {
     }
   },
 };
+

@@ -41,6 +41,24 @@ const COUNTRY_DIAL_CODES: Record<string, string> = {
   YE: '967', ZA: '27', ZM: '260', ZW: '263',
 };
 
+interface PhoneLengthRule {
+  min: number;
+  max: number;
+  stripLeadingZero: boolean;
+}
+
+const DEFAULT_PHONE_RULE: PhoneLengthRule = { min: 6, max: 14, stripLeadingZero: false };
+
+const COUNTRY_PHONE_RULES: Record<string, PhoneLengthRule> = {
+  BF: { min: 8, max: 8, stripLeadingZero: false },
+  CI: { min: 10, max: 10, stripLeadingZero: false },
+  FR: { min: 9, max: 9, stripLeadingZero: true },
+  ML: { min: 8, max: 8, stripLeadingZero: false },
+  SN: { min: 9, max: 9, stripLeadingZero: true },
+  TG: { min: 8, max: 8, stripLeadingZero: false },
+  US: { min: 10, max: 10, stripLeadingZero: false },
+};
+
 function toFlagEmoji(countryCode: string): string {
   return countryCode
     .toUpperCase()
@@ -61,6 +79,10 @@ function getRegionCodes(): string[] {
 
 export function getDialCode(countryCode: string): string {
   return COUNTRY_DIAL_CODES[countryCode.toUpperCase()] ?? '';
+}
+
+export function getPhoneLengthRule(countryCode: string): PhoneLengthRule {
+  return COUNTRY_PHONE_RULES[countryCode.toUpperCase()] ?? DEFAULT_PHONE_RULE;
 }
 
 export function getCountryOptions(locale: string): CountryOption[] {
@@ -100,6 +122,19 @@ export function detectDefaultCountryCode(countries: CountryOption[]): string {
   return countries.some((country) => country.code === 'SN') ? 'SN' : (countries[0]?.code ?? 'US');
 }
 
+function normalizeLocalDigits(rawValue: string, countryCode: string): string {
+  const rule = getPhoneLengthRule(countryCode);
+  const digits = rawValue.replace(/[^\d]/g, '');
+  return rule.stripLeadingZero ? digits.replace(/^0+/, '') : digits;
+}
+
+export function isValidLocalPhoneForCountry(rawValue: string, countryCode: string): boolean {
+  const digits = normalizeLocalDigits(rawValue.trim(), countryCode);
+  if (!digits) return false;
+  const rule = getPhoneLengthRule(countryCode);
+  return digits.length >= rule.min && digits.length <= rule.max;
+}
+
 export function formatInternationalPhone(rawValue: string, countryCode: string): string {
   const value = rawValue.trim();
   if (!value) return '';
@@ -110,7 +145,7 @@ export function formatInternationalPhone(rawValue: string, countryCode: string):
   }
 
   const dialCode = getDialCode(countryCode);
-  const localDigits = value.replace(/[^\d]/g, '').replace(/^0+/, '');
+  const localDigits = normalizeLocalDigits(value, countryCode);
   if (!localDigits) return '';
 
   if (!dialCode) return `+${localDigits}`;

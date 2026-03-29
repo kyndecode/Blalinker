@@ -41,7 +41,7 @@
     "last_name_placeholder": "Doe",
     "phone_country": "Country code",
     "phone_local_placeholder": "77 000 00 00",
-    "phone_format_helper": "Your number will be sent in international format ({{dialCode}}...)",
+    "phone_format_helper": "Your number will be sent in international format ({{dialCode}}...). Expected length: {{min}} to {{max}} digits.",
     "email_placeholder": "you@example.com",
     "password_rules": "Minimum 8 characters, one uppercase and one number",
     "register_submit": "Create my account",
@@ -70,7 +70,19 @@
     "results": "{{count}} provider found",
     "results_plural": "{{count}} providers found",
     "no_results": "No providers found in this area.",
-    "loading": "Searching..."
+    "loading": "Searching...",
+    "all_categories": "All categories",
+    "all": "All",
+    "all_ratings": "All ratings",
+    "max_price": "Maximum price (XOF/h)",
+    "category": "Category",
+    "locating": "Locating...",
+    "you_are_here": "You are here",
+    "provider_distance": "{{km}} km",
+    "smart_recommendations": "Smart recommendations for you",
+    "try_expand_radius": "Try expanding your search radius.",
+    "prev": "Previous",
+    "next": "Next"
   },
   "provider": {
     "rating": "{{rating}} out of 5",
@@ -138,7 +150,7 @@
     "cta_btn": "Join BLA",
     "testimonials_title": "What our users say",
     "search_btn": "Search",
-    "available_countries": "Available in Senegal ? C?te d'Ivoire ? Mali ? Burkina Faso",
+    "available_countries": "Available in C?te d'Ivoire ? TOGO ? Mali ? Burkina Faso",
     "hero_subtitle": "Plumbers, electricians, carpenters: verified and rated providers near you.",
     "search_placeholder": "What service are you looking for?",
     "search_aria": "Search for a service",
@@ -231,7 +243,7 @@
     "nav_search": "Search",
     "nav_faq": "FAQ",
     "brand_subtitle": "Your home services platform",
-    "brand_description": "Connect with the best verified and certified providers near you, in Senegal and West Africa.",
+    "brand_description": "Connect with top verified providers in C?te d'Ivoire, Togo, Mali and Burkina Faso.",
     "follow_us": "Follow us",
     "legal_notice": "Legal notice",
     "payments": "Accepted payments",
@@ -249,5 +261,176 @@
     "ok": "OK",
     "language": "Language",
     "menu": "Menu"
+  },
+  "contact": {
+    "title": "Contact & Support",
+    "subtitle": "Need help with your account, booking, payment, or partnership request? Send us a message and we will respond quickly.",
+    "prefill_loading": "Prefilling your information...",
+    "success": "Request submitted successfully. Reference: {{requestId}}.",
+    "phone_helper": "Expected format: {{dialCode}}... ({{min}} to {{max}} digits).",
+    "subject": "Request subject",
+    "message": "Message",
+    "message_placeholder": "Describe your request in detail (max 1500 characters).",
+    "message_hint": "Maximum 1500 characters. Be precise for faster support.",
+    "submit": "Send my request",
+    "direct_title": "Direct support",
+    "direct_phone_label": "Available in C?te d'Ivoire ? TOGO ? Mali ? Burkina Faso",
+    "available_markets": "Available in: TG ? CI ? ML ? BF",
+    "quick_links": "Useful links",
+    "link_find_provider": "Find a provider",
+    "link_faq": "Read the FAQ",
+    "link_privacy": "Privacy policy",
+    "subject_options": {
+      "support_account": "User account",
+      "support_booking": "Booking / Service request",
+      "support_payment": "Payment",
+      "provider_partnership": "Partnership / Become a provider",
+      "security_report": "Security / Report",
+      "other": "Other request"
+    }
+  },
+  "about": {
+    "title": "About BLA Services",
+    "intro": "BLA Services is a service marketplace built for a simple, trustworthy and secure experience, even on low connectivity. We connect clients to verified providers.",
+    "founder": "Founder",
+    "education": "Education",
+    "mission_title": "Our mission",
+    "mission_text": "Digitize everyday services in West Africa with a mobile-first, robust and credible platform that protects users and empowers reliable providers.",
+    "values_title": "Our commitments",
+    "values_1": "Guided, simple and fast user experience.",
+    "values_2": "Profile verification and anti-fraud controls.",
+    "values_3": "Transparency on prices, quality and service status.",
+    "values_4": "Continuous improvement powered by data and AI."
+  },
+  "faq": {
+    "title": "FAQ - Frequently asked questions",
+    "subtitle": "Key answers for both clients and providers.",
+    "q1": {
+      "question": "How do I create a BLA Services account?",
+      "answer": "Click \"Sign up\", choose your role, enter first name, last name, email and phone, then validate the OTP code."
+    },
+    "q2": {
+      "question": "Are phone and email mandatory?",
+      "answer": "Yes. Both are required to improve account security, recovery and communication reliability."
+    },
+    "q3": {
+      "question": "How do I find a provider near me?",
+      "answer": "Use the Services page, enable your location and filter by rating, price, availability and category."
+    },
+    "q4": {
+      "question": "Can I contact a provider before booking?",
+      "answer": "From the provider profile, you can review details, ratings and launch a detailed booking request."
+    },
+    "q5": {
+      "question": "Which payment methods are available?",
+      "answer": "The platform supports Mobile Money, bank card and internal wallet depending on your market."
+    },
+    "q6": {
+      "question": "What if I have a dispute?",
+      "answer": "Report the issue from your account. Admin follows each case with traceability and evidence."
+    },
+    "q7": {
+      "question": "How do I become a provider?",
+      "answer": "Register as provider, complete your profile, publish your services, then pass identity verification."
+    },
+    "q8": {
+      "question": "How is personal data handled?",
+      "answer": "Data is protected, logged and processed under strict privacy and security controls."
+    },
+    "q9": {
+      "question": "Does the site work with low connectivity?",
+      "answer": "Yes. The interface is mobile-first with progressive loading and network fallback messaging."
+    },
+    "q10": {
+      "question": "How can I contact support?",
+      "answer": "Use the Contact form. You receive an automatic email, then admin status updates until closure."
+    }
+  },
+  "legal_notice": {
+    "title": "Legal notice",
+    "editor_title": "Website publisher",
+    "editor_text": "BLA Services. Publication manager: Jean Yves Kpangban, Data Engineer / Analytics. Contact: support@bla-app.com.",
+    "hosting_title": "Hosting",
+    "hosting_text": "The application is hosted on cloud infrastructure with continuous monitoring, logging and security controls.",
+    "ip_title": "Intellectual property",
+    "ip_text": "Platform content, brand assets and text are protected. Unauthorized reproduction is prohibited.",
+    "liability_title": "Liability",
+    "liability_text": "BLA Services applies reasonable efforts to ensure service availability, reliability and security."
+  },
+  "privacy": {
+    "title": "Privacy policy",
+    "updated_at": "Last update: March 29, 2026",
+    "sections": {
+      "collect": {
+        "title": "1. Collected data",
+        "text": "We collect data required to run the service: identity, contact details, activity history, payments and support interactions."
+      },
+      "usage": {
+        "title": "2. Purposes",
+        "text": "Data is used to secure accounts, match clients and providers, process bookings, improve quality and prevent fraud."
+      },
+      "legal_basis": {
+        "title": "3. Legal basis",
+        "text": "Processing relies on service execution, legal obligations and legitimate interests related to security and product improvement."
+      },
+      "retention": {
+        "title": "4. Retention period",
+        "text": "Data is retained as long as needed for service operations, then archived or deleted per applicable requirements."
+      },
+      "sharing": {
+        "title": "5. Data sharing",
+        "text": "Data is shared only with required technical processors (hosting, payment, notifications), under strict contractual safeguards."
+      },
+      "security": {
+        "title": "6. Security",
+        "text": "We apply encryption, access control, logging and anti-abuse protections to secure users."
+      },
+      "rights": {
+        "title": "7. Your rights",
+        "text": "You can request access, correction, objection or deletion of your data under applicable regulations."
+      },
+      "contact": {
+        "title": "8. Privacy contact",
+        "text": "For any personal data request, use the platform Contact form."
+      }
+    }
+  },
+  "terms": {
+    "title": "Terms and conditions",
+    "updated_at": "Last update: March 29, 2026",
+    "sections": {
+      "scope": {
+        "title": "1. Scope",
+        "text": "These terms govern access and use of BLA Services by clients and providers."
+      },
+      "account": {
+        "title": "2. User account",
+        "text": "Each user is responsible for the accuracy of submitted information and account credential confidentiality."
+      },
+      "booking": {
+        "title": "3. Bookings",
+        "text": "Bookings become binding once confirmed. Status tracking is provided throughout service execution."
+      },
+      "payment": {
+        "title": "4. Payments",
+        "text": "Payments are processed through secure channels. Fees may apply depending on method and market."
+      },
+      "ratings": {
+        "title": "5. Ratings and reviews",
+        "text": "Reviews must remain honest, respectful and factual. Abusive content can be moderated."
+      },
+      "liability": {
+        "title": "6. Liability",
+        "text": "BLA Services operates as a technology intermediary and enforces security, verification and dispute-resolution workflows."
+      },
+      "termination": {
+        "title": "7. Suspension / account closure",
+        "text": "In case of fraud, abuse or policy violations, the platform may suspend or terminate an account."
+      },
+      "law": {
+        "title": "8. Applicable law",
+        "text": "These terms are governed by applicable law in the service operating country, subject to local mandatory provisions."
+      }
+    }
   }
 }

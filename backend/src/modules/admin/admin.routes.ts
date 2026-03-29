@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { adminController } from './admin.controller';
 import { authenticate, requireAdmin, adminRateLimit } from '../../middlewares/auth.middleware';
+import { validate } from '../../middlewares/validate.middleware';
+import { updateContactStatusSchema } from '../contact/contact.schemas';
 
 const router = Router();
 
@@ -23,6 +25,9 @@ router.delete('/reviews/:id',   adminController.deleteReview);
 router.get('/reports',          adminController.listReports);
 router.patch('/reports/:id',    adminController.resolveReport);
 router.put('/reports/:id/resolve', adminController.resolveReport);
+
+router.get('/contacts',         adminController.listContacts);
+router.patch('/contacts/:id/status', validate(updateContactStatusSchema), adminController.updateContactStatus);
 
 router.get('/transactions',     adminController.listTransactions);
 

@@ -18,6 +18,10 @@ export const providersController = {
           p.last_name      AS "lastName",
           p.avatar_url     AS "avatarUrl",
           p.city,
+          p.country,
+          p.address,
+          p.latitude::float AS latitude,
+          p.longitude::float AS longitude,
           p.id_verified    AS "idVerified",
           pp.rating_average AS "ratingAverage",
           pp.rating_count  AS "ratingCount",
@@ -45,6 +49,7 @@ export const providersController = {
           AND pp.rating_average >= ${q.min_rating}
           AND (${q.available_only} = false OR pp.is_available = true)
           AND (${q.category_id ?? null}::uuid IS NULL OR ps.category_id = ${q.category_id ?? null}::uuid)
+          AND (${q.max_price ?? null}::numeric IS NULL OR pp.hourly_rate IS NULL OR pp.hourly_rate <= ${q.max_price ?? null}::numeric)
           AND p.latitude  IS NOT NULL
           AND p.longitude IS NOT NULL
           AND (6371.0 * 2.0 * ASIN(SQRT(
@@ -69,8 +74,14 @@ export const providersController = {
         JOIN provider_services ps ON ps.provider_id = u.id
         WHERE u.role = 'provider'
           AND u.status = 'active'
+          AND u.deleted_at IS NULL
           AND p.id_verified = true
+          AND pp.rating_average >= ${q.min_rating}
+          AND (${q.available_only} = false OR pp.is_available = true)
+          AND (${q.category_id ?? null}::uuid IS NULL OR ps.category_id = ${q.category_id ?? null}::uuid)
+          AND (${q.max_price ?? null}::numeric IS NULL OR pp.hourly_rate IS NULL OR pp.hourly_rate <= ${q.max_price ?? null}::numeric)
           AND p.latitude IS NOT NULL
+          AND p.longitude IS NOT NULL
           AND (6371.0 * 2.0 * ASIN(SQRT(
             POWER(SIN(RADIANS((p.latitude::float  - ${q.lat}::float) / 2.0)), 2) +
             COS(RADIANS(${q.lat}::float)) * COS(RADIANS(p.latitude::float)) *
