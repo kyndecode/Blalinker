@@ -10,7 +10,12 @@ function getClient() {
     return null;
   }
   if (!client) {
-    client = twilio(env.TWILIO_ACCOUNT_SID, env.TWILIO_AUTH_TOKEN);
+    try {
+      client = twilio(env.TWILIO_ACCOUNT_SID, env.TWILIO_AUTH_TOKEN);
+    } catch (err) {
+      logger.error('Configuration Twilio invalide - SMS desactive', err);
+      return null;
+    }
   }
   return client;
 }

@@ -17,6 +17,28 @@ function normalizeUrl(rawValue: unknown, fallback: string): string {
   return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
 }
 
+const NULLISH_ENV_VALUES = new Set([
+  'not_configured',
+  'not-configured',
+  'undefined',
+  'null',
+  'none',
+]);
+
+function normalizeOptionalEnvValue(rawValue: unknown): string | undefined {
+  if (typeof rawValue !== 'string') return undefined;
+  const trimmed = rawValue.trim();
+  if (!trimmed) return undefined;
+  if (NULLISH_ENV_VALUES.has(trimmed.toLowerCase())) return undefined;
+  return trimmed;
+}
+
+const optionalStringEnv = () =>
+  z.preprocess((value) => normalizeOptionalEnvValue(value), z.string().optional());
+
+const optionalUrlEnv = () =>
+  z.preprocess((value) => normalizeOptionalEnvValue(value), z.string().url().optional());
+
 const envSchema = z.object({
   // Application
   NODE_ENV:     z.enum(['development', 'staging', 'production', 'test']).default('development'),
@@ -38,44 +60,44 @@ const envSchema = z.object({
   ENCRYPTION_KEY: z.string().length(64, 'ENCRYPTION_KEY doit faire 64 caractères hex (32 bytes)'),
 
   // SMS OTP (Twilio)
-  TWILIO_ACCOUNT_SID:  z.string().optional(),
-  TWILIO_AUTH_TOKEN:   z.string().optional(),
-  TWILIO_PHONE_NUMBER: z.string().optional(),
+  TWILIO_ACCOUNT_SID:  optionalStringEnv(),
+  TWILIO_AUTH_TOKEN:   optionalStringEnv(),
+  TWILIO_PHONE_NUMBER: optionalStringEnv(),
 
   // Email transactionnel (Brevo / ex-Sendinblue)
-  BREVO_API_KEY:    z.string().optional(),
+  BREVO_API_KEY:    optionalStringEnv(),
   BREVO_FROM_EMAIL: z.string().email().default('noreply@bla-app.com'),
   BREVO_FROM_NAME:  z.string().default('BLA Services'),
 
   // Stockage fichiers (Cloudinary)
-  CLOUDINARY_CLOUD_NAME: z.string().optional(),
-  CLOUDINARY_API_KEY:    z.string().optional(),
-  CLOUDINARY_API_SECRET: z.string().optional(),
+  CLOUDINARY_CLOUD_NAME: optionalStringEnv(),
+  CLOUDINARY_API_KEY:    optionalStringEnv(),
+  CLOUDINARY_API_SECRET: optionalStringEnv(),
 
   // Paiements — CinetPay (agrégateur Africa : Wave, Orange Money, MTN, Moov...)
-  CINETPAY_API_KEY:        z.string().optional(),
-  CINETPAY_SITE_ID:        z.string().optional(),
-  CINETPAY_NOTIFY_URL:     z.string().url().optional(),
-  CINETPAY_RETURN_URL:     z.string().url().optional(),
+  CINETPAY_API_KEY:        optionalStringEnv(),
+  CINETPAY_SITE_ID:        optionalStringEnv(),
+  CINETPAY_NOTIFY_URL:     optionalUrlEnv(),
+  CINETPAY_RETURN_URL:     optionalUrlEnv(),
 
   // Paiements — Stripe (cartes bancaires internationales)
-  STRIPE_SECRET_KEY:       z.string().optional(),
-  STRIPE_WEBHOOK_SECRET:   z.string().optional(),
-  STRIPE_PUBLIC_KEY:       z.string().optional(),
+  STRIPE_SECRET_KEY:       optionalStringEnv(),
+  STRIPE_WEBHOOK_SECRET:   optionalStringEnv(),
+  STRIPE_PUBLIC_KEY:       optionalStringEnv(),
 
   // Paiements — Wave (direct, optionnel si CinetPay insuffisant)
-  WAVE_API_KEY:               z.string().optional(),
-  WAVE_WEBHOOK_SECRET:        z.string().optional(),
+  WAVE_API_KEY:               optionalStringEnv(),
+  WAVE_WEBHOOK_SECRET:        optionalStringEnv(),
 
   // Auth sociale
-  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_ID: optionalStringEnv(),
 
   // IA
   AI_SERVICE_URL:      z.string().url().default('http://localhost:8000'),
-  ANTHROPIC_API_KEY:   z.string().optional(),
+  ANTHROPIC_API_KEY:   optionalStringEnv(),
 
   // Monitoring
-  SENTRY_DSN: z.string().optional(),
+  SENTRY_DSN: optionalStringEnv(),
 
   // Admin seed
   ADMIN_EMAIL:    z.string().email().default('admin@bla-app.com'),

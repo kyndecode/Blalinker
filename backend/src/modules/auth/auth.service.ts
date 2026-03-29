@@ -317,8 +317,11 @@ export class AuthService {
 
   private _buildContactFilters(phone?: string, email?: string) {
     const filters: Array<{ phone: string } | { email: string }> = [];
-    if (phone) filters.push({ phone });
-    if (email) filters.push({ email });
+    const normalizedPhone = phone?.trim();
+    const normalizedEmail = email?.trim().toLowerCase();
+
+    if (normalizedPhone) filters.push({ phone: normalizedPhone });
+    if (normalizedEmail) filters.push({ email: normalizedEmail });
     return filters;
   }
 
@@ -391,16 +394,34 @@ export class AuthService {
     let delivered = false;
 
     if (phone) {
-      const smsSent = await sendSMS(phone, template, [code]);
-      delivered = delivered || smsSent;
+      try {
+        const smsSent = await sendSMS(phone, template, [code]);
+        delivered = delivered || smsSent;
+      } catch (err) {
+        logger.error('Echec canal OTP SMS', {
+          userId,
+          purpose,
+          phone,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
     }
 
     if (email) {
-      const emailData = purpose === 'registration' ? emailTemplates.otpRegister(code)
-                      : purpose === 'login'        ? emailTemplates.otpLogin(code)
-                      : emailTemplates.otpPasswordReset(code);
-      const emailSent = await sendEmail({ to: email, ...emailData });
-      delivered = delivered || emailSent;
+      try {
+        const emailData = purpose === 'registration' ? emailTemplates.otpRegister(code)
+                        : purpose === 'login'        ? emailTemplates.otpLogin(code)
+                        : emailTemplates.otpPasswordReset(code);
+        const emailSent = await sendEmail({ to: email, ...emailData });
+        delivered = delivered || emailSent;
+      } catch (err) {
+        logger.error('Echec canal OTP email', {
+          userId,
+          purpose,
+          email,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
     }
 
     if (!delivered) {

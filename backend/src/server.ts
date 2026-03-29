@@ -170,7 +170,7 @@ async function ensureSystemData() {
   const adminEmail = env.ADMIN_EMAIL.toLowerCase();
   const existingAdmin = await prisma.user.findUnique({
     where: { email: adminEmail },
-    select: { id: true, role: true, status: true },
+    select: { id: true, role: true, status: true, mfaEnabled: true, passwordHash: true },
   });
 
   if (!existingAdmin) {
@@ -193,21 +193,46 @@ async function ensureSystemData() {
         },
       },
     });
-    logger.info(`Compte admin bootstrap créé: ${adminEmail}`);
+    logger.info(`Compte admin bootstrap cree: ${adminEmail}`);
+  } else {
+    const updates: {
+      role?: 'super_admin';
+      status?: 'active';
+      mfaEnabled?: false;
+      passwordHash?: string;
+    } = {};
+
+    if (existingAdmin.role !== 'super_admin') updates.role = 'super_admin';
+    if (existingAdmin.status !== 'active') updates.status = 'active';
+    if (existingAdmin.mfaEnabled !== false) updates.mfaEnabled = false;
+
+    const passwordMatches = await bcrypt.compare(env.ADMIN_PASSWORD, existingAdmin.passwordHash)
+      .catch(() => false);
+    if (!passwordMatches) {
+      updates.passwordHash = await bcrypt.hash(env.ADMIN_PASSWORD, 12);
+    }
+
+    if (Object.keys(updates).length > 0) {
+      await prisma.user.update({
+        where: { id: existingAdmin.id },
+        data: updates,
+      });
+      logger.info(`Compte admin bootstrap synchronise: ${adminEmail}`);
+    }
   }
 
   const categoriesCount = await prisma.category.count();
   if (categoriesCount === 0) {
     await prisma.category.createMany({
       data: [
-        { name: 'Bâtiment & Travaux', slug: 'batiment', isActive: true, sortOrder: 1, iconUrl: '🏗️' },
-        { name: 'Transport & Déplacement', slug: 'transport', isActive: true, sortOrder: 2, iconUrl: '🚗' },
-        { name: 'Beauté & Bien-être', slug: 'beaute', isActive: true, sortOrder: 3, iconUrl: '💇' },
-        { name: 'Informatique & Digital', slug: 'numerique', isActive: true, sortOrder: 4, iconUrl: '💻' },
+        { name: 'Batiment & Travaux', slug: 'batiment', isActive: true, sortOrder: 1, iconUrl: 'building' },
+        { name: 'Transport & Deplacement', slug: 'transport', isActive: true, sortOrder: 2, iconUrl: 'transport' },
+        { name: 'Beaute & Bien-etre', slug: 'beaute', isActive: true, sortOrder: 3, iconUrl: 'beauty' },
+        { name: 'Informatique & Digital', slug: 'numerique', isActive: true, sortOrder: 4, iconUrl: 'digital' },
       ],
       skipDuplicates: true,
     });
-    logger.info('Catégories minimales bootstrap créées');
+    logger.info('Categories minimales bootstrap creees');
   }
 }
 

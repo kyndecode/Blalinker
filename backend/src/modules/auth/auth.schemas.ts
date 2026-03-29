@@ -1,12 +1,20 @@
-ï»¿import { z } from 'zod';
+import { z } from 'zod';
 import { isValidE164ForCountry } from '../../utils/phone.validation';
+
+const optionalEmailSchema = z
+  .string()
+  .trim()
+  .email('Email invalide')
+  .max(255)
+  .transform((value) => value.toLowerCase())
+  .optional();
 
 export const registerSchema = z.object({
   firstName: z
     .string()
     .trim()
-    .min(2, 'PrÃ©nom requis')
-    .max(100, 'PrÃ©nom trop long'),
+    .min(2, 'Prénom requis')
+    .max(100, 'Prénom trop long'),
   lastName: z
     .string()
     .trim()
@@ -20,7 +28,7 @@ export const registerSchema = z.object({
   phone: z
     .string()
     .trim()
-    .regex(/^\+[1-9]\d{7,14}$/, 'Format tÃ©lÃ©phone invalide (ex: +221771234567)'),
+    .regex(/^\+[1-9]\d{7,14}$/, 'Format téléphone invalide (ex: +221771234567)'),
   email: z
     .string()
     .trim()
@@ -29,27 +37,27 @@ export const registerSchema = z.object({
     .transform((v) => v.toLowerCase()),
   password: z
     .string()
-    .min(8, 'Minimum 8 caractÃ¨res')
-    .max(128, 'Maximum 128 caractÃ¨res')
+    .min(8, 'Minimum 8 caractères')
+    .max(128, 'Maximum 128 caractères')
     .regex(/[A-Z]/, 'Doit contenir au moins une lettre majuscule')
     .regex(/[a-z]/, 'Doit contenir au moins une lettre minuscule')
     .regex(/[0-9]/, 'Doit contenir au moins un chiffre'),
   role: z.enum(['client', 'provider'], {
-    errorMap: () => ({ message: 'RÃ´le doit Ãªtre "client" ou "provider"' }),
+    errorMap: () => ({ message: 'Rôle doit être "client" ou "provider"' }),
   }),
 }).superRefine((data, ctx) => {
   if (!isValidE164ForCountry(data.phone, data.countryCode)) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['phone'],
-      message: `NumÃ©ro invalide pour ${data.countryCode}`,
+      message: `Numéro invalide pour ${data.countryCode}`,
     });
   }
 });
 
 export const verifyOtpSchema = z.object({
   phone: z.string().optional(),
-  email: z.string().email().optional(),
+  email: optionalEmailSchema,
   code: z.string().length(6, 'Le code OTP doit faire 6 chiffres').regex(/^\d{6}$/),
   purpose: z.enum(['registration', 'login', 'password_reset', 'payment_confirm']).optional(),
 }).refine((d) => d.phone || d.email, {
@@ -58,7 +66,7 @@ export const verifyOtpSchema = z.object({
 
 export const loginSchema = z.object({
   phone: z.string().optional(),
-  email: z.string().email().optional(),
+  email: optionalEmailSchema,
   password: z.string().min(1, 'Mot de passe requis'),
 }).refine((d) => d.phone || d.email, {
   message: 'Phone ou email requis',
@@ -86,7 +94,7 @@ export const refreshTokenSchema = z.object({
 
 export const resendOtpSchema = z.object({
   phone: z.string().optional(),
-  email: z.string().email().optional(),
+  email: optionalEmailSchema,
   purpose: z.enum(['registration', 'login', 'password_reset']).default('registration'),
 }).refine((d) => d.phone || d.email, {
   message: 'Phone ou email requis',
@@ -94,14 +102,14 @@ export const resendOtpSchema = z.object({
 
 export const forgotPasswordSchema = z.object({
   phone: z.string().optional(),
-  email: z.string().email().optional(),
+  email: optionalEmailSchema,
 }).refine((d) => d.phone || d.email, {
   message: 'Phone ou email requis',
 });
 
 export const resetPasswordSchema = z.object({
   phone: z.string().optional(),
-  email: z.string().email().optional(),
+  email: optionalEmailSchema,
   code: z.string().length(6).regex(/^\d{6}$/),
   password: z
     .string()
