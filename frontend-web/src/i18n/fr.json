@@ -59,7 +59,8 @@
     "logged_as": "Connecté en tant que",
     "google_continue": "Continuer avec Google",
     "google_loading": "Connexion Google...",
-    "google_unavailable": "Google login indisponible. Configurez VITE_GOOGLE_CLIENT_ID."
+    "google_unavailable": "Connexion Google indisponible pour le moment.",
+    "otp_not_password_hint": "Vous recevrez un code OTP de verification. Votre mot de passe ne vous est jamais envoye par email."
   },
   "search": {
     "title": "Trouver un prestataire",

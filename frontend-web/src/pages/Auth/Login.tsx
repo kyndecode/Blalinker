@@ -183,14 +183,16 @@ export default function Login() {
             {t('auth.login')}
           </Button>
 
-          <button
-            type="button"
-            onClick={handleGoogleLogin}
-            disabled={googleLoading}
-            className="w-full border border-gray-200 dark:border-gray-700 rounded-xl py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-60 transition-colors"
-          >
-            {googleLoading ? t('auth.google_loading') : t('auth.google_continue')}
-          </button>
+          {googleClientId && (
+            <button
+              type="button"
+              onClick={handleGoogleLogin}
+              disabled={googleLoading}
+              className="w-full border border-gray-200 dark:border-gray-700 rounded-xl py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-60 transition-colors"
+            >
+              {googleLoading ? t('auth.google_loading') : t('auth.google_continue')}
+            </button>
+          )}
         </form>
 
         <div className="mt-6 pt-5 border-t border-gray-100 dark:border-gray-800 text-center">

@@ -59,7 +59,8 @@
     "logged_as": "Logged in as",
     "google_continue": "Continue with Google",
     "google_loading": "Google sign-in...",
-    "google_unavailable": "Google login unavailable. Configure VITE_GOOGLE_CLIENT_ID."
+    "google_unavailable": "Google sign-in is currently unavailable.",
+    "otp_not_password_hint": "You will receive a verification OTP code. Your password is never sent by email."
   },
   "search": {
     "title": "Find a Provider",

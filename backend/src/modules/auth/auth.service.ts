@@ -38,7 +38,25 @@ export class AuthService {
     });
 
     if (existing) {
-      const field = data.phone && existing.phone === data.phone ? 'téléphone' : 'email';
+      if (existing.status === 'pending') {
+        await prisma.otpCode.deleteMany({
+          where: { userId: existing.id, purpose: 'registration', usedAt: null },
+        });
+
+        await this._sendOtp(
+          existing.id,
+          existing.phone ?? data.phone,
+          existing.email ?? data.email,
+          'registration',
+          ip
+        );
+
+        return {
+          message: 'Compte deja cree mais non valide. Un nouveau code OTP a ete envoye.',
+        };
+      }
+
+      const field = data.phone && existing.phone === data.phone ? 'telephone' : 'email';
       throw Object.assign(new Error(`Ce ${field} est deja utilise`), { code: 'DUPLICATE', status: 409 });
     }
 

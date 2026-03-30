@@ -162,6 +162,27 @@ describe('AuthService', () => {
       await expect(authService.register(input, '127.0.0.1')).rejects.toMatchObject({ status: 409 });
       expect(mockUser.create).not.toHaveBeenCalled();
     });
+
+    it('resends OTP when existing account is pending', async () => {
+      (mockUser.findFirst as jest.Mock).mockResolvedValue({ ...fakeUser, status: 'pending' });
+      (mockOtp.deleteMany as jest.Mock).mockResolvedValue({ count: 1 });
+      (mockOtp.create as jest.Mock).mockResolvedValue({});
+
+      const result = await authService.register(input, '127.0.0.1');
+
+      expect(result.message).toMatch(/OTP/);
+      expect(mockUser.create).not.toHaveBeenCalled();
+      expect(mockOtp.deleteMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            userId: USER_ID,
+            purpose: 'registration',
+            usedAt: null,
+          }),
+        })
+      );
+      expect(mockOtp.create).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('login()', () => {

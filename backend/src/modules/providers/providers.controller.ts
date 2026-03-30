@@ -64,7 +64,7 @@ export const providersController = {
             POWER(SIN(RADIANS((p.longitude::float - ${q.lng}::float) / 2.0)), 2)
           ))) <= ${q.radius}
         GROUP BY
-          u.id, p.first_name, p.last_name, p.avatar_url, p.city,
+          u.id, p.first_name, p.last_name, p.avatar_url, p.city, p.country, p.address,
           p.id_verified, pp.rating_average, pp.rating_count, pp.hourly_rate,
           pp.is_available, pp.completed_jobs, pp.is_premium,
           p.longitude, p.latitude
