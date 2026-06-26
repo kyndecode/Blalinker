@@ -117,7 +117,20 @@ if (!parsed.success) {
   process.exit(1);
 }
 
-export const env = parsed.data;
+/**
+ * Normalise une clé PEM : si elle a été fournie avec des `\n` littéraux
+ * (cas fréquent quand on colle la clé sur une seule ligne), on les reconvertit
+ * en vrais sauts de ligne, sinon jsonwebtoken rejette la clé.
+ */
+function normalizePem(key: string): string {
+  return key.includes('\\n') ? key.replace(/\\n/g, '\n') : key;
+}
+
+export const env = {
+  ...parsed.data,
+  JWT_PRIVATE_KEY: normalizePem(parsed.data.JWT_PRIVATE_KEY),
+  JWT_PUBLIC_KEY:  normalizePem(parsed.data.JWT_PUBLIC_KEY),
+};
 export type Env = typeof env;
 
 const DEFAULT_CORS_ORIGINS = [
