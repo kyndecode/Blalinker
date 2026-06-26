@@ -153,17 +153,20 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Audit dépendances backend (vulnerabilités high+)
+      # Gate de sécurité sur les dépendances de PRODUCTION (celles réellement déployées).
+      # Les vulnérabilités des outils de dev (vite/vitest/esbuild — serveur de dev)
+      # ne partent pas en production ; on les suit hors blocage du pipeline.
+      - name: Audit dépendances backend (production, high+)
         run: |
           cd backend
           npm ci
-          npm audit --audit-level=high
+          npm audit --omit=dev --audit-level=high
 
-      - name: Audit dépendances frontend
+      - name: Audit dépendances frontend (production, high+)
         run: |
           cd frontend-web
           npm ci
-          npm audit --audit-level=high
+          npm audit --omit=dev --audit-level=high
 
       - name: Semgrep — analyse statique de sécurité
         uses: returntocorp/semgrep-action@v1

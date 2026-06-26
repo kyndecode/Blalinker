@@ -32,6 +32,9 @@
     "zod": "^3.22.4",
     "zustand": "^4.5.2"
   },
+  "overrides": {
+    "esbuild": "^0.25.0"
+  },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.4.2",
     "@testing-library/react": "^14.2.2",
