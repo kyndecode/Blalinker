@@ -1,45 +1,52 @@
 ##############################################################
-# BLA — Render Blueprint (Infrastructure as Code)
-# Déploie automatiquement tous les services sur render.com
+# BLA — Render Blueprint (backend API uniquement)
+# DB  : Supabase (PostgreSQL)        → variable DATABASE_URL
+# Cache: Upstash (Redis)             → variable REDIS_URL
+# Frontends : Vercel (web + admin)   → hors de ce blueprint
 # Doc : https://render.com/docs/blueprint-spec
 ##############################################################
 
 services:
 
   # ──────────────────────────────────────────────────────────
-  #  Backend API — Node.js
+  #  Backend API — Node.js  → domaine cible : api.blalinker.com
   # ──────────────────────────────────────────────────────────
   - type: web
     name: bla-backend
     runtime: node
-    region: frankfurt   # Plus proche Afrique de l'Ouest que US
-    plan: free          # Gratuit (512MB RAM, spin-down après 15min inactivité)
+    region: frankfurt          # proche Afrique de l'Ouest
+    plan: free                 # passer à un plan payant pour éviter le spin-down
     rootDir: backend
     buildCommand: npm ci && npx prisma generate && npm run build
+    # migrate deploy nécessite une connexion "Session pooler" Supabase (voir DATABASE_URL)
     startCommand: npx prisma migrate deploy && node dist/server.js
     healthCheckPath: /health
-    autoDeploy: true    # Re-déploie à chaque push sur main
+    autoDeploy: true
 
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
         value: 3000
+
+      # URL publique du SITE (utilisée pour les liens et les pages de retour paiement)
       - key: APP_URL
         value: https://www.blalinker.com
-      - key: CORS_ORIGIN
-        value: https://www.blalinker.com,https://blalinker.com,https://bla-app.onrender.com,https://blaservices-app.onrender.com,https://bla-admin.onrender.com
-      - key: DATABASE_URL
-        fromDatabase:
-          name: bla-postgres
-          property: connectionString
-      - key: REDIS_URL
-        fromService:
-          name: bla-redis
-          type: redis
-          property: connectionString
 
-      # Secrets (à renseigner dans le dashboard Render)
+      # Origines autorisées (CORS). Ajouter les URLs *.vercel.app de preview si besoin.
+      - key: CORS_ORIGIN
+        value: https://www.blalinker.com,https://blalinker.com,https://admin.blalinker.com
+
+      # ─── Base de données — Supabase (Session pooler, port 5432, IPv4) ───
+      #   Format : postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres?sslmode=require
+      - key: DATABASE_URL
+        sync: false
+
+      # ─── Redis — Upstash (rediss://) ───
+      - key: REDIS_URL
+        sync: false
+
+      # ─── Secrets à REGÉNÉRER (les anciens ont été exposés) ───
       - key: JWT_PRIVATE_KEY
         sync: false
       - key: JWT_PUBLIC_KEY
@@ -51,7 +58,13 @@ services:
       - key: JWT_REFRESH_EXPIRY
         value: 30d
 
-      # Brevo (email transactionnel)
+      # Compte admin (mot de passe fort, jamais commité)
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+
+      # Email transactionnel — Brevo
       - key: BREVO_API_KEY
         sync: false
       - key: BREVO_FROM_EMAIL
@@ -59,7 +72,7 @@ services:
       - key: BREVO_FROM_NAME
         value: BLA Services
 
-      # Twilio SMS OTP
+      # SMS OTP — Twilio (optionnel)
       - key: TWILIO_ACCOUNT_SID
         sync: false
       - key: TWILIO_AUTH_TOKEN
@@ -67,7 +80,7 @@ services:
       - key: TWILIO_PHONE_NUMBER
         sync: false
 
-      # Cloudinary
+      # Stockage fichiers — Cloudinary (optionnel)
       - key: CLOUDINARY_CLOUD_NAME
         sync: false
       - key: CLOUDINARY_API_KEY
@@ -75,17 +88,17 @@ services:
       - key: CLOUDINARY_API_SECRET
         sync: false
 
-      # Paiements — CinetPay (Africa : Wave, Orange Money, MTN...)
+      # Paiements — CinetPay (Wave, Orange Money, MTN…)
       - key: CINETPAY_API_KEY
         sync: false
       - key: CINETPAY_SITE_ID
         sync: false
-      - key: CINETPAY_SECRET_KEY   # Clé secrète pour vérifier le HMAC x-token des webhooks
+      - key: CINETPAY_SECRET_KEY        # vérification HMAC x-token des webhooks
         sync: false
       - key: CINETPAY_NOTIFY_URL
-        sync: false
+        value: https://api.blalinker.com/api/v1/payments/webhook/cinetpay
       - key: CINETPAY_RETURN_URL
-        sync: false
+        value: https://www.blalinker.com/payment/success
 
       # Paiements — Stripe (cartes internationales)
       - key: STRIPE_SECRET_KEY
@@ -95,126 +108,10 @@ services:
       - key: STRIPE_PUBLIC_KEY
         sync: false
 
-      # Sentry
-      - key: SENTRY_DSN
-        sync: false
-
       # Auth sociale
       - key: GOOGLE_CLIENT_ID
         sync: false
 
-  # ──────────────────────────────────────────────────────────
-  #  Frontend Web — React (site statique)
-  # ──────────────────────────────────────────────────────────
-  - type: web
-    name: bla-app
-    runtime: static
-    rootDir: frontend-web
-    buildCommand: npm ci && npm run build
-    staticPublishPath: dist
-    pullRequestPreviewsEnabled: true
-
-    headers:
-      - path: /*
-        name: X-Frame-Options
-        value: DENY
-      - path: /*
-        name: X-Content-Type-Options
-        value: nosniff
-      - path: /*
-        name: Referrer-Policy
-        value: strict-origin-when-cross-origin
-      # CSP — à valider en staging si l'on modifie les domaines tiers (Google, Cloudinary, tuiles carto)
-      - path: /*
-        name: Content-Security-Policy
-        value: "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; img-src 'self' data: blob: https://res.cloudinary.com https://*.tile.openstreetmap.org https://*.googleusercontent.com; script-src 'self' https://accounts.google.com/gsi/client https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/style; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://bla-backend.onrender.com wss://bla-backend.onrender.com https://www.blalinker.com https://accounts.google.com https://oauth2.googleapis.com; frame-src https://accounts.google.com"
-      - path: /assets/*
-        name: Cache-Control
-        value: public, max-age=31536000, immutable
-
-    routes:
-      # SPA routing — tout renvoie vers index.html
-      - type: rewrite
-        source: /*
-        destination: /index.html
-
-    envVars:
-      - key: VITE_API_URL
-        fromService:
-          name: bla-backend
-          type: web
-          property: host
-      - key: VITE_API_FALLBACK_URLS
-        value: https://bla-backend.onrender.com/api/v1
-      - key: VITE_GOOGLE_CLIENT_ID
+      # Monitoring (optionnel)
+      - key: SENTRY_DSN
         sync: false
-      - key: VITE_WS_URL
-        fromService:
-          name: bla-backend
-          type: web
-          property: host
-
-  # ──────────────────────────────────────────────────────────
-  #  Admin Dashboard — React (site statique SÉPARÉ)
-  # ──────────────────────────────────────────────────────────
-  - type: web
-    name: bla-admin
-    runtime: static
-    rootDir: frontend-admin
-    buildCommand: npm ci && npm run build
-    staticPublishPath: dist
-
-    headers:
-      - path: /*
-        name: X-Frame-Options
-        value: DENY
-      - path: /*
-        name: X-Content-Type-Options
-        value: nosniff
-      - path: /*
-        name: X-Robots-Tag
-        value: noindex, nofollow
-      - path: /*
-        name: Referrer-Policy
-        value: same-origin
-      - path: /*
-        name: Content-Security-Policy
-        value: "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; img-src 'self' data: blob: https://res.cloudinary.com; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://bla-backend.onrender.com wss://bla-backend.onrender.com"
-      - path: /assets/*
-        name: Cache-Control
-        value: public, max-age=31536000, immutable
-
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
-
-    envVars:
-      - key: VITE_API_URL
-        fromService:
-          name: bla-backend
-          type: web
-          property: host
-      - key: VITE_API_FALLBACK_URLS
-        value: https://bla-backend.onrender.com/api/v1
-
-  # ──────────────────────────────────────────────────────────
-  #  Redis — Cache & Sessions
-  # ──────────────────────────────────────────────────────────
-  - type: redis
-    name: bla-redis
-    region: frankfurt
-    plan: free          # 25MB RAM — suffisant pour démarrer
-    maxmemoryPolicy: allkeys-lru
-    ipAllowList: []     # Accessible uniquement depuis Render
-
-# ──────────────────────────────────────────────────────────
-#  PostgreSQL — Base de données principale
-# ──────────────────────────────────────────────────────────
-databases:
-  - name: bla-postgres
-    region: frankfurt
-    plan: free          # 256MB, 1GB stockage — suffisant pour dev/staging
-    databaseName: bla_db
-    user: bla_user
-    postgresMajorVersion: 15

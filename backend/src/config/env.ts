@@ -123,11 +123,9 @@ export type Env = typeof env;
 const DEFAULT_CORS_ORIGINS = [
   'http://localhost:5173',
   'http://localhost:5174',
-  'https://www.blalinker.com',
   'https://blalinker.com',
-  'https://blaservices-app.onrender.com',
-  'https://bla-admin.onrender.com',
-  'https://bla-app.onrender.com',
+  'https://www.blalinker.com',
+  'https://admin.blalinker.com',
 ];
 
 function normalizeCorsOrigin(origin: string): string {
