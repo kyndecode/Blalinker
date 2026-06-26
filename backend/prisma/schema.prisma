@@ -289,6 +289,7 @@ model Transaction {
 
   @@index([payerId])
   @@index([status])
+  @@index([externalRef])
   @@map("transactions")
 }
 
@@ -403,6 +404,8 @@ model Report {
   reported User     @relation("ReceivedReports", fields: [reportedId], references: [id])
   booking  Booking? @relation(fields: [bookingId], references: [id])
 
+  @@index([status])
+  @@index([reportedId])
   @@map("reports")
 }
 

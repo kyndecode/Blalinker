@@ -63,7 +63,8 @@ export const paymentsController = {
     }
 
     try {
-      const result = await paymentService.verifyCinetPay(parsed.data.transactionId);
+      // Anti-IDOR : on restreint la vérification aux transactions de l'utilisateur courant.
+      const result = await paymentService.verifyCinetPay(parsed.data.transactionId, req.user!.id);
       return res.json(result);
     } catch (err: unknown) {
       const httpError = asHttpLikeError(err);
@@ -74,7 +75,7 @@ export const paymentsController = {
   /** POST /payments/webhook/cinetpay — Webhook CinetPay */
   async webhookCinetPay(req: Request, res: Response) {
     try {
-      await paymentService.handleCinetPayWebhook(req.body);
+      await paymentService.handleCinetPayWebhook(req.body, req.headers as Record<string, unknown>);
       // CinetPay attend une réponse vide 200
       return res.status(200).send();
     } catch (err) {

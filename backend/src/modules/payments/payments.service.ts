@@ -3,12 +3,26 @@
  * Supporte : CinetPay (Africa), Stripe (cartes)
  */
 import axios from 'axios';
+import crypto from 'crypto';
 import { prisma } from '../../config/database';
 import { env } from '../../config/env';
 import { logger } from '../../config/logger';
 
 const CINETPAY_API    = 'https://api-checkout.cinetpay.com/v2/payment';
 const CINETPAY_VERIFY = 'https://api-checkout.cinetpay.com/v2/payment/check';
+
+// Devises "zéro décimale" (pas de centimes) — Stripe attend le montant en unité entière.
+// https://docs.stripe.com/currencies#zero-decimal
+const STRIPE_ZERO_DECIMAL_CURRENCIES = new Set([
+  'XOF', 'XAF', 'BIF', 'CLP', 'DJF', 'GNF', 'JPY', 'KMF', 'KRW',
+  'MGA', 'PYG', 'RWF', 'UGX', 'VND', 'VUV', 'XPF',
+]);
+
+function toStripeUnitAmount(amount: number, currency: string): number {
+  return STRIPE_ZERO_DECIMAL_CURRENCIES.has(currency.toUpperCase())
+    ? Math.round(amount)
+    : Math.round(amount * 100);
+}
 
 export class PaymentService {
 
@@ -24,6 +38,15 @@ export class PaymentService {
     if (!amount) throw Object.assign(new Error('Montant de réservation invalide'), { status: 400 });
 
     if (!env.CINETPAY_API_KEY || !env.CINETPAY_SITE_ID) {
+      // ⚠️ La simulation marque le paiement "completed" SANS encaissement réel.
+      // Strictement interdite en production : sinon toute réservation devient gratuite.
+      if (env.NODE_ENV === 'production') {
+        logger.error('Tentative de paiement alors que CinetPay n\'est pas configuré en production');
+        throw Object.assign(
+          new Error('Paiement temporairement indisponible. Réessayez plus tard.'),
+          { status: 503 }
+        );
+      }
       return this._simulateMobileMoneyPayment(bookingId, userId, booking.providerId, amount, currency, returnUrl);
     }
 
@@ -126,11 +149,23 @@ export class PaymentService {
     };
   }
 
-  async verifyCinetPay(transactionId: string) {
+  /**
+   * Vérifie le statut d'un paiement auprès de CinetPay (source de vérité).
+   * @param userId  Si fourni, restreint la transaction au payeur (anti-IDOR).
+   */
+  async verifyCinetPay(transactionId: string, userId?: string) {
     const transaction = await prisma.transaction.findFirst({
-      where: { externalRef: transactionId },
+      where: {
+        externalRef: transactionId,
+        ...(userId ? { payerId: userId } : {}),
+      },
     });
     if (!transaction) throw Object.assign(new Error('Transaction introuvable'), { status: 404 });
+
+    // Idempotence : ne pas re-confirmer une transaction déjà complétée.
+    if (transaction.status === 'completed') {
+      return { status: 'paid', transactionId };
+    }
 
     const response = await axios.post(CINETPAY_VERIFY, {
       apikey:         env.CINETPAY_API_KEY,
@@ -150,26 +185,71 @@ export class PaymentService {
 
   // ─── Webhook CinetPay ────────────────────────────────────
 
-  async handleCinetPayWebhook(body: Record<string, string>) {
-    const { cpm_trans_id, cpm_result, cpm_error_message } = body;
-
-    logger.info(`Webhook CinetPay: ${cpm_trans_id} → ${cpm_result}`);
-
-    if (cpm_result !== '00') {
-      logger.warn(`Paiement échoué: ${cpm_trans_id} — ${cpm_error_message}`);
-      await prisma.transaction.updateMany({
-        where: { externalRef: cpm_trans_id },
-        data:  { status: 'failed' },
-      });
+  async handleCinetPayWebhook(body: Record<string, string>, headers: Record<string, unknown> = {}) {
+    const cpmTransId = body?.cpm_trans_id;
+    if (!cpmTransId) {
+      logger.warn('Webhook CinetPay sans cpm_trans_id — ignoré');
       return;
     }
 
-    const transaction = await prisma.transaction.findFirst({
-      where: { externalRef: cpm_trans_id },
-    });
-    if (!transaction || transaction.status === 'completed') return;
+    logger.info(`Webhook CinetPay reçu: ${cpmTransId}`);
 
-    await this._confirmPayment(transaction.bookingId, transaction.id, cpm_trans_id);
+    // 1. Vérifier la signature HMAC (x-token) si le secret est configuré.
+    //    On NE fait jamais confiance au corps de la requête sans cette vérification.
+    if (env.CINETPAY_SECRET_KEY) {
+      if (!this._isValidCinetPayToken(body, headers)) {
+        logger.warn(`Webhook CinetPay: signature HMAC invalide pour ${cpmTransId} — rejeté`);
+        return;
+      }
+    } else {
+      logger.warn('CINETPAY_SECRET_KEY non configurée : vérification HMAC du webhook désactivée');
+    }
+
+    // 2. NE PAS croire cpm_result. On re-vérifie le statut directement auprès de
+    //    l'API CinetPay (source de vérité) avant toute confirmation.
+    if (!env.CINETPAY_API_KEY || !env.CINETPAY_SITE_ID) {
+      logger.error('Webhook CinetPay reçu mais API non configurée : confirmation impossible');
+      return;
+    }
+
+    try {
+      await this.verifyCinetPay(cpmTransId); // confirme uniquement si l'API renvoie ACCEPTED
+    } catch (err) {
+      logger.error('Webhook CinetPay: échec de la re-vérification', {
+        cpmTransId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  /** Vérifie le HMAC-SHA256 (x-token) envoyé par CinetPay sur ses webhooks. */
+  private _isValidCinetPayToken(body: Record<string, string>, headers: Record<string, unknown>): boolean {
+    const secret = env.CINETPAY_SECRET_KEY;
+    if (!secret) return false;
+
+    const received = String(
+      headers['x-token'] ?? headers['X-TOKEN'] ?? headers['X-Token'] ?? ''
+    );
+    if (!received) return false;
+
+    // Concaténation des champs dans l'ordre imposé par la documentation CinetPay.
+    const data = [
+      body.cpm_site_id, body.cpm_trans_id, body.cpm_trans_date, body.cpm_amount,
+      body.cpm_currency, body.signature, body.payment_method, body.cel_phone_num,
+      body.cpm_phone_prefixe, body.cpm_language, body.cpm_version,
+      body.cpm_payment_config, body.cpm_page_action, body.cpm_custom,
+      body.cpm_designation, body.cpm_error_message,
+    ].map((v) => v ?? '').join('');
+
+    const expected = crypto.createHmac('sha256', secret).update(data).digest('hex');
+
+    try {
+      const a = Buffer.from(expected, 'hex');
+      const b = Buffer.from(received, 'hex');
+      return a.length === b.length && crypto.timingSafeEqual(a, b);
+    } catch {
+      return false;
+    }
   }
 
   // ─── Stripe ──────────────────────────────────────────────
@@ -194,7 +274,7 @@ export class PaymentService {
       line_items: [{
         price_data: {
           currency:     currency.toLowerCase(),
-          unit_amount:  amount * 100,
+          unit_amount:  toStripeUnitAmount(amount, currency),
           product_data: { name: `BLA - Réservation #${bookingId.slice(0, 8)}` },
         },
         quantity: 1,
@@ -247,17 +327,28 @@ export class PaymentService {
   // ─── Méthodes privées ────────────────────────────────────
 
   private async _confirmPayment(bookingId: string, transactionId: string, externalRef: string) {
+    // Calculer la commission de la plateforme à partir du taux de la réservation.
+    const [booking, transaction] = await Promise.all([
+      prisma.booking.findUnique({ where: { id: bookingId }, select: { commissionRate: true } }),
+      prisma.transaction.findUnique({ where: { id: transactionId }, select: { amount: true } }),
+    ]);
+
+    const amount = Number(transaction?.amount ?? 0);
+    const rate = Number(booking?.commissionRate ?? 0);
+    const commission = Math.round((amount * rate) / 100);
+    const netAmount = Math.max(0, amount - commission);
+
     await prisma.$transaction([
       prisma.transaction.update({
         where: { id: transactionId },
-        data:  { status: 'completed', paidAt: new Date() },
+        data:  { status: 'completed', paidAt: new Date(), commission, netAmount },
       }),
       prisma.booking.update({
         where: { id: bookingId },
-        data:  { status: 'accepted' },
+        data:  { status: 'accepted', commissionAmt: commission },
       }),
     ]);
-    logger.info(`Paiement confirmé: booking=${bookingId} tx=${externalRef}`);
+    logger.info(`Paiement confirmé: booking=${bookingId} tx=${externalRef} commission=${commission}`);
   }
 
   private async _simulateMobileMoneyPayment(

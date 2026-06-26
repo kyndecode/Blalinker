@@ -77,6 +77,7 @@ const envSchema = z.object({
   // Paiements — CinetPay (agrégateur Africa : Wave, Orange Money, MTN, Moov...)
   CINETPAY_API_KEY:        optionalStringEnv(),
   CINETPAY_SITE_ID:        optionalStringEnv(),
+  CINETPAY_SECRET_KEY:     optionalStringEnv(), // Clé secrète pour vérifier le HMAC x-token des webhooks
   CINETPAY_NOTIFY_URL:     optionalUrlEnv(),
   CINETPAY_RETURN_URL:     optionalUrlEnv(),
 
@@ -99,9 +100,13 @@ const envSchema = z.object({
   // Monitoring
   SENTRY_DSN: optionalStringEnv(),
 
-  // Admin seed
+  // Admin seed — AUCUN mot de passe par défaut (un défaut connu = compte super_admin compromis).
+  // Si ADMIN_PASSWORD est absent, le bootstrap admin est simplement ignoré au démarrage.
   ADMIN_EMAIL:    z.string().email().default('admin@blalinker.com'),
-  ADMIN_PASSWORD: z.string().min(8).default('BlaAdmin2024!'),
+  ADMIN_PASSWORD: z.preprocess(
+    (value) => normalizeOptionalEnvValue(value),
+    z.string().min(8, 'ADMIN_PASSWORD doit faire au moins 8 caractères').optional()
+  ),
 });
 
 const parsed = envSchema.safeParse(process.env);

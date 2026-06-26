@@ -11,11 +11,15 @@ interface User {
 interface AuthState {
   user:         User | null;
   accessToken:  string | null;
-  refreshToken: string | null;
   isAuthenticated: boolean;
 
   setUser:     (user: User) => void;
-  setTokens:   (access: string, refresh: string) => void;
+  /**
+   * Définit l'access token (gardé en mémoire uniquement).
+   * Le second paramètre `refresh` est conservé pour compatibilité d'appel mais
+   * ignoré côté web : le refresh token vit dans un cookie HttpOnly géré par le serveur.
+   */
+  setTokens:   (access: string, refresh?: string) => void;
   logout:      () => void;
 }
 
@@ -24,28 +28,26 @@ export const useAuthStore = create<AuthState>()(
     (set) => ({
       user:            null,
       accessToken:     null,
-      refreshToken:    null,
       isAuthenticated: false,
 
       setUser: (user) => set({ user }),
 
-      setTokens: (accessToken, refreshToken) =>
-        set({ accessToken, refreshToken, isAuthenticated: true }),
+      setTokens: (accessToken) =>
+        set({ accessToken, isAuthenticated: true }),
 
       logout: () =>
         set({
           user:            null,
           accessToken:     null,
-          refreshToken:    null,
           isAuthenticated: false,
         }),
     }),
     {
       name:    'bla_auth',
+      // On ne persiste que l'utilisateur. L'access token reste en mémoire ;
+      // le refresh token est un cookie HttpOnly inaccessible au JS (anti-XSS).
       partialize: (state) => ({
-        user:         state.user,
-        refreshToken: state.refreshToken,
-        // Ne PAS persister l'access token (courte durée, stocké en mémoire)
+        user: state.user,
       }),
     }
   )

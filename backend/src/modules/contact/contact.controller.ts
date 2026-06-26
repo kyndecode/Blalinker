@@ -4,6 +4,7 @@ import { logger } from '../../config/logger';
 import { env } from '../../config/env';
 import { sendEmail } from '../../config/email';
 import { getPaginationParams, getSkip, paginate } from '../../utils/pagination.util';
+import { escapeHtml, escapeHtmlMultiline } from '../../utils/html.util';
 import type { CreateContactInput } from './contact.schemas';
 
 type ContactRequestRecord = {
@@ -37,10 +38,10 @@ const contactRequestModel = (
 
 const SUBJECT_LABELS: Record<string, string> = {
   support_account: 'Compte utilisateur',
-  support_booking: 'Réservation / Prestation',
+  support_booking: 'RÃ©servation / Prestation',
   support_payment: 'Paiement',
   provider_partnership: 'Devenir prestataire / Partenariat',
-  security_report: 'Sécurité / Signalement',
+  security_report: 'SÃ©curitÃ© / Signalement',
   other: 'Autre demande',
 };
 
@@ -51,14 +52,14 @@ function getSubjectLabel(subject: string): string {
 async function sendRequesterAcknowledgement(payload: CreateContactInput, requestId: string): Promise<void> {
   await sendEmail({
     to: payload.email,
-    subject: `BLA Services - Demande reçue (${getSubjectLabel(payload.subject)})`,
+    subject: `BLA Services - Demande reÃ§ue (${getSubjectLabel(payload.subject)})`,
     html: `
-      <p>Bonjour <strong>${payload.firstName}</strong>,</p>
-      <p>Nous avons bien reçu votre message. Notre équipe va vous répondre rapidement.</p>
-      <p><strong>Référence:</strong> ${requestId}</p>
-      <p><strong>Sujet:</strong> ${getSubjectLabel(payload.subject)}</p>
-      <p>Vous recevrez une notification dès qu'un admin aura traité votre demande.</p>
-      <p>Merci de votre confiance,<br/>L'équipe BLA Services</p>
+      <p>Bonjour <strong>${escapeHtml(payload.firstName)}</strong>,</p>
+      <p>Nous avons bien reÃ§u votre message. Notre Ã©quipe va vous rÃ©pondre rapidement.</p>
+      <p><strong>RÃ©fÃ©rence:</strong> ${escapeHtml(requestId)}</p>
+      <p><strong>Sujet:</strong> ${escapeHtml(getSubjectLabel(payload.subject))}</p>
+      <p>Vous recevrez une notification dÃ¨s qu'un admin aura traitÃ© votre demande.</p>
+      <p>Merci de votre confiance,<br/>L'Ã©quipe BLA Services</p>
     `,
   });
 }
@@ -96,13 +97,13 @@ async function notifyAdmins(payload: CreateContactInput, requestId: string): Pro
       to: adminMailbox,
       subject: `BLA Admin - Nouveau contact (${getSubjectLabel(payload.subject)})`,
       html: `
-        <p>Nouveau message contact reçu.</p>
-        <p><strong>Référence:</strong> ${requestId}</p>
-        <p><strong>Nom:</strong> ${payload.firstName} ${payload.lastName}</p>
-        <p><strong>Email:</strong> ${payload.email}</p>
-        <p><strong>Téléphone:</strong> ${payload.phone}</p>
-        <p><strong>Sujet:</strong> ${getSubjectLabel(payload.subject)}</p>
-        <p><strong>Message:</strong><br/>${payload.message.replace(/\n/g, '<br/>')}</p>
+        <p>Nouveau message contact reÃ§u.</p>
+        <p><strong>RÃ©fÃ©rence:</strong> ${escapeHtml(requestId)}</p>
+        <p><strong>Nom:</strong> ${escapeHtml(payload.firstName)} ${escapeHtml(payload.lastName)}</p>
+        <p><strong>Email:</strong> ${escapeHtml(payload.email)}</p>
+        <p><strong>TÃ©lÃ©phone:</strong> ${escapeHtml(payload.phone)}</p>
+        <p><strong>Sujet:</strong> ${escapeHtml(getSubjectLabel(payload.subject))}</p>
+        <p><strong>Message:</strong><br/>${escapeHtmlMultiline(payload.message)}</p>
       `,
     });
   }
@@ -137,11 +138,11 @@ export const contactController = {
     try {
       const requestId = await createContactRequest(req.body as CreateContactInput);
       return res.status(201).json({
-        message: 'Votre demande a bien été enregistrée. Nous revenons vers vous très vite.',
+        message: 'Votre demande a bien Ã©tÃ© enregistrÃ©e. Nous revenons vers vous trÃ¨s vite.',
         requestId,
       });
     } catch (error) {
-      logger.error('Erreur création contact (public):', error);
+      logger.error('Erreur crÃ©ation contact (public):', error);
       return res.status(500).json({ error: 'Erreur lors de l\'envoi du message' });
     }
   },
@@ -150,11 +151,11 @@ export const contactController = {
     try {
       const requestId = await createContactRequest(req.body as CreateContactInput, req.user?.id);
       return res.status(201).json({
-        message: 'Votre demande a bien été enregistrée. Nous revenons vers vous très vite.',
+        message: 'Votre demande a bien Ã©tÃ© enregistrÃ©e. Nous revenons vers vous trÃ¨s vite.',
         requestId,
       });
     } catch (error) {
-      logger.error('Erreur création contact (auth):', error);
+      logger.error('Erreur crÃ©ation contact (auth):', error);
       return res.status(500).json({ error: 'Erreur lors de l\'envoi du message' });
     }
   },
@@ -189,4 +190,3 @@ export const contactController = {
 export const contactLabels = {
   subject: getSubjectLabel,
 };
-

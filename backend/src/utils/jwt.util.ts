@@ -7,17 +7,19 @@ export interface JwtPayload {
   userId: string;
   role: string;
   sessionId: string;
+  type?: 'access';
 }
 
 export interface RefreshPayload {
   userId: string;
   sessionId: string;
   tokenFamily: string;
+  type?: 'refresh';
 }
 
 /** Génère un access token (15 min) */
 export function signAccessToken(payload: JwtPayload): string {
-  return jwt.sign(payload, env.JWT_PRIVATE_KEY, {
+  return jwt.sign({ ...payload, type: 'access' }, env.JWT_PRIVATE_KEY, {
     algorithm: 'RS256',
     expiresIn: env.JWT_ACCESS_EXPIRY as jwt.SignOptions['expiresIn'],
   });
@@ -25,24 +27,32 @@ export function signAccessToken(payload: JwtPayload): string {
 
 /** Génère un refresh token (30j) */
 export function signRefreshToken(payload: RefreshPayload): string {
-  return jwt.sign(payload, env.JWT_PRIVATE_KEY, {
+  return jwt.sign({ ...payload, type: 'refresh' }, env.JWT_PRIVATE_KEY, {
     algorithm: 'RS256',
     expiresIn: env.JWT_REFRESH_EXPIRY as jwt.SignOptions['expiresIn'],
   });
 }
 
-/** Vérifie un access token */
+/** Vérifie un access token (rejette un refresh token présenté comme access) */
 export function verifyAccessToken(token: string): JwtPayload {
-  return jwt.verify(token, env.JWT_PUBLIC_KEY, {
+  const payload = jwt.verify(token, env.JWT_PUBLIC_KEY, {
     algorithms: ['RS256'],
   }) as JwtPayload;
+  if (payload.type !== 'access') {
+    throw new jwt.JsonWebTokenError('Type de token invalide');
+  }
+  return payload;
 }
 
-/** Vérifie un refresh token */
+/** Vérifie un refresh token (tolère l'absence de type pour les tokens hérités) */
 export function verifyRefreshToken(token: string): RefreshPayload {
-  return jwt.verify(token, env.JWT_PUBLIC_KEY, {
+  const payload = jwt.verify(token, env.JWT_PUBLIC_KEY, {
     algorithms: ['RS256'],
   }) as RefreshPayload;
+  if (payload.type && payload.type !== 'refresh') {
+    throw new jwt.JsonWebTokenError('Type de token invalide');
+  }
+  return payload;
 }
 
 /** Révoque un access token jusqu'à son expiration naturelle */

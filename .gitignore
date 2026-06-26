@@ -14,6 +14,9 @@ out/
 .env.local
 .env.*.local
 .env.production
+# Catch-all : tout fichier se terminant par .env (ex: render-missing-vars.env)
+# NB: .env.example n'est PAS ignoré (se termine par .example)
+*.env
 
 # Logs
 logs/
@@ -74,3 +77,14 @@ ai-service/venv/
 
 # Uploads temporaires
 uploads/temp/
+
+# Fichiers de travail / notes locales (PEUVENT CONTENIR DES SECRETS — ne jamais committer)
+KeyValueDelete.txt
+PROMPT.txt
+httpsdocs.cinetpay.comapi1.0-frchec.txt
+
+# Config locale de l'agent
+.claude/
+
+# Lockfile racine parasite (aucun package.json à la racine)
+/package-lock.json

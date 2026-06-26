@@ -1,34 +1,43 @@
-import { type ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, lazy, Suspense, useEffect, useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './store/authStore';
 import { useNetworkStatus } from './hooks/useNetworkStatus';
 import { useTranslation } from 'react-i18next';
 import api from './services/api';
 
-// Layout
+// Layout (chargé immédiatement — présent sur toutes les pages)
 import Header from './components/layout/Header';
 import Footer from './components/layout/Footer';
 
-// Pages publiques
-import Home      from './pages/Home/Home';
-import Contact   from './pages/Contact/Contact';
-import AboutPage from './pages/About/AboutPage';
-import FaqPage   from './pages/Help/FaqPage';
-import LegalNoticePage from './pages/Legal/LegalNoticePage';
-import PrivacyPage from './pages/Legal/PrivacyPage';
-import TermsPage from './pages/Legal/TermsPage';
-import Login     from './pages/Auth/Login';
-import Register  from './pages/Auth/Register';
-import VerifyOTP from './pages/Auth/VerifyOTP';
+// Pages — chargées à la demande (code-splitting) pour alléger le bundle initial.
+const Home            = lazy(() => import('./pages/Home/Home'));
+const Contact         = lazy(() => import('./pages/Contact/Contact'));
+const AboutPage       = lazy(() => import('./pages/About/AboutPage'));
+const FaqPage         = lazy(() => import('./pages/Help/FaqPage'));
+const LegalNoticePage = lazy(() => import('./pages/Legal/LegalNoticePage'));
+const PrivacyPage     = lazy(() => import('./pages/Legal/PrivacyPage'));
+const TermsPage       = lazy(() => import('./pages/Legal/TermsPage'));
+const Login           = lazy(() => import('./pages/Auth/Login'));
+const Register        = lazy(() => import('./pages/Auth/Register'));
+const VerifyOTP       = lazy(() => import('./pages/Auth/VerifyOTP'));
+const ForgotPassword  = lazy(() => import('./pages/Auth/ForgotPassword'));
 
-// Pages authentifiées
-import Dashboard       from './pages/Dashboard/Dashboard';
-import SearchPage      from './pages/Search/SearchPage';
-import ProviderProfile from './pages/ProviderProfile/ProviderProfile';
-import BookingsList    from './pages/Booking/BookingsList';
-import BookingNew      from './pages/Booking/BookingNew';
-import BookingDetail   from './pages/Booking/BookingDetail';
-import ProfilePage     from './pages/Profile/ProfilePage';
+const Dashboard       = lazy(() => import('./pages/Dashboard/Dashboard'));
+const SearchPage      = lazy(() => import('./pages/Search/SearchPage'));
+const ProviderProfile = lazy(() => import('./pages/ProviderProfile/ProviderProfile'));
+const BookingsList    = lazy(() => import('./pages/Booking/BookingsList'));
+const BookingNew      = lazy(() => import('./pages/Booking/BookingNew'));
+const BookingDetail   = lazy(() => import('./pages/Booking/BookingDetail'));
+const ProfilePage     = lazy(() => import('./pages/Profile/ProfilePage'));
+const NotFound        = lazy(() => import('./pages/NotFound/NotFound'));
+
+function PageFallback() {
+  return (
+    <div className="min-h-[50vh] flex items-center justify-center">
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-green-600 border-t-transparent" aria-label="Chargement" />
+    </div>
+  );
+}
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -39,7 +48,7 @@ export default function App() {
   const isOnline = useNetworkStatus();
   const { t }    = useTranslation();
   const accessToken = useAuthStore((state) => state.accessToken);
-  const refreshToken = useAuthStore((state) => state.refreshToken);
+  const user = useAuthStore((state) => state.user);
   const setTokens = useAuthStore((state) => state.setTokens);
   const setUser = useAuthStore((state) => state.setUser);
   const logout = useAuthStore((state) => state.logout);
@@ -49,14 +58,17 @@ export default function App() {
     let cancelled = false;
 
     const bootstrapAuth = async () => {
-      if (accessToken || !refreshToken) {
+      // Déjà un access token en mémoire, ou jamais connecté → rien à restaurer.
+      if (accessToken || !user) {
         if (!cancelled) setAuthReady(true);
         return;
       }
 
+      // Une session a existé (user persisté) : on tente de la restaurer via le
+      // cookie HttpOnly du refresh token (envoyé automatiquement par withCredentials).
       try {
-        const refreshed = await api.post('/auth/refresh-token', { refreshToken });
-        setTokens(refreshed.data.accessToken, refreshed.data.refreshToken);
+        const refreshed = await api.post('/auth/refresh-token', {});
+        setTokens(refreshed.data.accessToken);
 
         const me = await api.get('/users/me');
         setUser({
@@ -76,7 +88,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [accessToken, refreshToken, setTokens, setUser, logout]);
+  }, [accessToken, user, setTokens, setUser, logout]);
 
   if (!authReady) {
     return (
@@ -98,12 +110,15 @@ export default function App() {
       <Header />
 
       <main className={`flex-1 ${!isOnline ? 'mt-10' : ''}`}>
+        <Suspense fallback={<PageFallback />}>
         <Routes>
           {/* Publiques */}
           <Route path="/"             element={<Home />} />
           <Route path="/login"        element={<Login />} />
           <Route path="/register"     element={<Register />} />
           <Route path="/verify"       element={<VerifyOTP />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password"  element={<ForgotPassword />} />
           <Route path="/contact"      element={<Contact />} />
           <Route path="/about"        element={<AboutPage />} />
           <Route path="/help"         element={<FaqPage />} />
@@ -120,9 +135,10 @@ export default function App() {
           <Route path="/bookings/:id" element={<RequireAuth><BookingDetail /></RequireAuth>} />
           <Route path="/profile"      element={<RequireAuth><ProfilePage /></RequireAuth>} />
 
-          {/* 404 */}
-          <Route path="*" element={<Navigate to="/" replace />} />
+          {/* 404 — affiche une vraie page plutôt qu'une redirection silencieuse */}
+          <Route path="*" element={<NotFound />} />
         </Routes>
+        </Suspense>
       </main>
 
       <Footer />

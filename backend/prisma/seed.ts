@@ -114,13 +114,21 @@ async function main() {
   console.log(`✅ ${totalChildren} sous-catégories créées`);
 
   // ─── 3. Admin par défaut ───────────────────────────────────
+  // Aucun mot de passe par défaut : il DOIT être fourni via ADMIN_PASSWORD.
   const adminEmail    = process.env.ADMIN_EMAIL    || 'admin@blalinker.com';
-  const adminPassword = process.env.ADMIN_PASSWORD || 'BlaAdmin2024!';
-  const passwordHash  = await bcrypt.hash(adminPassword, 12);
+  const adminPassword = process.env.ADMIN_PASSWORD;
+
+  if (!adminPassword || adminPassword.length < 8) {
+    console.log('⚠️  ADMIN_PASSWORD absente ou trop courte (≥ 8 caractères) : création de l\'admin ignorée.');
+    console.log('🎉 Seed terminé (catégories uniquement).');
+    return;
+  }
+
+  const passwordHash = await bcrypt.hash(adminPassword, 12);
 
   const admin = await prisma.user.upsert({
     where:  { email: adminEmail },
-    update: {},
+    update: {}, // ne jamais écraser un admin existant (mot de passe, rôle, statut)
     create: {
       email: adminEmail,
       passwordHash,
@@ -138,12 +146,7 @@ async function main() {
     },
   });
 
-  console.log(`✅ Admin créé : ${admin.email}`);
-  console.log('');
-  console.log('⚠️  IMPORTANT : Changez le mot de passe admin en production !');
-  console.log(`   Email    : ${adminEmail}`);
-  console.log(`   Password : ${adminPassword}`);
-  console.log('');
+  console.log(`✅ Admin prêt : ${admin.email}`);
   console.log('🎉 Seed terminé avec succès !');
 }
 

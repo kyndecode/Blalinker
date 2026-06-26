@@ -10,6 +10,8 @@ import {
   googleLoginSchema,
   refreshTokenSchema,
   resendOtpSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
 } from './auth.schemas';
 
 const router = Router();
@@ -48,6 +50,18 @@ router.post('/login/verify-mfa',
 router.post('/google',
   validate(googleLoginSchema),
   authController.googleLogin
+);
+
+// POST /api/v1/auth/forgot-password
+router.post('/forgot-password',
+  validate(forgotPasswordSchema),
+  authController.forgotPassword
+);
+
+// POST /api/v1/auth/reset-password
+router.post('/reset-password',
+  validate(resetPasswordSchema),
+  authController.resetPassword
 );
 
 // POST /api/v1/auth/refresh-token

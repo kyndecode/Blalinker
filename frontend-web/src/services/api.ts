@@ -99,7 +99,11 @@ function isTransientNetworkError(error: AxiosError): boolean {
 export const api = axios.create({
   baseURL: getActiveApiBaseUrl(),
   timeout: 8_000,
-  headers: { 'Content-Type': 'application/json' },
+  withCredentials: true, // envoie/reçoit le cookie HttpOnly du refresh token
+  headers: {
+    'Content-Type': 'application/json',
+    'X-Auth-Mode': 'cookie', // demande au serveur de gérer le refresh token via cookie
+  },
 });
 
 api.interceptors.request.use((config: RetryableRequestConfig) => {
@@ -145,17 +149,22 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const { refreshToken, setTokens, logout } = useAuthStore.getState();
-        if (!refreshToken) {
+        const { setTokens, logout } = useAuthStore.getState();
+
+        // Le refresh token est dans un cookie HttpOnly : envoyé automatiquement
+        // grâce à withCredentials, sans être accessible au JavaScript.
+        const { data } = await axios.post(
+          `${getActiveApiBaseUrl()}/auth/refresh-token`,
+          {},
+          { withCredentials: true, headers: { 'X-Auth-Mode': 'cookie' } }
+        );
+
+        if (!data?.accessToken) {
           logout();
           return Promise.reject(error);
         }
 
-        const { data } = await axios.post(`${getActiveApiBaseUrl()}/auth/refresh-token`, {
-          refreshToken,
-        });
-
-        setTokens(data.accessToken, data.refreshToken);
+        setTokens(data.accessToken);
         processQueue(null, data.accessToken);
         originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
         originalRequest.baseURL = getActiveApiBaseUrl();

@@ -16,7 +16,7 @@ services:
     plan: free          # Gratuit (512MB RAM, spin-down après 15min inactivité)
     rootDir: backend
     buildCommand: npm ci && npx prisma generate && npm run build
-    startCommand: npx prisma db push --accept-data-loss && node dist/server.js
+    startCommand: npx prisma migrate deploy && node dist/server.js
     healthCheckPath: /health
     autoDeploy: true    # Re-déploie à chaque push sur main
 
@@ -80,6 +80,8 @@ services:
         sync: false
       - key: CINETPAY_SITE_ID
         sync: false
+      - key: CINETPAY_SECRET_KEY   # Clé secrète pour vérifier le HMAC x-token des webhooks
+        sync: false
       - key: CINETPAY_NOTIFY_URL
         sync: false
       - key: CINETPAY_RETURN_URL
@@ -122,6 +124,10 @@ services:
       - path: /*
         name: Referrer-Policy
         value: strict-origin-when-cross-origin
+      # CSP — à valider en staging si l'on modifie les domaines tiers (Google, Cloudinary, tuiles carto)
+      - path: /*
+        name: Content-Security-Policy
+        value: "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; img-src 'self' data: blob: https://res.cloudinary.com https://*.tile.openstreetmap.org https://*.googleusercontent.com; script-src 'self' https://accounts.google.com/gsi/client https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/style; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://bla-backend.onrender.com wss://bla-backend.onrender.com https://www.blalinker.com https://accounts.google.com https://oauth2.googleapis.com; frame-src https://accounts.google.com"
       - path: /assets/*
         name: Cache-Control
         value: public, max-age=31536000, immutable
@@ -171,6 +177,9 @@ services:
       - path: /*
         name: Referrer-Policy
         value: same-origin
+      - path: /*
+        name: Content-Security-Policy
+        value: "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; img-src 'self' data: blob: https://res.cloudinary.com; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://bla-backend.onrender.com wss://bla-backend.onrender.com"
       - path: /assets/*
         name: Cache-Control
         value: public, max-age=31536000, immutable

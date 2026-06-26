@@ -168,57 +168,41 @@ async function bootstrap() {
 
 async function ensureSystemData() {
   const adminEmail = env.ADMIN_EMAIL.toLowerCase();
-  const existingAdmin = await prisma.user.findUnique({
-    where: { email: adminEmail },
-    select: { id: true, role: true, status: true, mfaEnabled: true, passwordHash: true },
-  });
 
-  if (!existingAdmin) {
-    const passwordHash = await bcrypt.hash(env.ADMIN_PASSWORD, 12);
-    await prisma.user.create({
-      data: {
-        email: adminEmail,
-        passwordHash,
-        role: 'super_admin',
-        status: 'active',
-        mfaEnabled: true,
-        profile: {
-          create: {
-            firstName: 'Super',
-            lastName: 'Admin',
-            country: 'SN',
-            idVerified: true,
-            idVerifiedAt: new Date(),
+  // Sécurité : on ne crée le compte admin QUE s'il n'existe pas, et UNIQUEMENT si
+  // un mot de passe est fourni via l'environnement. On ne réécrit JAMAIS un compte
+  // existant (sinon tout changement de mot de passe est écrasé à chaque redémarrage,
+  // et un déploiement pourrait réimposer un mot de passe connu).
+  if (env.ADMIN_PASSWORD) {
+    const existingAdmin = await prisma.user.findUnique({
+      where: { email: adminEmail },
+      select: { id: true },
+    });
+
+    if (!existingAdmin) {
+      const passwordHash = await bcrypt.hash(env.ADMIN_PASSWORD, 12);
+      await prisma.user.create({
+        data: {
+          email: adminEmail,
+          passwordHash,
+          role: 'super_admin',
+          status: 'active',
+          mfaEnabled: true,
+          profile: {
+            create: {
+              firstName: 'Super',
+              lastName: 'Admin',
+              country: 'SN',
+              idVerified: true,
+              idVerifiedAt: new Date(),
+            },
           },
         },
-      },
-    });
-    logger.info(`Compte admin bootstrap cree: ${adminEmail}`);
-  } else {
-    const updates: {
-      role?: 'super_admin';
-      status?: 'active';
-      mfaEnabled?: true;
-      passwordHash?: string;
-    } = {};
-
-    if (existingAdmin.role !== 'super_admin') updates.role = 'super_admin';
-    if (existingAdmin.status !== 'active') updates.status = 'active';
-    if (existingAdmin.mfaEnabled !== true) updates.mfaEnabled = true;
-
-    const passwordMatches = await bcrypt.compare(env.ADMIN_PASSWORD, existingAdmin.passwordHash)
-      .catch(() => false);
-    if (!passwordMatches) {
-      updates.passwordHash = await bcrypt.hash(env.ADMIN_PASSWORD, 12);
-    }
-
-    if (Object.keys(updates).length > 0) {
-      await prisma.user.update({
-        where: { id: existingAdmin.id },
-        data: updates,
       });
-      logger.info(`Compte admin bootstrap synchronise: ${adminEmail}`);
+      logger.info(`Compte admin bootstrap cree: ${adminEmail}`);
     }
+  } else {
+    logger.warn('ADMIN_PASSWORD non configurée : bootstrap du compte admin ignoré.');
   }
 
   const categoriesCount = await prisma.category.count();

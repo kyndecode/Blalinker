@@ -1,5 +1,5 @@
 ﻿import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -24,6 +24,8 @@ const CARD = 'w-full max-w-sm bg-white dark:bg-gray-900 rounded-2xl border borde
 export default function Login() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
+  const notice = (location.state as { notice?: string } | null)?.notice;
   const { setTokens, setUser } = useAuthStore();
   const [apiError, setApiError] = useState('');
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -148,6 +150,12 @@ export default function Login() {
 
         <h1 className="text-xl font-bold text-gray-900 dark:text-white">{t('auth.login')}</h1>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 mb-6">{t('auth.login_subtitle')}</p>
+
+        {notice && (
+          <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-3 mb-5" role="status">
+            <p className="text-green-700 dark:text-green-400 text-sm">{notice}</p>
+          </div>
+        )}
 
         {apiError && (
           <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-3 mb-5" role="alert">

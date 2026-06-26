@@ -31,4 +31,13 @@ i18n.use(initReactI18next).init({
   returnNull: false,
 });
 
+// Synchronise l'attribut <html lang="…"> avec la langue active (a11y + SEO).
+function syncHtmlLang(language: string) {
+  if (typeof document !== 'undefined') {
+    document.documentElement.lang = toSupportedLanguage(language) ?? 'fr';
+  }
+}
+syncHtmlLang(defaultLanguage);
+i18n.on('languageChanged', syncHtmlLang);
+
 export default i18n;

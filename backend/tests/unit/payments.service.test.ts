@@ -16,10 +16,11 @@ jest.mock('../../src/config/env', () => ({
 
 jest.mock('../../src/config/database', () => ({
   prisma: {
-    booking:     { findFirst: jest.fn(), update: jest.fn() },
+    booking:     { findFirst: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
     transaction: {
       create:      jest.fn(),
       findFirst:   jest.fn(),
+      findUnique:  jest.fn(),
       update:      jest.fn(),
       updateMany:  jest.fn(),
     },
@@ -185,43 +186,44 @@ describe('PaymentService', () => {
   });
 
   // ─── handleCinetPayWebhook() ───────────────────────────────
+  // Le webhook ne fait JAMAIS confiance au corps : il re-vérifie le statut
+  // auprès de l'API CinetPay (source de vérité) avant toute confirmation.
   describe('handleCinetPayWebhook()', () => {
-    it('marque la transaction comme failed si cpm_result !== 00', async () => {
-      (mockTransaction.updateMany as jest.Mock).mockResolvedValue({ count: 1 });
+    it('ignore un webhook sans cpm_trans_id', async () => {
+      await paymentService.handleCinetPayWebhook({} as Record<string, string>);
 
-      await paymentService.handleCinetPayWebhook({
-        cpm_trans_id:      EXT_REF,
-        cpm_result:        '99',
-        cpm_error_message: 'Fonds insuffisants',
-      });
-
-      expect(mockTransaction.updateMany).toHaveBeenCalledWith(
-        expect.objectContaining({ data: { status: 'failed' } })
-      );
+      expect(mockTransaction.findFirst).not.toHaveBeenCalled();
+      expect(prisma.$transaction).not.toHaveBeenCalled();
     });
 
-    it('confirme le paiement si cpm_result === 00', async () => {
-      (mockTransaction.findFirst   as jest.Mock).mockResolvedValue(fakeTransaction);
-      (prisma.$transaction          as jest.Mock).mockResolvedValue([]);
-
-      await paymentService.handleCinetPayWebhook({
-        cpm_trans_id:      EXT_REF,
-        cpm_result:        '00',
-        cpm_error_message: '',
+    it('confirme le paiement si l\'API CinetPay renvoie ACCEPTED', async () => {
+      (mockTransaction.findFirst as jest.Mock).mockResolvedValue(fakeTransaction);
+      (mockAxios.post             as jest.Mock).mockResolvedValue({
+        data: { code: '00', data: { status: 'ACCEPTED' } },
       });
+      (prisma.$transaction        as jest.Mock).mockResolvedValue([]);
+
+      await paymentService.handleCinetPayWebhook({ cpm_trans_id: EXT_REF });
 
       expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    });
+
+    it('ne confirme PAS le paiement si l\'API ne renvoie pas ACCEPTED', async () => {
+      (mockTransaction.findFirst as jest.Mock).mockResolvedValue(fakeTransaction);
+      (mockAxios.post             as jest.Mock).mockResolvedValue({
+        data: { code: '00', data: { status: 'REFUSED' } },
+      });
+
+      await paymentService.handleCinetPayWebhook({ cpm_trans_id: EXT_REF });
+
+      expect(prisma.$transaction).not.toHaveBeenCalled();
     });
 
     it('ne traite pas une transaction déjà complétée (idempotence)', async () => {
       const completedTx = { ...fakeTransaction, status: 'completed' as const };
       (mockTransaction.findFirst as jest.Mock).mockResolvedValue(completedTx);
 
-      await paymentService.handleCinetPayWebhook({
-        cpm_trans_id:      EXT_REF,
-        cpm_result:        '00',
-        cpm_error_message: '',
-      });
+      await paymentService.handleCinetPayWebhook({ cpm_trans_id: EXT_REF });
 
       expect(prisma.$transaction).not.toHaveBeenCalled();
     });

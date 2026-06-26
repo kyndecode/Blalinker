@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { prisma } from '../../config/database';
 import { getPaginationParams, paginate, getSkip } from '../../utils/pagination.util';
 import { sendEmail } from '../../config/email';
+import { escapeHtml, escapeHtmlMultiline } from '../../utils/html.util';
 import { contactLabels } from '../contact/contact.controller';
 
 type ContactRequestStatus = 'new' | 'read' | 'answered' | 'done' | 'closed';
@@ -618,10 +619,10 @@ export const adminController = {
         to: updated.email,
         subject: `BLA Services - Mise a jour de votre demande (${subjectLabel})`,
         html: `
-          <p>Bonjour <strong>${updated.firstName}</strong>,</p>
-          <p>${message}</p>
-          ${updated.adminResponse ? `<p><strong>Message de notre equipe:</strong><br/>${updated.adminResponse.replace(/\n/g, '<br/>')}</p>` : ''}
-          <p><strong>Reference:</strong> ${updated.id}</p>
+          <p>Bonjour <strong>${escapeHtml(updated.firstName)}</strong>,</p>
+          <p>${escapeHtml(message)}</p>
+          ${updated.adminResponse ? `<p><strong>Message de notre equipe:</strong><br/>${escapeHtmlMultiline(updated.adminResponse)}</p>` : ''}
+          <p><strong>Reference:</strong> ${escapeHtml(updated.id)}</p>
           <p>Merci de votre confiance,<br/>L'equipe BLA Services</p>
         `,
       });

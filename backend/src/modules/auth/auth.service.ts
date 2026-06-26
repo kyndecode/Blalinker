@@ -167,6 +167,24 @@ export class AuthService {
       throw Object.assign(new Error('Identifiants incorrects'), { status: 401 });
     }
 
+    // Le compte doit être actif (vérifié par OTP et non suspendu/banni).
+    // On ne vérifie ceci qu'APRÈS le mot de passe pour ne pas divulguer l'état du compte.
+    if (user.status !== 'active') {
+      if (user.status === 'pending') {
+        throw Object.assign(
+          new Error('Compte non vérifié. Validez le code OTP reçu pour activer votre compte.'),
+          { status: 403, code: 'ACCOUNT_PENDING' }
+        );
+      }
+      if (user.status === 'banned') {
+        throw Object.assign(new Error('Votre compte a été suspendu.'), { status: 403 });
+      }
+      throw Object.assign(
+        new Error('Votre compte est temporairement suspendu. Contactez le support.'),
+        { status: 403 }
+      );
+    }
+
     // Réinitialiser les tentatives après succès
     await prisma.user.update({
       where: { id: user.id },
@@ -339,6 +357,63 @@ export class AuthService {
     // Supprimer toutes les sessions de cet utilisateur sur cet appareil
     // (on pourrait aussi ne révoquer que la session courante)
     logger.info(`Déconnexion: ${userId}`);
+  }
+
+  /** Mot de passe oublié — envoie un OTP de réinitialisation (réponse générique anti-énumération) */
+  async forgotPassword(phone: string | undefined, email: string | undefined, ip: string) {
+    const genericMessage = {
+      message: 'Si un compte correspond, un code de réinitialisation a été envoyé.',
+    };
+
+    const user = await this._findUserByContact(phone, email);
+    if (!user || user.status === 'banned') {
+      return genericMessage;
+    }
+
+    // Invalider les anciens codes de reset non utilisés
+    await prisma.otpCode.deleteMany({
+      where: { userId: user.id, purpose: 'password_reset', usedAt: null },
+    });
+
+    try {
+      await this._sendOtp(user.id, user.phone ?? undefined, user.email ?? undefined, 'password_reset', ip);
+    } catch (err) {
+      // On ne révèle pas l'échec d'envoi à l'appelant (anti-énumération)
+      logger.error('Échec envoi OTP de réinitialisation', {
+        userId: user.id,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+
+    return genericMessage;
+  }
+
+  /** Réinitialisation du mot de passe via OTP */
+  async resetPassword(
+    phone: string | undefined,
+    email: string | undefined,
+    code: string,
+    newPassword: string
+  ) {
+    const user = await this._findUserByContact(phone, email);
+    // Message générique pour ne pas distinguer "utilisateur inconnu" de "code invalide"
+    if (!user) {
+      throw Object.assign(new Error('Code invalide ou expiré.'), { status: 422 });
+    }
+
+    await this._validateOtp(user.id, code, 'password_reset');
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash, loginAttempts: 0, lockedUntil: null },
+    });
+
+    // Sécurité : invalider toutes les sessions existantes après changement de mot de passe
+    await prisma.userSession.deleteMany({ where: { userId: user.id } });
+
+    logger.info(`Mot de passe réinitialisé: ${user.id}`);
+    return { message: 'Mot de passe réinitialisé. Vous pouvez vous connecter.' };
   }
 
   // ─── Méthodes privées ──────────────────────────────────────

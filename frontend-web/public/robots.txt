@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+
+# Zones privées / authentifiées : pas d'indexation
+Disallow: /dashboard
+Disallow: /bookings
+Disallow: /profile
+Disallow: /verify
+
+Sitemap: https://www.blalinker.com/sitemap.xml

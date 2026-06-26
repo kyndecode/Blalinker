@@ -13,8 +13,8 @@ export const registerSchema = z.object({
   firstName: z
     .string()
     .trim()
-    .min(2, 'Prénom requis')
-    .max(100, 'Prénom trop long'),
+    .min(2, 'PrÃ©nom requis')
+    .max(100, 'PrÃ©nom trop long'),
   lastName: z
     .string()
     .trim()
@@ -28,7 +28,7 @@ export const registerSchema = z.object({
   phone: z
     .string()
     .trim()
-    .regex(/^\+[1-9]\d{7,14}$/, 'Format téléphone invalide (ex: +221771234567)'),
+    .regex(/^\+[1-9]\d{7,14}$/, 'Format tÃ©lÃ©phone invalide (ex: +221771234567)'),
   email: z
     .string()
     .trim()
@@ -37,20 +37,20 @@ export const registerSchema = z.object({
     .transform((v) => v.toLowerCase()),
   password: z
     .string()
-    .min(8, 'Minimum 8 caractères')
-    .max(128, 'Maximum 128 caractères')
+    .min(8, 'Minimum 8 caractÃ¨res')
+    .max(128, 'Maximum 128 caractÃ¨res')
     .regex(/[A-Z]/, 'Doit contenir au moins une lettre majuscule')
     .regex(/[a-z]/, 'Doit contenir au moins une lettre minuscule')
     .regex(/[0-9]/, 'Doit contenir au moins un chiffre'),
   role: z.enum(['client', 'provider'], {
-    errorMap: () => ({ message: 'Rôle doit être "client" ou "provider"' }),
+    errorMap: () => ({ message: 'RÃ´le doit Ãªtre "client" ou "provider"' }),
   }),
 }).superRefine((data, ctx) => {
   if (!isValidE164ForCountry(data.phone, data.countryCode)) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['phone'],
-      message: `Numéro invalide pour ${data.countryCode}`,
+      message: `NumÃ©ro invalide pour ${data.countryCode}`,
     });
   }
 });
@@ -89,7 +89,9 @@ export const googleLoginSchema = z.object({
 });
 
 export const refreshTokenSchema = z.object({
-  refreshToken: z.string().min(1),
+  // Optionnel : le refresh token peut provenir d'un cookie HttpOnly (web)
+  // ou du corps de la requÃªte (mobile / clients sans cookie).
+  refreshToken: z.string().min(1).optional(),
 });
 
 export const resendOtpSchema = z.object({

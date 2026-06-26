@@ -3,6 +3,7 @@ import { prisma } from '../../config/database';
 import { sendEmail } from '../../config/email';
 import { logger } from '../../config/logger';
 import { getPaginationParams, getSkip, paginate } from '../../utils/pagination.util';
+import { escapeHtml } from '../../utils/html.util';
 import type { CreateBookingInput } from './bookings.schemas';
 
 type BookingStatus = 'pending' | 'accepted' | 'rejected' | 'in_progress' | 'completed' | 'validated' | 'cancelled' | 'disputed';
@@ -108,11 +109,11 @@ async function notifyBookingCreated(bookingId: string): Promise<void> {
   if (!booking) return;
 
   const ref = bookingRef(booking.id);
-  const clientName = formatFullName(booking.client.profile, 'Client');
-  const providerName = formatFullName(booking.provider.profile, 'Prestataire');
+  const clientName = escapeHtml(formatFullName(booking.client.profile, 'Client'));
+  const providerName = escapeHtml(formatFullName(booking.provider.profile, 'Prestataire'));
   const scheduledAt = formatScheduledAt(booking.scheduledAt);
   const amount = formatAmount(booking.amount, booking.currency);
-  const serviceTitle = booking.service?.title ?? 'Service';
+  const serviceTitle = escapeHtml(booking.service?.title ?? 'Service');
 
   if (booking.client.email) {
     await safeSendEmail({
@@ -154,10 +155,10 @@ async function notifyBookingStatusChanged(bookingId: string, status: BookingStat
   if (!booking) return;
 
   const ref = bookingRef(booking.id);
-  const clientName = formatFullName(booking.client.profile, 'Client');
-  const providerName = formatFullName(booking.provider.profile, 'Prestataire');
+  const clientName = escapeHtml(formatFullName(booking.client.profile, 'Client'));
+  const providerName = escapeHtml(formatFullName(booking.provider.profile, 'Prestataire'));
   const statusLabel = STATUS_LABELS[status];
-  const serviceTitle = booking.service?.title ?? 'Service';
+  const serviceTitle = escapeHtml(booking.service?.title ?? 'Service');
   const amount = formatAmount(booking.amount, booking.currency);
   const scheduledAt = formatScheduledAt(booking.scheduledAt);
 
