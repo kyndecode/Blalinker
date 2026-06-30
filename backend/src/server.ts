@@ -151,7 +151,11 @@ async function bootstrap() {
 
     await ensureSystemData();
 
-    await redis.connect();
+    // Redis est en lazyConnect : il a pu déjà être ouvert par le rate-limiter.
+    // On ne (re)connecte que si le client est encore en attente.
+    if (redis.status === 'wait') {
+      await redis.connect();
+    }
 
     httpServer.listen(env.PORT, () => {
       logger.info(`🚀 BLA Backend démarré`);

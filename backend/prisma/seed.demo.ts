@@ -131,6 +131,15 @@ async function main() {
     role: 'provider',
   });
 
+  // Géolocalisation du prestataire (Point E, Dakar) — INDISPENSABLE pour la recherche géo
+  await prisma.profile.update({
+    where: { userId: provider.id },
+    data: {
+      latitude: new Prisma.Decimal('14.6928'),
+      longitude: new Prisma.Decimal('-17.4467'),
+    },
+  });
+
   const admin = await upsertUser({
     ...demoAccounts.admin,
     role: 'admin',
@@ -146,6 +155,9 @@ async function main() {
       currency: 'XOF',
       radiusKm: 25,
       isAvailable: true,
+      ratingAverage: new Prisma.Decimal('4.8'),
+      ratingCount: 12,
+      completedJobs: 20,
       bioPro: 'Interventions rapides en plomberie à Dakar et environs.',
     },
     create: {
@@ -157,6 +169,9 @@ async function main() {
       currency: 'XOF',
       radiusKm: 25,
       isAvailable: true,
+      ratingAverage: new Prisma.Decimal('4.8'),
+      ratingCount: 12,
+      completedJobs: 20,
       bioPro: 'Interventions rapides en plomberie à Dakar et environs.',
     },
   });
