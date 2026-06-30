@@ -131,12 +131,15 @@ async function main() {
     role: 'provider',
   });
 
-  // Géolocalisation du prestataire (Point E, Dakar) — INDISPENSABLE pour la recherche géo
+  // Géolocalisation du prestataire à Abidjan (centre de recherche par défaut du site)
+  // — INDISPENSABLE pour qu'il apparaisse dans la recherche géo.
   await prisma.profile.update({
     where: { userId: provider.id },
     data: {
-      latitude: new Prisma.Decimal('14.6928'),
-      longitude: new Prisma.Decimal('-17.4467'),
+      city: 'Abidjan',
+      country: 'CI',
+      latitude: new Prisma.Decimal('5.3600'),
+      longitude: new Prisma.Decimal('-4.0083'),
     },
   });
 
