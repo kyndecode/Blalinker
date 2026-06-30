@@ -88,3 +88,8 @@ httpsdocs.cinetpay.comapi1.0-frchec.txt
 
 # Lockfile racine parasite (aucun package.json à la racine)
 /package-lock.json
+
+# Clés / certificats (NE JAMAIS committer)
+*.pem
+*.key
+jwt_*.pem

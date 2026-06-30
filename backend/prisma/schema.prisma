@@ -307,6 +307,8 @@ model Review {
   isFlagged   Boolean   @default(false) @map("is_flagged")
   flagReason  String?   @map("flag_reason") @db.Text
   aiScore     Decimal?  @map("ai_score") @db.Decimal(3, 2)
+  response    String?   @db.Text
+  responseAt  DateTime? @map("response_at")
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
 

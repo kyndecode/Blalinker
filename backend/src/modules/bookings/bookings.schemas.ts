@@ -8,7 +8,8 @@ export const createBookingSchema = z.object({
   clientLat:   z.number().min(-90).max(90).optional(),
   clientLng:   z.number().min(-180).max(180).optional(),
   clientAddress: z.string().max(500).optional(),
-  amount:      z.number().positive().optional(),
+  // ⚠️ Le montant n'est JAMAIS accepté du client (anti-manipulation de prix).
+  // Il est calculé côté serveur à partir du prix du service choisi.
 });
 
 export type CreateBookingInput = z.infer<typeof createBookingSchema>;

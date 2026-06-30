@@ -93,6 +93,9 @@ const envSchema = z.object({
   // Auth sociale
   GOOGLE_CLIENT_ID: optionalStringEnv(),
 
+  // Anti-bot — Cloudflare Turnstile (si défini, la vérification captcha est exigée)
+  TURNSTILE_SECRET: optionalStringEnv(),
+
   // IA
   AI_SERVICE_URL:      z.string().url().default('http://localhost:8000'),
   ANTHROPIC_API_KEY:   optionalStringEnv(),

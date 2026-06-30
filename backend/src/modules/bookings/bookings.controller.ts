@@ -266,29 +266,31 @@ export const bookingsController = {
       });
       if (!provider) return res.status(404).json({ error: 'Prestataire introuvable ou inactif' });
 
-      let selectedService: { id: string; price: unknown } | null = null;
-      if (data.serviceId) {
-        selectedService = await prisma.providerService.findFirst({
-          where: {
-            id: data.serviceId,
-            providerId: data.providerId,
-            isActive: true,
-          },
-          select: { id: true, price: true },
-        });
-
-        if (!selectedService) {
-          return res.status(404).json({ error: 'Service introuvable pour ce prestataire' });
-        }
+      // Le montant est déterminé UNIQUEMENT côté serveur via le service choisi.
+      // On exige donc un service actif avec un prix défini (anti-manipulation de prix).
+      if (!data.serviceId) {
+        return res.status(400).json({ error: 'Sélectionnez un service pour réserver.' });
       }
 
-      const amountFromService = selectedService?.price !== null && selectedService?.price !== undefined
-        ? Number(selectedService.price as number | string)
-        : undefined;
-      const amount = data.amount ?? amountFromService;
+      const selectedService = await prisma.providerService.findFirst({
+        where: {
+          id: data.serviceId,
+          providerId: data.providerId,
+          isActive: true,
+        },
+        select: { id: true, price: true },
+      });
 
-      if (amount === undefined || Number(amount) <= 0) {
-        return res.status(400).json({ error: 'Montant invalide. Sélectionnez un service avec prix.' });
+      if (!selectedService) {
+        return res.status(404).json({ error: 'Service introuvable pour ce prestataire' });
+      }
+
+      const amount = selectedService.price !== null && selectedService.price !== undefined
+        ? Number(selectedService.price)
+        : undefined;
+
+      if (amount === undefined || !Number.isFinite(amount) || amount <= 0) {
+        return res.status(400).json({ error: 'Ce service n\'a pas de prix valide. Contactez le prestataire.' });
       }
 
       const booking = await prisma.booking.create({

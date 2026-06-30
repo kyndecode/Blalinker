@@ -1,10 +1,23 @@
 import { Express, Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
+import rateLimit, { type Store } from 'express-rate-limit';
+import { RedisStore } from 'rate-limit-redis';
 import mongoSanitize from 'express-mongo-sanitize';
 import compression from 'compression';
 import { env } from '../config/env';
 import { logger } from '../config/logger';
+import { redis } from '../config/redis';
+
+/**
+ * Store Redis partagé pour le rate limiting → compteurs cohérents entre instances
+ * et conservés au redémarrage. En test, on retombe sur le store mémoire par défaut.
+ */
+export function makeStore(prefix: string): Store | undefined {
+  if (env.NODE_ENV === 'test') return undefined;
+  const sendCommand = (...args: string[]) =>
+    (redis as unknown as { call: (...a: string[]) => Promise<unknown> }).call(...args);
+  return new RedisStore({ sendCommand: sendCommand as never, prefix }) as unknown as Store;
+}
 
 /** Applique tous les middlewares de sécurité sur l'app Express */
 export function applySecurityMiddlewares(app: Express) {
@@ -41,6 +54,7 @@ export function applySecurityMiddlewares(app: Express) {
       max:      env.NODE_ENV === 'test' ? 10_000 : 200,
       standardHeaders: true,
       legacyHeaders:   false,
+      store: makeStore('rl:global:'),
       handler: (_req: Request, res: Response) => {
         res.status(429).json({
           error: 'Trop de requêtes. Veuillez réessayer dans quelques minutes.',
@@ -55,6 +69,7 @@ export function applySecurityMiddlewares(app: Express) {
     windowMs: 15 * 60 * 1000,
     max:      env.NODE_ENV === 'test' ? 10_000 : 15,
     skipSuccessfulRequests: true,
+    store: makeStore('rl:auth:'),
     handler: (_req: Request, res: Response) => {
       res.status(429).json({
         error: 'Trop de tentatives. Réessayez dans 15 minutes.',

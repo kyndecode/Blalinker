@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { authController } from './auth.controller';
 import { validate } from '../../middlewares/validate.middleware';
 import { authenticate } from '../../middlewares/auth.middleware';
+import { captchaGuard } from '../../middlewares/captcha.middleware';
 import {
   registerSchema,
   verifyOtpSchema,
@@ -18,6 +19,7 @@ const router = Router();
 
 // POST /api/v1/auth/register
 router.post('/register',
+  captchaGuard(),
   validate(registerSchema),
   authController.register
 );

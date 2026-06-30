@@ -23,6 +23,9 @@ import adminRoutes      from './modules/admin/admin.routes';
 import paymentsRoutes   from './modules/payments/payments.routes';
 import contactRoutes    from './modules/contact/contact.routes';
 import usersRoutes      from './modules/users/users.routes';
+import reviewsRoutes    from './modules/reviews/reviews.routes';
+import notificationsRoutes from './modules/notifications/notifications.routes';
+import reportsRoutes    from './modules/reports/reports.routes';
 
 export const app = express();
 
@@ -109,6 +112,9 @@ app.use(`${API}/admin`,     adminRoutes);
 app.use(`${API}/payments`,  paymentsRoutes);
 app.use(`${API}/contact`,   contactRoutes);
 app.use(`${API}/users`,     usersRoutes);
+app.use(`${API}/reviews`,       reviewsRoutes);
+app.use(`${API}/notifications`, notificationsRoutes);
+app.use(`${API}/reports`,       reportsRoutes);
 
 // ─── 404 ──────────────────────────────────────────────────────
 app.use((_req, res) => {

@@ -117,7 +117,7 @@ export const emailTemplates = {
 
   /** OTP de connexion (MFA) */
   otpLogin: (code: string) => ({
-    subject: `[BLA] Code de connexion : ${code}`,
+    subject: 'Votre code de connexion BLA',
     html: baseTemplate(`
       <h2 style="color:#111827;font-size:20px;margin:0 0 12px">Connexion à votre compte</h2>
       <p style="color:#4b5563;font-size:15px">Votre code de connexion :</p>

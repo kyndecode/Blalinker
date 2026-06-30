@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { adminController } from './admin.controller';
-import { authenticate, requireAdmin, adminRateLimit } from '../../middlewares/auth.middleware';
+import { authenticate, requireAdmin, requireSuperAdmin, adminRateLimit } from '../../middlewares/auth.middleware';
 import { validate } from '../../middlewares/validate.middleware';
 import { updateContactStatusSchema } from '../contact/contact.schemas';
 
@@ -12,7 +12,8 @@ router.use(adminRateLimit, authenticate, requireAdmin);
 router.get('/dashboard',        adminController.dashboard);
 router.get('/users',            adminController.listUsers);
 router.get('/users/:id',        adminController.getUser);
-router.put('/users/:id/status', adminController.updateUserStatus);
+// Actions sensibles → super administrateur uniquement
+router.put('/users/:id/status', requireSuperAdmin, adminController.updateUserStatus);
 router.post('/users/:id/verify-id', adminController.verifyIdentity);
 router.get('/providers',        adminController.listProviders);
 router.get('/bookings',         adminController.listBookings);
@@ -20,7 +21,7 @@ router.get('/bookings',         adminController.listBookings);
 router.get('/reviews',          adminController.listReviews);
 router.get('/reviews/pending',  adminController.pendingReviews);
 router.put('/reviews/:id/approve', adminController.approveReview);
-router.delete('/reviews/:id',   adminController.deleteReview);
+router.delete('/reviews/:id',   requireSuperAdmin, adminController.deleteReview);
 
 router.get('/reports',          adminController.listReports);
 router.patch('/reports/:id',    adminController.resolveReport);
@@ -32,7 +33,7 @@ router.patch('/contacts/:id/status', validate(updateContactStatusSchema), adminC
 router.get('/transactions',     adminController.listTransactions);
 
 router.get('/categories',       adminController.listCategories);
-router.post('/categories',      adminController.createCategory);
-router.put('/categories/:id',   adminController.updateCategory);
+router.post('/categories',      requireSuperAdmin, adminController.createCategory);
+router.put('/categories/:id',   requireSuperAdmin, adminController.updateCategory);
 
 export default router;

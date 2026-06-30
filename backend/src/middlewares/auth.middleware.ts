@@ -3,6 +3,7 @@ import rateLimit from 'express-rate-limit';
 import { verifyAccessToken, isTokenRevoked } from '../utils/jwt.util';
 import { prisma } from '../config/database';
 import { logger } from '../config/logger';
+import { makeStore } from './security.middleware';
 
 /** Rate limiter strict pour les routes admin : 60 req/min max */
 export const adminRateLimit = rateLimit({
@@ -10,6 +11,7 @@ export const adminRateLimit = rateLimit({
   max: 60,
   standardHeaders: true,
   legacyHeaders: false,
+  store: makeStore('rl:admin:'),
   message: { error: 'Trop de requêtes admin. Réessayez dans une minute.' },
 });
 
@@ -71,6 +73,14 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
 export function requireAdmin(req: Request, res: Response, next: NextFunction) {
   if (!req.user || !['admin', 'super_admin'].includes(req.user.role)) {
     return res.status(403).json({ error: 'Accès réservé aux administrateurs' });
+  }
+  next();
+}
+
+/** Middleware pour les actions réservées au super administrateur (actions sensibles) */
+export function requireSuperAdmin(req: Request, res: Response, next: NextFunction) {
+  if (!req.user || req.user.role !== 'super_admin') {
+    return res.status(403).json({ error: 'Action réservée au super administrateur' });
   }
   next();
 }
