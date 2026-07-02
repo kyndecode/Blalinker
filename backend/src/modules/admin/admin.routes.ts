@@ -5,6 +5,8 @@ import { authenticate, requireAdmin, requirePermission, adminRateLimit } from '.
 import { validate } from '../../middlewares/validate.middleware';
 import { updateContactStatusSchema } from '../contact/contact.schemas';
 import { createAdminSchema, updateAdminSchema, resetAdminPasswordSchema } from './team.schemas';
+import { payoutsController } from '../payouts/payouts.controller';
+import { processPayoutSchema } from '../payouts/payouts.schemas';
 import { PERMISSIONS as P } from '../../config/permissions';
 
 const router = Router();
@@ -23,6 +25,11 @@ router.get('/reviews/pending',  adminController.pendingReviews);
 router.get('/reports',          adminController.listReports);
 router.get('/contacts',         adminController.listContacts);
 router.get('/transactions',     adminController.listTransactions);
+
+// ─── Marketplace : retraits & remboursements ──────────────────
+router.get('/payouts',              requirePermission(P.PAYMENTS_READ),   payoutsController.adminList);
+router.patch('/payouts/:id',        requirePermission(P.PAYMENTS_REFUND), validate(processPayoutSchema), payoutsController.adminProcess);
+router.post('/transactions/:id/refund', requirePermission(P.PAYMENTS_REFUND), payoutsController.adminRefund);
 router.get('/categories',       adminController.listCategories);
 
 // ─── Actions (permissions granulaires — super_admin bypass) ───

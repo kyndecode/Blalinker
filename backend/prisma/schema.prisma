@@ -125,6 +125,7 @@ model User {
   consents        Consent[]
   paidTransactions     Transaction[] @relation("PayerTransactions")
   receivedTransactions Transaction[] @relation("PayeeTransactions")
+  providerPayouts      Payout[]      @relation("ProviderPayouts")
 
   @@index([phone])
   @@index([email])
@@ -282,17 +283,45 @@ model Transaction {
   externalStatus String?           @map("external_status") @db.VarChar(100)
   metadata       Json              @default("{}")
   paidAt         DateTime?         @map("paid_at")
+  releasedAt     DateTime?         @map("released_at")   // escrow libéré (validation client)
+  payoutId       String?           @map("payout_id") @db.Uuid
   createdAt      DateTime          @default(now()) @map("created_at")
   updatedAt      DateTime          @updatedAt @map("updated_at")
 
   booking Booking @relation(fields: [bookingId], references: [id])
   payer   User    @relation("PayerTransactions", fields: [payerId], references: [id])
   payee   User    @relation("PayeeTransactions", fields: [payeeId], references: [id])
+  payout  Payout? @relation(fields: [payoutId], references: [id])
 
   @@index([payerId])
   @@index([status])
   @@index([externalRef])
+  @@index([payoutId])
   @@map("transactions")
+}
+
+// ─── PAYOUTS (retraits prestataires) ──────────────────────────
+model Payout {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  providerId  String    @map("provider_id") @db.Uuid
+  amount      Decimal   @db.Decimal(12, 2)
+  currency    String    @default("XOF") @db.VarChar(10)
+  method      String?   @db.VarChar(30)   // wave, orange_money, bank_transfer...
+  destination String?   @db.VarChar(200)  // numéro / compte destinataire
+  status      String    @default("pending") @db.VarChar(20) // pending, approved, paid, rejected
+  reference   String?   @db.VarChar(100)
+  note        String?   @db.Text
+  processedBy String?   @map("processed_by") @db.Uuid
+  processedAt DateTime? @map("processed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  provider     User          @relation("ProviderPayouts", fields: [providerId], references: [id])
+  transactions Transaction[]
+
+  @@index([providerId])
+  @@index([status])
+  @@map("payouts")
 }
 
 // ─── REVIEWS ──────────────────────────────────────────────────

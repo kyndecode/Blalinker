@@ -103,6 +103,10 @@ export default function ProfilePage() {
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [kycUploading, setKycUploading] = useState(false);
   const [kycMsg, setKycMsg] = useState('');
+  const [balance, setBalance] = useState<{ available: number; held: number; pendingWithdrawal: number; currency: string } | null>(null);
+  const [payouts, setPayouts] = useState<Array<{ id: string; amount: number; currency: string; status: string; createdAt: string }>>([]);
+  const [payoutBusy, setPayoutBusy] = useState(false);
+  const [payoutMsg, setPayoutMsg] = useState('');
 
   const [categories, setCategories] = useState<CategoryNode[]>([]);
   const [services, setServices] = useState<ProviderService[]>([]);
@@ -142,11 +146,16 @@ export default function ProfilePage() {
     setServiceError('');
 
     try {
-      const [providerResponse, servicesResponse, categoriesResponse] = await Promise.all([
+      const [providerResponse, servicesResponse, categoriesResponse, balanceResponse, payoutsResponse] = await Promise.all([
         api.get('/providers/me/profile'),
         api.get('/providers/me/services'),
         api.get('/categories'),
+        api.get('/payouts/me/balance'),
+        api.get('/payouts/me'),
       ]);
+
+      setBalance(balanceResponse.data);
+      setPayouts(payoutsResponse.data?.data ?? []);
 
       const me = providerResponse.data as {
         providerProfile?: ProviderProfileData | null;
@@ -312,6 +321,21 @@ export default function ProfilePage() {
       setKycMsg(e?.response?.data?.error || 'Échec du téléversement.');
     } finally {
       setKycUploading(false);
+    }
+  };
+
+  const requestPayout = async () => {
+    setPayoutBusy(true);
+    setPayoutMsg('');
+    try {
+      await api.post('/payouts/me/request', {});
+      setPayoutMsg('Demande de retrait envoyée. Elle sera traitée par notre équipe.');
+      await loadProviderData();
+    } catch (error: unknown) {
+      const e = error as { response?: { data?: { error?: string } } };
+      setPayoutMsg(e?.response?.data?.error || 'Aucun montant disponible au retrait.');
+    } finally {
+      setPayoutBusy(false);
     }
   };
 
@@ -538,6 +562,47 @@ export default function ProfilePage() {
               {profile?.isVerified && <span className="badge badge-blue">Identité vérifiée</span>}
             </div>
             {kycMsg && <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">{kycMsg}</p>}
+          </div>
+
+          <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-6">
+            <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-1">Mes revenus</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+              Les fonds sont libérés dès que le client valide la prestation, puis retirables.
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+              <div className="rounded-xl bg-green-50 dark:bg-green-900/20 p-4">
+                <p className="text-xs text-gray-500 dark:text-gray-400">Disponible au retrait</p>
+                <p className="text-xl font-bold text-green-700 dark:text-green-400">{(balance?.available ?? 0).toLocaleString('fr-FR')} XOF</p>
+              </div>
+              <div className="rounded-xl bg-gray-50 dark:bg-gray-800/50 p-4">
+                <p className="text-xs text-gray-500 dark:text-gray-400">En attente (escrow)</p>
+                <p className="text-xl font-bold text-gray-700 dark:text-gray-200">{(balance?.held ?? 0).toLocaleString('fr-FR')} XOF</p>
+              </div>
+              <div className="rounded-xl bg-yellow-50 dark:bg-yellow-900/20 p-4">
+                <p className="text-xs text-gray-500 dark:text-gray-400">Retrait en cours</p>
+                <p className="text-xl font-bold text-yellow-700 dark:text-yellow-400">{(balance?.pendingWithdrawal ?? 0).toLocaleString('fr-FR')} XOF</p>
+              </div>
+            </div>
+
+            {payoutMsg && <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">{payoutMsg}</p>}
+
+            <Button onClick={requestPayout} loading={payoutBusy} disabled={!balance || balance.available <= 0}>
+              Demander un retrait
+            </Button>
+
+            {payouts.length > 0 && (
+              <div className="mt-5 space-y-2">
+                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Historique des retraits</p>
+                {payouts.map((p) => (
+                  <div key={p.id} className="flex items-center justify-between text-sm border border-gray-100 dark:border-gray-800 rounded-lg px-3 py-2">
+                    <span className="text-gray-700 dark:text-gray-200">{Number(p.amount).toLocaleString('fr-FR')} {p.currency}</span>
+                    <span className="text-gray-500 dark:text-gray-400">{new Date(p.createdAt).toLocaleDateString('fr-FR')}</span>
+                    <span className={`badge ${p.status === 'paid' ? 'badge-green' : p.status === 'rejected' ? 'badge-red' : 'badge-orange'}`}>{p.status}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-6">

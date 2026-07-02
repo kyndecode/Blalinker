@@ -397,6 +397,11 @@ export const bookingsController = {
         where: { id },
         data:  { status: 'validated', validatedAt: new Date() },
       });
+      // Escrow : la validation client libère les fonds vers le solde du prestataire
+      await prisma.transaction.updateMany({
+        where: { bookingId: id, status: 'completed', releasedAt: null },
+        data:  { releasedAt: new Date() },
+      });
       void notifyBookingStatusChanged(updated.id, 'validated').catch((error) => {
         logger.error(`Erreur notifications reservation validate (${updated.id})`, error);
       });
