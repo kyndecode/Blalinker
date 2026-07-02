@@ -23,6 +23,7 @@ declare global {
         id: string;
         role: string;
         status: string;
+        permissions: string[];
       };
     }
   }
@@ -46,7 +47,7 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
 
     const user = await prisma.user.findFirst({
       where: { id: payload.userId, deletedAt: null },
-      select: { id: true, role: true, status: true },
+      select: { id: true, role: true, status: true, permissions: true },
     });
 
     if (!user) {
@@ -61,7 +62,12 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
       return res.status(403).json({ error: 'Votre compte est temporairement suspendu. Contactez le support.' });
     }
 
-    req.user = user;
+    req.user = {
+      id: user.id,
+      role: user.role,
+      status: user.status,
+      permissions: Array.isArray(user.permissions) ? (user.permissions as string[]) : [],
+    };
     next();
   } catch (err) {
     logger.warn('Token invalide:', { ip: req.ip, err });
@@ -83,6 +89,26 @@ export function requireSuperAdmin(req: Request, res: Response, next: NextFunctio
     return res.status(403).json({ error: 'Action réservée au super administrateur' });
   }
   next();
+}
+
+/**
+ * RBAC — exige une (ou plusieurs) permission(s) précise(s).
+ * Le super_admin passe toujours. Sinon, l'utilisateur doit posséder TOUTES les permissions listées.
+ */
+export function requirePermission(...required: string[]) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentification requise' });
+    }
+    if (req.user.role === 'super_admin') return next();
+
+    const held = new Set(req.user.permissions ?? []);
+    const missing = required.filter((p) => !held.has(p));
+    if (missing.length > 0) {
+      return res.status(403).json({ error: 'Permission insuffisante', code: 'FORBIDDEN', missing });
+    }
+    next();
+  };
 }
 
 /** Middleware pour restreindre l'accès aux prestataires */

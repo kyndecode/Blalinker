@@ -95,6 +95,8 @@ model User {
   passwordHash   String     @map("password_hash") @db.VarChar(255)
   role           UserRole   @default(client)
   status         UserStatus @default(pending)
+  permissions    Json       @default("[]")                       // clés de permission RBAC (membres admin)
+  adminTitle     String?    @map("admin_title") @db.VarChar(100) // libellé du rôle admin (ex: "Responsable KYC")
   mfaEnabled     Boolean    @default(true) @map("mfa_enabled")
   mfaSecret      String?    @map("mfa_secret") @db.VarChar(500)
   lastLoginAt    DateTime?  @map("last_login_at")

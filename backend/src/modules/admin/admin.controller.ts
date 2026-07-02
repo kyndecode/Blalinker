@@ -3,6 +3,7 @@ import { prisma } from '../../config/database';
 import { getPaginationParams, paginate, getSkip } from '../../utils/pagination.util';
 import { sendEmail } from '../../config/email';
 import { escapeHtml, escapeHtmlMultiline } from '../../utils/html.util';
+import { auditFromReq } from '../../utils/audit.util';
 import { contactLabels } from '../contact/contact.controller';
 
 type ContactRequestStatus = 'new' | 'read' | 'answered' | 'done' | 'closed';
@@ -383,6 +384,7 @@ export const adminController = {
         where: { id: req.params.id },
         data: { status },
       });
+      await auditFromReq(req, 'admin.user.status', { entity: 'user', entityId: req.params.id, newData: { status } });
       return res.json({ message: 'Statut mis à jour' });
     } catch {
       return res.status(500).json({ error: 'Erreur serveur' });
@@ -407,6 +409,7 @@ export const adminController = {
           data:  { status: 'active' },
         });
       }
+      await auditFromReq(req, 'admin.user.verify_id', { entity: 'user', entityId: req.params.id, newData: { approved: Boolean(approved) } });
       res.json({ message: approved ? 'Identité validée' : 'Identité rejetée', comment });
     } catch {
       return res.status(500).json({ error: 'Erreur serveur' });
@@ -470,6 +473,7 @@ export const adminController = {
   async deleteReview(req: Request, res: Response) {
     try {
       await prisma.review.delete({ where: { id: req.params.id } });
+      await auditFromReq(req, 'admin.review.delete', { entity: 'review', entityId: req.params.id });
       res.json({ message: 'Avis supprimé' });
     } catch {
       return res.status(500).json({ error: 'Erreur serveur' });
