@@ -14,6 +14,8 @@ import {
   Mail,
   ChevronRight,
   Activity,
+  UsersRound,
+  ScrollText,
 } from 'lucide-react';
 
 const navItems = [
@@ -28,9 +30,17 @@ const navItems = [
   { to: '/categories', icon: Tag, label: 'Categories', color: 'text-teal-400' },
 ];
 
+// Réservé au super administrateur
+const superAdminNavItems = [
+  { to: '/team', icon: UsersRound, label: 'Équipe & Rôles', color: 'text-indigo-400' },
+  { to: '/audit', icon: ScrollText, label: "Journal d'audit", color: 'text-amber-400' },
+];
+
 export default function AdminLayout() {
   const { user, logout } = useAdminAuthStore();
   const navigate = useNavigate();
+
+  const items = user?.role === 'super_admin' ? [...navItems, ...superAdminNavItems] : navItems;
 
   const handleLogout = () => {
     logout();
@@ -59,7 +69,7 @@ export default function AdminLayout() {
 
         <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
           <p className="text-white/30 text-xs font-semibold uppercase tracking-widest px-3 mb-3">Menu</p>
-          {navItems.map(({ to, icon: Icon, label, color }) => (
+          {items.map(({ to, icon: Icon, label, color }) => (
             <NavLink
               key={to}
               to={to}
