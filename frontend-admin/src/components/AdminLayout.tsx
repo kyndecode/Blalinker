@@ -16,6 +16,7 @@ import {
   Activity,
   UsersRound,
   ScrollText,
+  Wallet,
 } from 'lucide-react';
 
 const navItems = [
@@ -24,6 +25,7 @@ const navItems = [
   { to: '/providers', icon: Briefcase, label: 'Prestataires', color: 'text-purple-400' },
   { to: '/bookings', icon: CalendarCheck, label: 'Reservations', color: 'text-orange-400' },
   { to: '/transactions', icon: DollarSign, label: 'Transactions', color: 'text-yellow-400' },
+  { to: '/payouts', icon: Wallet, label: 'Retraits', color: 'text-emerald-400' },
   { to: '/reviews', icon: Star, label: 'Avis', color: 'text-pink-400' },
   { to: '/reports', icon: AlertTriangle, label: 'Signalements', color: 'text-red-400' },
   { to: '/contacts', icon: Mail, label: 'Contacts', color: 'text-cyan-400' },

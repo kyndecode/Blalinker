@@ -1,13 +1,21 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
+import { RotateCcw } from 'lucide-react';
 
 export default function Transactions() {
+  const qc = useQueryClient();
   const [page, setPage] = useState(1);
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-transactions', page],
     queryFn: () => api.get('/admin/transactions', { params: { page, limit: 20 } }).then((r) => r.data),
+  });
+
+  const refund = useMutation({
+    mutationFn: (id: string) => api.post(`/admin/transactions/${id}/refund`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-transactions'] }),
+    onError: (e: unknown) => alert((e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Remboursement impossible'),
   });
 
   return (
@@ -22,13 +30,14 @@ export default function Transactions() {
               <th className="text-left px-4 py-3 font-medium">Méthode</th>
               <th className="text-left px-4 py-3 font-medium">Statut</th>
               <th className="text-left px-4 py-3 font-medium">Date</th>
+              <th className="text-right px-4 py-3 font-medium">Actions</th>
             </tr>
           </thead>
           <tbody>
             {isLoading
               ? Array.from({ length: 10 }).map((_, i) => (
                 <tr key={i} className="border-b border-white/10">
-                  <td colSpan={5} className="px-4 py-3"><div className="h-4 bg-white/10 rounded animate-pulse w-3/4" /></td>
+                  <td colSpan={6} className="px-4 py-3"><div className="h-4 bg-white/10 rounded animate-pulse w-3/4" /></td>
                 </tr>
               ))
               : data?.data?.map((t: any) => (
@@ -42,6 +51,17 @@ export default function Transactions() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-gray-400">{new Date(t.createdAt).toLocaleDateString('fr-FR')}</td>
+                  <td className="px-4 py-3 text-right">
+                    {t.status === 'completed' && (
+                      <button
+                        title="Rembourser"
+                        onClick={() => { if (confirm('Rembourser ce paiement et annuler la réservation ?')) refund.mutate(t.id); }}
+                        className="text-red-400 hover:text-red-300 inline-flex"
+                      >
+                        <RotateCcw className="w-4 h-4" />
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))
             }
