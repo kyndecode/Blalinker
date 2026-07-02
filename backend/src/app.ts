@@ -26,6 +26,7 @@ import usersRoutes      from './modules/users/users.routes';
 import reviewsRoutes    from './modules/reviews/reviews.routes';
 import notificationsRoutes from './modules/notifications/notifications.routes';
 import reportsRoutes    from './modules/reports/reports.routes';
+import uploadsRoutes    from './modules/uploads/uploads.routes';
 
 export const app = express();
 
@@ -115,6 +116,7 @@ app.use(`${API}/users`,     usersRoutes);
 app.use(`${API}/reviews`,       reviewsRoutes);
 app.use(`${API}/notifications`, notificationsRoutes);
 app.use(`${API}/reports`,       reportsRoutes);
+app.use(`${API}/uploads`,       uploadsRoutes);
 
 // ─── 404 ──────────────────────────────────────────────────────
 app.use((_req, res) => {

@@ -1,0 +1,54 @@
+import { Request, Response } from 'express';
+import { prisma } from '../../config/database';
+import { logger } from '../../config/logger';
+import { uploadBuffer, isCloudinaryConfigured } from '../../config/cloudinary';
+
+async function ensureProfile(userId: string) {
+  const profile = await prisma.profile.findUnique({ where: { userId }, select: { userId: true } });
+  if (!profile) {
+    await prisma.profile.create({ data: { userId, firstName: 'Utilisateur', lastName: 'BLA', country: 'CI' } });
+  }
+}
+
+export const uploadsController = {
+  /** POST /uploads/avatar — photo de profil */
+  async avatar(req: Request, res: Response) {
+    if (!isCloudinaryConfigured()) {
+      return res.status(503).json({ error: 'Stockage de fichiers non configuré.' });
+    }
+    if (!req.file) return res.status(400).json({ error: 'Aucun fichier fourni' });
+
+    try {
+      const result = await uploadBuffer(req.file.buffer, `bla/avatars/${req.user!.id}`, 'image');
+      await ensureProfile(req.user!.id);
+      await prisma.profile.update({ where: { userId: req.user!.id }, data: { avatarUrl: result.secure_url } });
+      return res.json({ url: result.secure_url });
+    } catch (err) {
+      logger.error('Erreur upload avatar', err);
+      return res.status(500).json({ error: 'Échec du téléversement' });
+    }
+  },
+
+  /** POST /uploads/id-card — pièce d'identité (KYC) */
+  async idCard(req: Request, res: Response) {
+    if (!isCloudinaryConfigured()) {
+      return res.status(503).json({ error: 'Stockage de fichiers non configuré.' });
+    }
+    if (!req.file) return res.status(400).json({ error: 'Aucun fichier fourni' });
+
+    try {
+      // Dossier privé + type auto (accepte PDF et images)
+      const result = await uploadBuffer(req.file.buffer, `bla/kyc/${req.user!.id}`, 'auto');
+      await ensureProfile(req.user!.id);
+      // Nouveau document → repasse en non vérifié (l'admin devra re-valider)
+      await prisma.profile.update({
+        where: { userId: req.user!.id },
+        data: { idCardUrl: result.secure_url, idVerified: false, idVerifiedAt: null, idVerifiedBy: null },
+      });
+      return res.json({ url: result.secure_url, message: 'Document envoyé. Il sera vérifié par notre équipe.' });
+    } catch (err) {
+      logger.error('Erreur upload KYC', err);
+      return res.status(500).json({ error: 'Échec du téléversement' });
+    }
+  },
+};

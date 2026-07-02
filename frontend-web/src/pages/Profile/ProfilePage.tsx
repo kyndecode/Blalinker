@@ -97,6 +97,13 @@ export default function ProfilePage() {
     bioPro: '',
   });
 
+  const [providerLocation, setProviderLocation] = useState<{ latitude?: number; longitude?: number; address?: string }>({});
+  const [locSaving, setLocSaving] = useState(false);
+  const [locMsg, setLocMsg] = useState('');
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [kycUploading, setKycUploading] = useState(false);
+  const [kycMsg, setKycMsg] = useState('');
+
   const [categories, setCategories] = useState<CategoryNode[]>([]);
   const [services, setServices] = useState<ProviderService[]>([]);
   const [serviceLoading, setServiceLoading] = useState(false);
@@ -143,7 +150,14 @@ export default function ProfilePage() {
 
       const me = providerResponse.data as {
         providerProfile?: ProviderProfileData | null;
+        profile?: { latitude?: number | string | null; longitude?: number | string | null; address?: string | null } | null;
       };
+
+      setProviderLocation({
+        latitude: me.profile?.latitude != null ? Number(me.profile.latitude) : undefined,
+        longitude: me.profile?.longitude != null ? Number(me.profile.longitude) : undefined,
+        address: me.profile?.address ?? '',
+      });
 
       const providerData = me.providerProfile ?? {};
       setProviderProfile({
@@ -240,6 +254,64 @@ export default function ProfilePage() {
       setProviderError(e?.response?.data?.error || 'Erreur lors de la mise à jour prestataire');
     } finally {
       setProviderSaving(false);
+    }
+  };
+
+  const useMyGPS = () => {
+    setLocMsg('');
+    if (!('geolocation' in navigator)) { setLocMsg('Géolocalisation non disponible sur cet appareil.'); return; }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => setProviderLocation((p) => ({ ...p, latitude: pos.coords.latitude, longitude: pos.coords.longitude })),
+      () => setLocMsg('Impossible d\'obtenir votre position (autorisez la localisation).'),
+      { enableHighAccuracy: true, timeout: 10_000 },
+    );
+  };
+
+  const saveLocation = async () => {
+    if (providerLocation.latitude == null || providerLocation.longitude == null) {
+      setLocMsg('Définissez d\'abord votre position (bouton GPS).');
+      return;
+    }
+    setLocSaving(true);
+    setLocMsg('');
+    try {
+      await api.put('/providers/me/profile', {
+        latitude: providerLocation.latitude,
+        longitude: providerLocation.longitude,
+        address: providerLocation.address || undefined,
+      });
+      setLocMsg('Position enregistrée ✓ Vous êtes désormais visible dans la recherche.');
+    } catch (error: unknown) {
+      const e = error as { response?: { data?: { error?: string } } };
+      setLocMsg(e?.response?.data?.error || 'Erreur lors de l\'enregistrement de la position.');
+    } finally {
+      setLocSaving(false);
+    }
+  };
+
+  const uploadAvatar = async (file: File) => {
+    setAvatarUploading(true);
+    try {
+      const r = await api.postForm('/uploads/avatar', { file });
+      setProfile((prev) => ({ ...(prev || {}), avatarUrl: r.data.url }));
+    } catch {
+      /* ignore */
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
+  const uploadKyc = async (file: File) => {
+    setKycUploading(true);
+    setKycMsg('');
+    try {
+      const r = await api.postForm('/uploads/id-card', { file });
+      setKycMsg(r.data.message || 'Document envoyé. En attente de vérification.');
+    } catch (error: unknown) {
+      const e = error as { response?: { data?: { error?: string } } };
+      setKycMsg(e?.response?.data?.error || 'Échec du téléversement.');
+    } finally {
+      setKycUploading(false);
     }
   };
 
@@ -369,6 +441,15 @@ export default function ProfilePage() {
             {profile?.email || profile?.phone || ''}
           </p>
         </div>
+        <label className="ml-auto shrink-0 cursor-pointer text-sm font-medium text-green-600 dark:text-green-400 hover:underline">
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => { if (e.target.files?.[0]) uploadAvatar(e.target.files[0]); }}
+          />
+          {avatarUploading ? 'Envoi…' : 'Changer la photo'}
+        </label>
       </div>
 
       <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-6">
@@ -410,6 +491,55 @@ export default function ProfilePage() {
 
       {isProvider && (
         <>
+          <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-6">
+            <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-1">Ma position & vérification</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+              Sans position, vous n'apparaissez pas dans la recherche. La pièce d'identité permet d'obtenir le badge « Vérifié ».
+            </p>
+
+            {locMsg && (
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-3 mb-4">
+                <p className="text-blue-700 dark:text-blue-400 text-sm">{locMsg}</p>
+              </div>
+            )}
+
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Position (GPS)</label>
+                <div className="flex gap-2">
+                  <button type="button" onClick={useMyGPS} className="btn-secondary text-sm px-3 py-2">📍 Utiliser ma position</button>
+                  <span className="text-xs text-gray-500 dark:text-gray-400 self-center">
+                    {providerLocation.latitude != null && providerLocation.longitude != null
+                      ? `${providerLocation.latitude.toFixed(4)}, ${providerLocation.longitude.toFixed(4)}`
+                      : 'Non définie'}
+                  </span>
+                </div>
+              </div>
+              <Input
+                label="Adresse"
+                placeholder="Quartier, ville…"
+                value={providerLocation.address || ''}
+                onChange={(e) => setProviderLocation((p) => ({ ...p, address: e.target.value }))}
+              />
+            </div>
+
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <Button onClick={saveLocation} loading={locSaving}>Enregistrer ma position</Button>
+
+              <label className="cursor-pointer btn-secondary text-sm px-4 py-2">
+                <input
+                  type="file"
+                  accept="image/*,application/pdf"
+                  className="hidden"
+                  onChange={(e) => { if (e.target.files?.[0]) uploadKyc(e.target.files[0]); }}
+                />
+                {kycUploading ? 'Envoi…' : '🪪 Envoyer ma pièce d\'identité (KYC)'}
+              </label>
+              {profile?.isVerified && <span className="badge badge-blue">Identité vérifiée</span>}
+            </div>
+            {kycMsg && <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">{kycMsg}</p>}
+          </div>
+
           <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-6">
             <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-4">Profil prestataire</h2>
 
