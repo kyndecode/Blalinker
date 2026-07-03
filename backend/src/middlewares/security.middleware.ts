@@ -2,7 +2,6 @@ import { Express, Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
 import rateLimit, { type Store } from 'express-rate-limit';
 import { RedisStore } from 'rate-limit-redis';
-import mongoSanitize from 'express-mongo-sanitize';
 import compression from 'compression';
 import { env } from '../config/env';
 import { logger } from '../config/logger';
@@ -78,9 +77,7 @@ export function applySecurityMiddlewares(app: Express) {
     },
   });
   app.use('/api/v1/auth', authLimiter);
-
-  // Sanitisation — empêche les injections NoSQL
-  app.use(mongoSanitize());
+  // NB: pas de sanitisation NoSQL (base PostgreSQL/Prisma paramétrée) — inutile ici.
 }
 
 /** Middleware de validation que le Content-Type est JSON */
