@@ -158,6 +158,7 @@ model Profile {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([latitude, longitude])
   @@map("profiles")
 }
 

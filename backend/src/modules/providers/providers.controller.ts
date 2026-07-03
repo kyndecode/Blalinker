@@ -58,6 +58,11 @@ export const providersController = {
           AND (${q.max_price ?? null}::numeric IS NULL OR pp.hourly_rate IS NULL OR pp.hourly_rate <= ${q.max_price ?? null}::numeric)
           AND p.latitude  IS NOT NULL
           AND p.longitude IS NOT NULL
+          -- Pré-filtre bounding-box (sargable → index profiles(latitude,longitude))
+          AND p.latitude  BETWEEN (${q.lat}::float - (${q.radius}::float / 111.045))::numeric
+                              AND (${q.lat}::float + (${q.radius}::float / 111.045))::numeric
+          AND p.longitude BETWEEN (${q.lng}::float - (${q.radius}::float / (111.045 * GREATEST(COS(RADIANS(${q.lat}::float)), 0.01))))::numeric
+                              AND (${q.lng}::float + (${q.radius}::float / (111.045 * GREATEST(COS(RADIANS(${q.lat}::float)), 0.01))))::numeric
           AND (6371.0 * 2.0 * ASIN(SQRT(
             POWER(SIN(RADIANS((p.latitude::float  - ${q.lat}::float) / 2.0)), 2) +
             COS(RADIANS(${q.lat}::float)) * COS(RADIANS(p.latitude::float)) *
@@ -88,6 +93,11 @@ export const providersController = {
           AND (${q.max_price ?? null}::numeric IS NULL OR pp.hourly_rate IS NULL OR pp.hourly_rate <= ${q.max_price ?? null}::numeric)
           AND p.latitude IS NOT NULL
           AND p.longitude IS NOT NULL
+          -- Pré-filtre bounding-box (sargable → index profiles(latitude,longitude))
+          AND p.latitude  BETWEEN (${q.lat}::float - (${q.radius}::float / 111.045))::numeric
+                              AND (${q.lat}::float + (${q.radius}::float / 111.045))::numeric
+          AND p.longitude BETWEEN (${q.lng}::float - (${q.radius}::float / (111.045 * GREATEST(COS(RADIANS(${q.lat}::float)), 0.01))))::numeric
+                              AND (${q.lng}::float + (${q.radius}::float / (111.045 * GREATEST(COS(RADIANS(${q.lat}::float)), 0.01))))::numeric
           AND (6371.0 * 2.0 * ASIN(SQRT(
             POWER(SIN(RADIANS((p.latitude::float  - ${q.lat}::float) / 2.0)), 2) +
             COS(RADIANS(${q.lat}::float)) * COS(RADIANS(p.latitude::float)) *
