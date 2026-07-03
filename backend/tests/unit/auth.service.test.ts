@@ -16,6 +16,7 @@
     ADMIN_EMAIL: 'admin@bla-app.com',
     ADMIN_PASSWORD: 'BlaAdmin2024!',
     AI_SERVICE_URL: 'http://localhost:8000',
+    MFA_ENABLED: true,
   },
 }));
 

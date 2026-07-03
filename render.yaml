@@ -108,6 +108,10 @@ services:
       - key: STRIPE_PUBLIC_KEY
         sync: false
 
+      # MFA/OTP à la connexion (false = login sans OTP, dépannage si e-mails KO)
+      - key: MFA_ENABLED
+        value: "true"
+
       # Auth sociale
       - key: GOOGLE_CLIENT_ID
         sync: false

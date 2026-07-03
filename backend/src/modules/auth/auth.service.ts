@@ -191,8 +191,8 @@ export class AuthService {
       data:  { loginAttempts: 0, lockedUntil: null },
     });
 
-    // MFA activé → envoyer l'OTP
-    if (user.mfaEnabled) {
+    // MFA activé (au niveau compte ET au niveau plateforme) → envoyer l'OTP
+    if (user.mfaEnabled && env.MFA_ENABLED) {
       const tempToken = await this._createMfaTempToken(user.id, ip);
       await this._sendOtp(user.id, user.phone ?? undefined, user.email ?? undefined, 'login', ip);
       return {

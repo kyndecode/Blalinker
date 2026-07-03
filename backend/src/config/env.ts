@@ -90,6 +90,13 @@ const envSchema = z.object({
   WAVE_API_KEY:               optionalStringEnv(),
   WAVE_WEBHOOK_SECRET:        optionalStringEnv(),
 
+  // MFA (OTP à la connexion). Mettre MFA_ENABLED=false pour désactiver l'OTP au login.
+  MFA_ENABLED: z.preprocess((v) => {
+    if (v === undefined || v === null || v === '') return true;
+    const s = String(v).trim().toLowerCase();
+    return !(s === 'false' || s === '0' || s === 'no' || s === 'off');
+  }, z.boolean()),
+
   // Auth sociale
   GOOGLE_CLIENT_ID: optionalStringEnv(),
 
