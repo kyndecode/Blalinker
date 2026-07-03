@@ -4,7 +4,10 @@ import { useAdminAuthStore } from '../store/adminAuthStore';
 type RetryableRequestConfig = InternalAxiosRequestConfig & {
   _networkRetryCount?: number;
   _fallbackRetryCount?: number;
+  _retry?: boolean;
 };
+
+let isRefreshing = false;
 
 const NETWORK_RETRY_LIMIT = 2;
 const NETWORK_RETRY_BASE_DELAY_MS = 800;
@@ -113,10 +116,44 @@ api.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = (error.config ?? {}) as RetryableRequestConfig;
 
-    if (error.response?.status === 401) {
-      useAdminAuthStore.getState().logout();
-      window.location.href = '/login';
-      return Promise.reject(error);
+    const requestUrl = originalRequest.url ?? '';
+    const isRefreshRequest = requestUrl.includes('/auth/refresh-token');
+
+    if (error.response?.status === 401 && !originalRequest._retry && !isRefreshRequest) {
+      originalRequest._retry = true;
+      const { refreshToken, user, setTokens, logout } = useAdminAuthStore.getState();
+
+      const forceLogout = () => {
+        logout();
+        if (typeof window !== 'undefined') window.location.href = '/login';
+      };
+
+      if (!refreshToken || !user || isRefreshing) {
+        forceLogout();
+        return Promise.reject(error);
+      }
+
+      isRefreshing = true;
+      try {
+        const { data } = await axios.post(
+          `${getActiveApiBaseUrl()}/auth/refresh-token`,
+          { refreshToken },
+          { headers: { 'X-Admin-Request': '1' } },
+        );
+        if (!data?.accessToken || !data?.refreshToken) {
+          forceLogout();
+          return Promise.reject(error);
+        }
+        setTokens(data.accessToken, data.refreshToken, user);
+        originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
+        originalRequest.baseURL = getActiveApiBaseUrl();
+        return api(originalRequest);
+      } catch (refreshError) {
+        forceLogout();
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
+      }
     }
 
     if (!isTransientNetworkError(error)) {
