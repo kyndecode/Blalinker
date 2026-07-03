@@ -38,6 +38,16 @@ describe('API — câblage & sécurité (intégration)', () => {
     expect(res.body.name).toBe('BLA API');
   });
 
+  it('renvoie un en-tête X-Request-Id (corrélation)', async () => {
+    const res = await request(app).get('/');
+    expect(res.headers['x-request-id']).toBeTruthy();
+  });
+
+  it('propage un X-Request-Id fourni par le client', async () => {
+    const res = await request(app).get('/').set('X-Request-Id', 'test-req-123');
+    expect(res.headers['x-request-id']).toBe('test-req-123');
+  });
+
   it('GET /health → 200 avec checks DB/Redis', async () => {
     const res = await request(app).get('/health');
     expect(res.status).toBe(200);
@@ -49,6 +59,13 @@ describe('API — câblage & sécurité (intégration)', () => {
     const res = await request(app).get('/api/v1/route-inexistante');
     expect(res.status).toBe(404);
     expect(res.body.code).toBe('NOT_FOUND');
+  });
+
+  it('GET /openapi.json → 200 (contrat OpenAPI)', async () => {
+    const res = await request(app).get('/openapi.json');
+    expect(res.status).toBe(200);
+    expect(res.body.openapi).toBe('3.0.3');
+    expect(res.body.paths['/auth/login']).toBeDefined();
   });
 
   it('POST /auth/register body invalide → 422 (validation)', async () => {

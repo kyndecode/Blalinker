@@ -95,6 +95,7 @@ export function requireJson(req: Request, res: Response, next: NextFunction) {
 export function requestLogger(req: Request, _res: Response, next: NextFunction) {
   if (env.NODE_ENV !== 'test') {
     logger.debug(`${req.method} ${req.path}`, {
+      requestId: req.id,
       ip: req.ip,
       ua: req.headers['user-agent']?.substring(0, 80),
     });

@@ -9,6 +9,8 @@ import * as Sentry from '@sentry/node';
 import client from 'prom-client';
 import { env, getCorsOrigins } from './config/env';
 import { applySecurityMiddlewares, requestLogger } from './middlewares/security.middleware';
+import { requestId } from './middlewares/requestId.middleware';
+import { openApiSpec } from './config/openapi';
 import { logger } from './config/logger';
 import { prisma } from './config/database';
 import { redis } from './config/redis';
@@ -62,6 +64,9 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
 
+// ─── Observabilité ────────────────────────────────────────────
+app.use(requestId);
+
 // ─── Sécurité ─────────────────────────────────────────────────
 applySecurityMiddlewares(app);
 app.use(requestLogger);
@@ -102,6 +107,11 @@ app.get('/metrics', async (_req, res) => {
   res.end(await metricsRegistry.metrics());
 });
 
+// Contrat OpenAPI (importable dans Swagger UI / Postman)
+app.get('/openapi.json', (_req, res) => {
+  res.json(openApiSpec);
+});
+
 // ─── Routes API ───────────────────────────────────────────────
 const API = '/api/v1';
 
@@ -130,12 +140,13 @@ if (env.SENTRY_DSN) {
   app.use(Sentry.Handlers.errorHandler());
 }
 
-app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  logger.error('Erreur non gérée:', { message: err.message, stack: err.stack });
+app.use((err: Error, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  logger.error('Erreur non gérée:', { requestId: req.id, message: err.message, stack: err.stack });
   res.status(500).json({
     error: env.NODE_ENV === 'production'
       ? 'Erreur interne. Notre équipe a été notifiée.'
       : err.message,
     code: 'INTERNAL_ERROR',
+    requestId: req.id,
   });
 });
