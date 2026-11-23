@@ -18,7 +18,10 @@ permissions:
 env:
   NODE_VERSION: '22'
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
-  GHCR_IMAGE_PREFIX: ghcr.io/j-y-kpangban/blaservices
+  # Images Docker : utilisées uniquement par le déploiement auto-hébergé (SSH),
+  # désactivé tant que vars.ENABLE_SELF_HOSTED_DEPLOY != 'true'. La production
+  # actuelle (Render + Vercel) compile directement depuis le dépôt.
+  GHCR_IMAGE_PREFIX: ghcr.io/kyndecode/blalinker
 
 jobs:
 
@@ -139,12 +142,42 @@ jobs:
           VITE_API_URL: https://api.bla-app.com/api/v1
 
   # ────────────────────────────────────────────────────────
+  #  Tests Frontend Admin
+  # ────────────────────────────────────────────────────────
+  test-admin:
+    name: Tests Frontend Admin (Vitest)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend-admin/package-lock.json
+
+      - name: Installer les dépendances
+        run: cd frontend-admin && npm ci
+
+      - name: Linting
+        run: cd frontend-admin && npm run lint
+
+      - name: Tests
+        run: cd frontend-admin && npm test
+
+      - name: Build de production
+        run: cd frontend-admin && npm run build
+        env:
+          VITE_API_URL: https://api.blalinker.com/api/v1
+
+  # ────────────────────────────────────────────────────────
   #  Audit de sécurité
   # ────────────────────────────────────────────────────────
   security-audit:
     name: Audit sécurité
     runs-on: ubuntu-latest
-    needs: [test-backend, test-frontend]
+    needs: [test-backend, test-frontend, test-admin]
 
     steps:
       - uses: actions/checkout@v4
@@ -168,6 +201,12 @@ jobs:
           npm ci
           npm audit --omit=dev --audit-level=high
 
+      - name: Audit dépendances admin (production, high+)
+        run: |
+          cd frontend-admin
+          npm ci
+          npm audit --omit=dev --audit-level=high
+
       - name: Semgrep — analyse statique de sécurité
         uses: returntocorp/semgrep-action@v1
         continue-on-error: true
@@ -185,8 +224,8 @@ jobs:
   build-docker:
     name: Build images Docker
     runs-on: ubuntu-latest
-    needs: [test-backend, test-frontend, security-audit]
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    needs: [test-backend, test-frontend, test-admin, security-audit]
+    if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') && vars.ENABLE_SELF_HOSTED_DEPLOY == 'true'
 
     steps:
       - uses: actions/checkout@v4
