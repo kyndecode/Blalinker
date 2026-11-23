@@ -13,6 +13,41 @@ const NETWORK_RETRY_LIMIT = 2;
 const NETWORK_RETRY_BASE_DELAY_MS = 800;
 const ONLINE_WAIT_TIMEOUT_MS = 15_000;
 
+/** Délai des lectures (rejouées automatiquement en cas d'erreur transitoire). */
+export const READ_TIMEOUT_MS = 15_000;
+/**
+ * Délai des écritures (jamais rejouées). Assez long pour couvrir le réveil
+ * d'un service Render en offre gratuite (environ une minute) : abandonner
+ * plus tôt ferait croire à un échec alors que le serveur traite la requête
+ * (par exemple l'envoi d'un code OTP).
+ */
+export const WRITE_TIMEOUT_MS = 75_000;
+
+const IDEMPOTENT_METHODS = new Set(['get', 'head', 'options']);
+
+/** Seules les requêtes sans effet de bord peuvent être rejouées sans risque. */
+export function isIdempotentRequest(method: string | undefined): boolean {
+  return IDEMPOTENT_METHODS.has((method ?? 'get').toLowerCase());
+}
+
+const AUTH_ENTRY_PATHS = [
+  '/auth/login',
+  '/auth/login/verify-mfa',
+  '/auth/refresh-token',
+  '/auth/forgot-password',
+  '/auth/reset-password',
+];
+
+/**
+ * Requêtes d'ouverture de session : un 401 y signifie « identifiants ou code
+ * invalides » et doit être affiché à l'utilisateur, pas déclencher une
+ * déconnexion ni un rechargement de la page.
+ */
+export function isAuthEntryRequest(url: string | undefined): boolean {
+  const path = (url ?? '').split('?')[0].replace(/\/+$/, '');
+  return AUTH_ENTRY_PATHS.some((entry) => path === entry || path.endsWith(entry));
+}
+
 function normalizeApiBaseUrl(rawBaseUrl: string | undefined): string {
   if (!rawBaseUrl) return '/api/v1';
 
@@ -100,7 +135,7 @@ function isTransientNetworkError(error: AxiosError): boolean {
 
 const api = axios.create({
   baseURL: getActiveApiBaseUrl(),
-  timeout: 15_000,
+  timeout: READ_TIMEOUT_MS,
 });
 
 api.interceptors.request.use((config: RetryableRequestConfig) => {
@@ -108,6 +143,9 @@ api.interceptors.request.use((config: RetryableRequestConfig) => {
   if (token) config.headers.Authorization = `Bearer ${token}`;
   config.headers['X-Admin-Request'] = '1';
   config.baseURL = getActiveApiBaseUrl();
+  if (!isIdempotentRequest(config.method) && config.timeout === READ_TIMEOUT_MS) {
+    config.timeout = WRITE_TIMEOUT_MS;
+  }
   return config;
 });
 
@@ -117,15 +155,22 @@ api.interceptors.response.use(
     const originalRequest = (error.config ?? {}) as RetryableRequestConfig;
 
     const requestUrl = originalRequest.url ?? '';
-    const isRefreshRequest = requestUrl.includes('/auth/refresh-token');
 
-    if (error.response?.status === 401 && !originalRequest._retry && !isRefreshRequest) {
+    // Échec de connexion, code MFA expiré, etc. : on laisse l'écran afficher
+    // le message du serveur (auparavant : déconnexion + rechargement silencieux).
+    if (isAuthEntryRequest(requestUrl)) {
+      return Promise.reject(error);
+    }
+
+    if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
       const { refreshToken, user, setTokens, logout } = useAdminAuthStore.getState();
 
       const forceLogout = () => {
         logout();
-        if (typeof window !== 'undefined') window.location.href = '/login';
+        if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
       };
 
       if (!refreshToken || !user || isRefreshing) {
@@ -156,7 +201,10 @@ api.interceptors.response.use(
       }
     }
 
-    if (!isTransientNetworkError(error)) {
+    // Une écriture (POST/PUT/PATCH/DELETE) n'est jamais rejouée : le serveur a
+    // pu la traiter (ex. connexion → un nouvel OTP par tentative, seul le
+    // dernier code reçu restant valide).
+    if (!isTransientNetworkError(error) || !isIdempotentRequest(originalRequest.method)) {
       return Promise.reject(error);
     }
 

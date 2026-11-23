@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -32,22 +32,31 @@ function isAdminRole(role: string | undefined): role is 'admin' | 'super_admin' 
   return role === 'admin' || role === 'super_admin';
 }
 
-function getFriendlyError(err: unknown): string {
+/** Au-delà de ce délai, on signale que le serveur est peut-être en train de démarrer. */
+const SLOW_REQUEST_HINT_MS = 8_000;
+
+export function getFriendlyError(err: unknown): string {
   if (typeof navigator !== 'undefined' && !navigator.onLine) {
-    return 'Connection problem. Check your network.';
+    return 'Pas de connexion Internet. Vérifiez votre réseau.';
   }
 
   const e = err as {
     code?: string;
-    response?: { data?: { error?: string; message?: string } };
+    response?: { status?: number; data?: { error?: string; message?: string } };
     message?: string;
   };
 
   if (!e.response) {
-    return 'Connection problem. Check your network.';
+    if (e.code === 'ECONNABORTED' || e.code === 'ETIMEDOUT') {
+      return 'Le serveur ne répond pas encore (démarrage en cours). Réessayez dans une minute.';
+    }
+    if (e.message && !e.code) {
+      return e.message; // erreur levée par l'interface elle-même (ex. accès refusé)
+    }
+    return "Impossible de joindre l'API. Vérifiez votre connexion puis réessayez.";
   }
 
-  return e.response.data?.error ?? e.response.data?.message ?? e.message ?? 'Identifiants incorrects';
+  return e.response.data?.error ?? e.response.data?.message ?? 'Identifiants incorrects';
 }
 
 export default function AdminLogin() {
@@ -56,7 +65,17 @@ export default function AdminLogin() {
 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [slow, setSlow] = useState(false);
   const [otpCode, setOtpCode] = useState('');
+
+  useEffect(() => {
+    if (!loading) {
+      setSlow(false);
+      return;
+    }
+    const timer = setTimeout(() => setSlow(true), SLOW_REQUEST_HINT_MS);
+    return () => clearTimeout(timer);
+  }, [loading]);
   const [mfaState, setMfaState] = useState<{ required: boolean; tempToken: string; email: string }>({
     required: false,
     tempToken: '',
@@ -200,9 +219,15 @@ export default function AdminLogin() {
               </div>
 
               {error && (
-                <div className="bg-red-900/40 border border-red-700 rounded-lg px-4 py-3 text-red-300 text-sm">
+                <div role="alert" className="bg-red-900/40 border border-red-700 rounded-lg px-4 py-3 text-red-300 text-sm">
                   {error}
                 </div>
+              )}
+
+              {slow && (
+                <p role="status" className="text-xs text-gray-400">
+                  Le serveur se réveille (cela peut prendre jusqu'à une minute). Ne relancez pas la connexion.
+                </p>
               )}
 
               <button
@@ -230,10 +255,14 @@ export default function AdminLogin() {
                   placeholder="000000"
                 />
                 <p className="text-xs text-gray-400 mt-2">Code envoyé sur {mfaState.email}</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Si vous avez reçu plusieurs e-mails, seul le code du plus récent est valide (10 minutes).
+                  Pensez à vérifier les courriers indésirables.
+                </p>
               </div>
 
               {error && (
-                <div className="bg-red-900/40 border border-red-700 rounded-lg px-4 py-3 text-red-300 text-sm">
+                <div role="alert" className="bg-red-900/40 border border-red-700 rounded-lg px-4 py-3 text-red-300 text-sm">
                   {error}
                 </div>
               )}
