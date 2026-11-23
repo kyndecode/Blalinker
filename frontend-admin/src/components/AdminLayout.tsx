@@ -17,6 +17,7 @@ import {
   UsersRound,
   ScrollText,
   Wallet,
+  KeyRound,
 } from 'lucide-react';
 
 const navItems = [
@@ -30,6 +31,7 @@ const navItems = [
   { to: '/reports', icon: AlertTriangle, label: 'Signalements', color: 'text-red-400' },
   { to: '/contacts', icon: Mail, label: 'Contacts', color: 'text-cyan-400' },
   { to: '/categories', icon: Tag, label: 'Categories', color: 'text-teal-400' },
+  { to: '/securite', icon: KeyRound, label: 'Sécurité', color: 'text-lime-400' },
 ];
 
 // Réservé au super administrateur

@@ -33,6 +33,7 @@ export function isIdempotentRequest(method: string | undefined): boolean {
 const AUTH_ENTRY_PATHS = [
   '/auth/login',
   '/auth/login/verify-mfa',
+  '/auth/login/mfa/email',
   '/auth/refresh-token',
   '/auth/forgot-password',
   '/auth/reset-password',

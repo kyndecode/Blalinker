@@ -14,6 +14,7 @@ import Contacts     from './pages/Contacts';
 import Team         from './pages/Team';
 import AuditLog     from './pages/AuditLog';
 import Payouts      from './pages/Payouts';
+import Security     from './pages/Security';
 
 function RequireAdmin({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAdminAuthStore((s) => s.isAuthenticated);
@@ -42,6 +43,7 @@ export default function App() {
         <Route path="categories"   element={<Categories />} />
         <Route path="team"         element={<Team />} />
         <Route path="audit"        element={<AuditLog />} />
+        <Route path="securite"     element={<Security />} />
         <Route path="*"            element={<Navigate to="/dashboard" replace />} />
       </Route>
     </Routes>
