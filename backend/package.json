@@ -17,7 +17,8 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:seed:demo": "tsx prisma/seed.demo.ts",
     "db:studio": "prisma studio",
-    "db:reset": "prisma migrate reset --force"
+    "db:reset": "prisma migrate reset --force",
+    "admin:reset-mfa": "tsx scripts/reset-admin-mfa.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.10.0",
@@ -44,8 +45,10 @@
     "isomorphic-dompurify": "^2.4.0",
     "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.1",
+    "otpauth": "9.5.2",
     "prisma": "^5.10.0",
     "prom-client": "^15.1.0",
+    "qrcode": "^1.5.4",
     "rate-limit-redis": "^4.3.1",
     "socket.io": "^4.7.4",
     "stripe": "^14.0.0",
@@ -56,6 +59,7 @@
   },
   "devDependencies": {
     "@types/jest": "^29.5.12",
+    "@types/qrcode": "^1.5.6",
     "@types/supertest": "^6.0.2",
     "@typescript-eslint/eslint-plugin": "^7.1.0",
     "@typescript-eslint/parser": "^7.1.0",

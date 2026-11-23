@@ -99,6 +99,16 @@ const envSchema = z.object({
     return !(s === 'false' || s === '0' || s === 'no' || s === 'off');
   }, z.boolean()),
 
+  // TOTP obligatoire pour l'administration : si true, un compte admin sans
+  // application d'authentification configurée ne peut plus utiliser /admin
+  // (la page de configuration /auth/mfa reste accessible). false par défaut pour
+  // ne rien imposer avant la validation du nouveau mécanisme.
+  ADMIN_TOTP_REQUIRED: z.preprocess((v) => {
+    if (v === undefined || v === null || v === '') return false;
+    const s = String(v).trim().toLowerCase();
+    return s === 'true' || s === '1' || s === 'yes' || s === 'on';
+  }, z.boolean()),
+
   // Auth sociale
   // En production, la connexion Google est refusée si GOOGLE_CLIENT_ID est absent
   // (sinon l'audience du jeton ne peut pas être vérifiée).

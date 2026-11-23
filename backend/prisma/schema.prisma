@@ -98,7 +98,9 @@ model User {
   permissions    Json       @default("[]")                       // clés de permission RBAC (membres admin)
   adminTitle     String?    @map("admin_title") @db.VarChar(100) // libellé du rôle admin (ex: "Responsable KYC")
   mfaEnabled     Boolean    @default(true) @map("mfa_enabled")
-  mfaSecret      String?    @map("mfa_secret") @db.VarChar(500)
+  mfaSecret      String?    @map("mfa_secret") @db.VarChar(500)  // secret TOTP chiffré (AES-256-GCM, utils/encryption.util)
+  mfaTotpEnabledAt DateTime? @map("mfa_totp_enabled_at")        // TOTP actif depuis (null = non configuré)
+  mfaTotpLastStep  Int?      @map("mfa_totp_last_step")         // dernière période TOTP acceptée (anti-rejeu)
   lastLoginAt    DateTime?  @map("last_login_at")
   loginAttempts  Int        @default(0) @map("login_attempts")
   lockedUntil    DateTime?  @map("locked_until")
@@ -122,6 +124,7 @@ model User {
   locations       Location[]
   auditLogs       AuditLog[]
   sessions        UserSession[]
+  mfaRecoveryCodes MfaRecoveryCode[]
   consents        Consent[]
   paidTransactions     Transaction[] @relation("PayerTransactions")
   receivedTransactions Transaction[] @relation("PayeeTransactions")
@@ -502,6 +505,21 @@ model UserSession {
 
   @@index([userId])
   @@map("user_sessions")
+}
+
+// Codes de récupération MFA (administration) : usage unique, stockés hachés (HMAC-SHA256).
+model MfaRecoveryCode {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  codeHash  String    @map("code_hash") @db.VarChar(64)
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, codeHash])
+  @@index([userId])
+  @@map("mfa_recovery_codes")
 }
 
 // ─── CONSENTS ─────────────────────────────────────────────────

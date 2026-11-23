@@ -1,13 +1,16 @@
 import { Router } from 'express';
 import { authController } from './auth.controller';
 import { validate } from '../../middlewares/validate.middleware';
-import { authenticate } from '../../middlewares/auth.middleware';
+import { authenticate, requireAdmin } from '../../middlewares/auth.middleware';
 import { captchaGuard } from '../../middlewares/captcha.middleware';
 import {
   registerSchema,
   verifyOtpSchema,
   loginSchema,
   loginMfaSchema,
+  mfaEmailFallbackSchema,
+  totpSetupSchema,
+  totpCodeSchema,
   googleLoginSchema,
   refreshTokenSchema,
   resendOtpSchema,
@@ -46,6 +49,37 @@ router.post('/login',
 router.post('/login/verify-mfa',
   validate(loginMfaSchema),
   authController.verifyMfa
+);
+
+// POST /api/v1/auth/login/mfa/email — secours « pas accès à mon application »
+router.post('/login/mfa/email',
+  validate(mfaEmailFallbackSchema),
+  authController.requestMfaEmail
+);
+
+// ─── Double authentification par application (administration) ───
+// GET /api/v1/auth/mfa/status
+router.get('/mfa/status', authenticate, authController.mfaStatus);
+
+// POST /api/v1/auth/mfa/totp/setup
+router.post('/mfa/totp/setup',
+  authenticate, requireAdmin,
+  validate(totpSetupSchema),
+  authController.totpSetup
+);
+
+// POST /api/v1/auth/mfa/totp/activate
+router.post('/mfa/totp/activate',
+  authenticate, requireAdmin,
+  validate(totpCodeSchema),
+  authController.totpActivate
+);
+
+// POST /api/v1/auth/mfa/recovery-codes
+router.post('/mfa/recovery-codes',
+  authenticate, requireAdmin,
+  validate(totpCodeSchema),
+  authController.regenerateRecoveryCodes
 );
 
 // POST /api/v1/auth/google

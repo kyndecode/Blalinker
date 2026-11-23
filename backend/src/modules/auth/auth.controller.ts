@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
+import { mfaService } from './mfa.service';
 import { logger } from '../../config/logger';
 import {
   isCookieAuthMode,
@@ -9,6 +10,19 @@ import {
 } from '../../utils/cookies.util';
 
 const authService = new AuthService();
+
+/** Réponse d'erreur MFA : message, code et délai éventuel (jamais de détail interne). */
+function sendMfaError(res: Response, err: unknown): Response {
+  const e = err as { message?: string; status?: number; code?: string; retryAfter?: number };
+  const status = e.status ?? 500;
+  if (status >= 500 && !e.code) logger.error('Erreur MFA', { error: e.message });
+  if (e.retryAfter) res.setHeader('Retry-After', String(e.retryAfter));
+  return res.status(status).json({
+    error: status >= 500 && !e.code ? 'Erreur serveur' : e.message,
+    ...(e.code ? { code: e.code } : {}),
+    ...(e.retryAfter ? { retryAfter: e.retryAfter } : {}),
+  });
+}
 
 /**
  * Envoie le résultat d'authentification.
@@ -74,12 +88,60 @@ export const authController = {
 
   async verifyMfa(req: Request, res: Response) {
     try {
-      const { tempToken, otpCode } = req.body;
-      const result = await authService.verifyMfa(tempToken, otpCode);
+      const { tempToken, otpCode, method } = req.body;
+      const result = await authService.verifyMfa(tempToken, otpCode, method);
       sendAuthResult(req, res, result);
     } catch (err: unknown) {
       const e = err as { message: string; status?: number };
       res.status(e.status ?? 500).json({ error: e.message });
+    }
+  },
+
+  /** POST /auth/login/mfa/email — secours : code par e-mail à l'adresse du compte */
+  async requestMfaEmail(req: Request, res: Response) {
+    try {
+      res.json(await authService.requestMfaEmailFallback(req.body.tempToken, req.ip ?? ''));
+    } catch (err: unknown) {
+      sendMfaError(res, err);
+    }
+  },
+
+  /** GET /auth/mfa/status */
+  async mfaStatus(req: Request, res: Response) {
+    try {
+      res.json(await mfaService.getStatus(req.user!.id));
+    } catch (err: unknown) {
+      sendMfaError(res, err);
+    }
+  },
+
+  /** POST /auth/mfa/totp/setup — mot de passe redemandé ; QR code montré une seule fois */
+  async totpSetup(req: Request, res: Response) {
+    try {
+      res.setHeader('Cache-Control', 'no-store');
+      res.json(await mfaService.beginTotpSetup(req.user!.id, req.body.password, req.ip ?? ''));
+    } catch (err: unknown) {
+      sendMfaError(res, err);
+    }
+  },
+
+  /** POST /auth/mfa/totp/activate — premier code obligatoire ; codes de récupération montrés une fois */
+  async totpActivate(req: Request, res: Response) {
+    try {
+      res.setHeader('Cache-Control', 'no-store');
+      res.json(await mfaService.activateTotp(req.user!.id, req.body.code, req.ip ?? ''));
+    } catch (err: unknown) {
+      sendMfaError(res, err);
+    }
+  },
+
+  /** POST /auth/mfa/recovery-codes — nouveaux codes (exige un code de l'application) */
+  async regenerateRecoveryCodes(req: Request, res: Response) {
+    try {
+      res.setHeader('Cache-Control', 'no-store');
+      res.json(await mfaService.regenerateRecoveryCodes(req.user!.id, req.body.code, req.ip ?? ''));
+    } catch (err: unknown) {
+      sendMfaError(res, err);
     }
   },
 

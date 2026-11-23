@@ -20,7 +20,24 @@ import { generateOTP, hashOTP, verifyOTP, otpExpiresAt } from '../../utils/otp.u
 import { sendSMS, isSmsConfigured } from '../../utils/sms.util';
 import { sendEmail, emailTemplates } from '../../config/email';
 import { maskEmail, maskPhone } from '../../utils/mask.util';
+import { writeAudit } from '../../utils/audit.util';
+import { mfaService, isAdminRole } from './mfa.service';
 import type { RegisterInput, LoginInput, ResendOtpInput, GoogleLoginInput } from './auth.schemas';
+
+export type MfaMethod = 'totp' | 'email' | 'recovery';
+
+/** Essais de second facteur autorisés par tentative de connexion (jeton mfa_temp). */
+export const MFA_MAX_ATTEMPTS_PER_LOGIN = 5;
+/** Secours par e-mail : délai minimal entre deux envois et plafond horaire. */
+export const MFA_EMAIL_COOLDOWN_SECONDS = 60;
+export const MFA_EMAIL_MAX_PER_HOUR = 5;
+
+const EMAIL_FORMAT = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Administrateur dont l'application d'authentification est configurée. */
+function isTotpUser(user: { role: string; mfaTotpEnabledAt: Date | null; mfaSecret: string | null }): boolean {
+  return isAdminRole(user.role) && Boolean(user.mfaTotpEnabledAt) && Boolean(user.mfaSecret);
+}
 
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCK_DURATION_MIN  = 30;
@@ -195,6 +212,20 @@ export class AuthService {
     // MFA activé (au niveau compte ET au niveau plateforme) → envoyer l'OTP
     if (user.mfaEnabled && env.MFA_ENABLED) {
       const tempToken = await this._createMfaTempToken(user.id, ip);
+
+      // Administrateur avec application d'authentification : on demande le code TOTP.
+      // Aucun e-mail n'est envoyé ici ; le secours par e-mail se demande explicitement.
+      if (isTotpUser(user)) {
+        return {
+          mfaRequired: true,
+          tempToken,
+          mfaMethod: 'totp' as const,
+          mfaMethods: ['totp', 'email', 'recovery'] as const,
+          user: { id: user.id, role: user.role },
+        };
+      }
+
+      // Tous les autres comptes (clients, prestataires, admins sans TOTP) : inchangé.
       await this._sendOtp(user.id, user.phone ?? undefined, user.email ?? undefined, 'login', ip);
       return {
         mfaRequired: true,
@@ -209,8 +240,13 @@ export class AuthService {
     return { mfaRequired: false, ...tokens, user: { id: user.id, role: user.role } };
   }
 
-  /** Validation OTP MFA → retourne les tokens */
-  async verifyMfa(tempToken: string, otpCode: string) {
+  /**
+   * Validation MFA → retourne les tokens.
+   * - Comptes sans TOTP (clients, prestataires…) : OTP e-mail/SMS, comportement inchangé.
+   * - Administrateurs avec TOTP : code de l'application (méthode principale), code
+   *   e-mail demandé explicitement (secours) ou code de récupération.
+   */
+  async verifyMfa(tempToken: string, otpCode: string, method?: MfaMethod) {
     const data = await redis.get(`mfa_temp:${tempToken}`);
     if (!data) throw Object.assign(new Error('Session MFA expirée'), { status: 401 });
 
@@ -218,7 +254,15 @@ export class AuthService {
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw Object.assign(new Error('Utilisateur introuvable'), { status: 404 });
 
-    await this._validateOtp(userId, otpCode, 'login');
+    const chosen: MfaMethod = method ?? 'email';
+    if (!isTotpUser(user)) {
+      if (chosen !== 'email') {
+        throw Object.assign(new Error('Méthode de vérification non disponible pour ce compte.'), { status: 400 });
+      }
+      await this._validateOtp(userId, otpCode, 'login');
+    } else {
+      await this._verifyAdminSecondFactor(user, tempToken, otpCode, chosen, ip);
+    }
     await redis.del(`mfa_temp:${tempToken}`);
 
     const tokens = await this._generateTokens(userId, user.role);
@@ -226,6 +270,151 @@ export class AuthService {
 
     logger.info(`Connexion réussie: ${userId} depuis ${ip}`);
     return { ...tokens, user: { id: userId, role: user.role } };
+  }
+
+  /**
+   * Secours « Je n'ai pas accès à mon application d'authentification » :
+   * envoie un OTP UNIQUEMENT à l'adresse enregistrée sur le compte (jamais à une
+   * adresse fournie par la requête), après vérification de cette adresse et du
+   * compte, avec délai minimal et plafond horaire. Journalisé.
+   */
+  async requestMfaEmailFallback(tempToken: string, ip: string) {
+    const data = await redis.get(`mfa_temp:${tempToken}`);
+    if (!data) throw Object.assign(new Error('Session expirée : reconnectez-vous.'), { status: 401 });
+
+    const { userId } = JSON.parse(data) as { userId: string };
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user || !isTotpUser(user)) {
+      throw Object.assign(new Error('Secours par e-mail non disponible pour ce compte.'), { status: 400 });
+    }
+    if (user.deletedAt || user.status !== 'active') {
+      throw Object.assign(new Error('Compte inactif.'), { status: 403 });
+    }
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      throw Object.assign(new Error('Compte temporairement verrouillé.'), { status: 423 });
+    }
+
+    // Vérification de l'adresse du compte avant tout envoi.
+    const email = user.email?.trim().toLowerCase();
+    if (!email || !EMAIL_FORMAT.test(email)) {
+      logger.warn('Secours MFA refusé : aucune adresse e-mail valide sur le compte', { userId });
+      throw Object.assign(
+        new Error('Aucune adresse e-mail valide n\'est associée à ce compte : utilisez un code de récupération.'),
+        { status: 409, code: 'MFA_EMAIL_UNAVAILABLE' }
+      );
+    }
+
+    // Anti-abus : 1 envoi par minute, 5 par heure.
+    const cooldownKey = `mfa_email_cd:${userId}`;
+    const slot = await redis.set(cooldownKey, '1', 'EX', MFA_EMAIL_COOLDOWN_SECONDS, 'NX');
+    if (slot !== 'OK') {
+      const ttl = await redis.ttl(cooldownKey);
+      const retryAfter = ttl > 0 ? ttl : MFA_EMAIL_COOLDOWN_SECONDS;
+      throw Object.assign(
+        new Error(`Un code vient d'être envoyé. Patientez ${retryAfter} s avant d'en demander un autre.`),
+        { status: 429, code: 'MFA_EMAIL_COOLDOWN', retryAfter }
+      );
+    }
+    const hourKey = `mfa_email_hour:${userId}`;
+    const sentThisHour = await redis.incr(hourKey);
+    if (sentThisHour === 1) await redis.expire(hourKey, 3600);
+    if (sentThisHour > MFA_EMAIL_MAX_PER_HOUR) {
+      await writeAudit({ userId, action: 'auth.mfa.email_fallback_blocked', entity: 'user', entityId: userId, ip });
+      throw Object.assign(
+        new Error('Trop de codes demandés par e-mail. Réessayez plus tard ou utilisez un code de récupération.'),
+        { status: 429, code: 'MFA_EMAIL_HOURLY_LIMIT' }
+      );
+    }
+
+    await prisma.otpCode.deleteMany({ where: { userId, purpose: 'login', usedAt: null } });
+    try {
+      await this._sendOtp(userId, undefined, email, 'login', ip); // e-mail uniquement
+    } catch (err) {
+      await redis.del(cooldownKey); // l'échec d'envoi ne doit pas bloquer un nouvel essai
+      throw err;
+    }
+    await redis.setex(`mfa_email_fallback:${tempToken}`, 10 * 60, '1');
+
+    await writeAudit({
+      userId,
+      action: 'auth.mfa.email_fallback_requested',
+      entity: 'user',
+      entityId: userId,
+      ip,
+      newData: { to: maskEmail(email) },
+    });
+
+    return {
+      message: 'Code envoyé par e-mail.',
+      sentTo: maskEmail(email),
+      cooldownSeconds: MFA_EMAIL_COOLDOWN_SECONDS,
+      expiresInMinutes: 10,
+    };
+  }
+
+  /** Second facteur d'un administrateur avec TOTP (plafond d'essais, verrouillage, audit). */
+  private async _verifyAdminSecondFactor(
+    user: { id: string; email: string | null; status: string; deletedAt: Date | null; lockedUntil: Date | null; loginAttempts: number; mfaSecret: string | null },
+    tempToken: string,
+    code: string,
+    method: MfaMethod,
+    ip: string,
+  ) {
+    if (user.deletedAt || user.status !== 'active') {
+      throw Object.assign(new Error('Compte inactif.'), { status: 403 });
+    }
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      const remaining = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60_000);
+      throw Object.assign(new Error(`Compte temporairement verrouillé. Réessayez dans ${remaining} minutes.`), { status: 423 });
+    }
+
+    const attemptsKey = `mfa_attempts:${tempToken}`;
+    const attempts = await redis.incr(attemptsKey);
+    if (attempts === 1) await redis.expire(attemptsKey, 5 * 60);
+    if (attempts > MFA_MAX_ATTEMPTS_PER_LOGIN) {
+      await redis.del(`mfa_temp:${tempToken}`);
+      throw Object.assign(new Error('Trop de tentatives. Reconnectez-vous.'), { status: 429 });
+    }
+
+    let ok = false;
+    if (method === 'totp') {
+      ok = await mfaService.verifyTotp(user, code);
+    } else if (method === 'recovery') {
+      ok = await mfaService.consumeRecoveryCode(user.id, code);
+    } else {
+      const requested = await redis.get(`mfa_email_fallback:${tempToken}`);
+      if (!requested) {
+        throw Object.assign(new Error('Demandez d\'abord un code par e-mail.'), { status: 400 });
+      }
+      try {
+        await this._validateOtp(user.id, code, 'login');
+        ok = true;
+      } catch (err) {
+        if ((err as { status?: number }).status !== 422) throw err;
+      }
+    }
+
+    if (!ok) {
+      await this._handleFailedLogin(user.id, user.loginAttempts);
+      await writeAudit({ userId: user.id, action: `auth.mfa.${method}_failed`, entity: 'user', entityId: user.id, ip });
+      throw Object.assign(new Error('Code incorrect ou déjà utilisé.'), { status: 422 });
+    }
+
+    await redis.del(attemptsKey);
+    await redis.del(`mfa_email_fallback:${tempToken}`);
+    await prisma.user.update({ where: { id: user.id }, data: { loginAttempts: 0, lockedUntil: null } });
+    await writeAudit({ userId: user.id, action: `auth.mfa.login_${method}`, entity: 'user', entityId: user.id, ip });
+
+    if (method === 'recovery') {
+      const remaining = await prisma.mfaRecoveryCode.count({ where: { userId: user.id, usedAt: null } });
+      if (user.email) {
+        void sendEmail({
+          to: user.email,
+          subject: 'BLA Services - Code de récupération utilisé',
+          html: `<p>Un code de récupération vient d'être utilisé pour vous connecter. Il vous en reste ${remaining}.</p><p>Si ce n'est pas vous, contactez immédiatement un super-administrateur.</p>`,
+        }).catch(() => undefined);
+      }
+    }
   }
 
   /** Connexion/inscription Google via ID Token */

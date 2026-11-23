@@ -4,6 +4,7 @@ import { prisma } from '../../config/database';
 import { logger } from '../../config/logger';
 import { getPaginationParams, getSkip, paginate } from '../../utils/pagination.util';
 import { auditFromReq } from '../../utils/audit.util';
+import { mfaService } from '../auth/mfa.service';
 import {
   ALL_PERMISSIONS,
   ROLE_PRESETS,
@@ -88,7 +89,8 @@ export const teamController = {
           passwordHash,
           role: wantsSuper ? 'super_admin' : 'admin',
           status: 'active',
-          mfaEnabled: false,
+          // MFA actif dès la création : OTP e-mail jusqu'à la configuration de l'application.
+          mfaEnabled: true,
           permissions,
           adminTitle: data.adminTitle ?? (data.preset ? ROLE_LABELS[data.preset] : 'Administrateur'),
           profile: { create: { firstName: data.firstName, lastName: data.lastName, country: 'CI', idVerified: true } },
@@ -220,6 +222,34 @@ export const teamController = {
       return res.json({ message: 'Mot de passe réinitialisé' });
     } catch (err) {
       logger.error('Erreur reset password admin', err);
+      return res.status(500).json({ error: 'Erreur serveur' });
+    }
+  },
+
+  /**
+   * POST /admin/team/:id/reset-mfa — réinitialise l'application d'authentification
+   * d'un membre (perte du téléphone). Le MFA reste actif (OTP e-mail jusqu'à une
+   * nouvelle configuration) ; toutes ses sessions sont fermées ; action journalisée.
+   */
+  async resetMfa(req: Request, res: Response) {
+    const { id } = req.params;
+    if (id === req.user!.id) {
+      return res.status(400).json({ error: 'Utilisez un code de récupération ou le code par e-mail pour votre propre compte.' });
+    }
+    try {
+      const target = await prisma.user.findFirst({
+        where: { id, role: { in: [...ADMIN_ROLES] }, deletedAt: null },
+        select: { id: true, role: true },
+      });
+      if (!target) return res.status(404).json({ error: 'Membre admin introuvable' });
+      if (target.role === 'super_admin' && !isSuperAdmin(req)) {
+        return res.status(403).json({ error: 'Action réservée au super administrateur' });
+      }
+
+      await mfaService.resetTotp(id, { actorId: req.user!.id, ip: req.ip, via: 'admin.team' });
+      return res.json({ message: 'Application d\'authentification réinitialisée. Sessions du membre fermées.' });
+    } catch (err) {
+      logger.error('Erreur réinitialisation MFA', { error: err instanceof Error ? err.message : String(err) });
       return res.status(500).json({ error: 'Erreur serveur' });
     }
   },

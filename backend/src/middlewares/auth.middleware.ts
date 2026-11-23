@@ -3,6 +3,7 @@ import rateLimit from 'express-rate-limit';
 import { verifyAccessToken, isTokenRevoked } from '../utils/jwt.util';
 import { prisma } from '../config/database';
 import { logger } from '../config/logger';
+import { env } from '../config/env';
 import { makeStore } from './security.middleware';
 
 /** Rate limiter strict pour les routes admin : 60 req/min max */
@@ -24,6 +25,8 @@ declare global {
         role: string;
         status: string;
         permissions: string[];
+        /** Application d'authentification (TOTP) configurée ? */
+        totpEnabled?: boolean;
       };
     }
   }
@@ -47,7 +50,7 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
 
     const user = await prisma.user.findFirst({
       where: { id: payload.userId, deletedAt: null },
-      select: { id: true, role: true, status: true, permissions: true },
+      select: { id: true, role: true, status: true, permissions: true, mfaTotpEnabledAt: true },
     });
 
     if (!user) {
@@ -67,6 +70,7 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
       role: user.role,
       status: user.status,
       permissions: Array.isArray(user.permissions) ? (user.permissions as string[]) : [],
+      totpEnabled: Boolean(user.mfaTotpEnabledAt),
     };
     next();
   } catch (err) {
@@ -79,6 +83,22 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
 export function requireAdmin(req: Request, res: Response, next: NextFunction) {
   if (!req.user || !['admin', 'super_admin'].includes(req.user.role)) {
     return res.status(403).json({ error: 'Accès réservé aux administrateurs' });
+  }
+  next();
+}
+
+/**
+ * Si ADMIN_TOTP_REQUIRED=true : un administrateur sans application d'authentification
+ * configurée est refusé sur /admin (403 MFA_SETUP_REQUIRED). La configuration reste
+ * possible via /auth/mfa/*. Sans la variable (défaut), aucun effet.
+ */
+export function requireAdminTotpWhenEnforced(req: Request, res: Response, next: NextFunction) {
+  if (!env.ADMIN_TOTP_REQUIRED) return next();
+  if (req.user && ['admin', 'super_admin'].includes(req.user.role) && !req.user.totpEnabled) {
+    return res.status(403).json({
+      error: 'Configurez votre application d\'authentification pour accéder à l\'administration.',
+      code: 'MFA_SETUP_REQUIRED',
+    });
   }
   next();
 }

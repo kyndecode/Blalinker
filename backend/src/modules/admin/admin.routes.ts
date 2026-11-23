@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { adminController } from './admin.controller';
 import { teamController } from './team.controller';
-import { authenticate, requireAdmin, requirePermission, adminRateLimit } from '../../middlewares/auth.middleware';
+import { authenticate, requireAdmin, requirePermission, adminRateLimit, requireAdminTotpWhenEnforced } from '../../middlewares/auth.middleware';
 import { validate } from '../../middlewares/validate.middleware';
 import { updateContactStatusSchema } from '../contact/contact.schemas';
 import { createAdminSchema, updateAdminSchema, resetAdminPasswordSchema } from './team.schemas';
@@ -12,7 +12,8 @@ import { PERMISSIONS as P } from '../../config/permissions';
 const router = Router();
 
 // Toutes les routes admin : rate limit strict + auth + rôle admin
-router.use(adminRateLimit, authenticate, requireAdmin);
+// (+ application d'authentification obligatoire si ADMIN_TOTP_REQUIRED=true)
+router.use(adminRateLimit, authenticate, requireAdmin, requireAdminTotpWhenEnforced);
 
 // ─── Lecture (tout admin) ─────────────────────────────────────
 router.get('/dashboard',        adminController.dashboard);
@@ -58,5 +59,6 @@ router.patch('/team/:id', requirePermission(P.ADMINS_MANAGE), validate(updateAdm
 router.delete('/team/:id', requirePermission(P.ADMINS_MANAGE), teamController.remove);
 router.post('/team/:id/force-logout', requirePermission(P.ADMINS_MANAGE), teamController.forceLogout);
 router.post('/team/:id/reset-password', requirePermission(P.ADMINS_MANAGE), validate(resetAdminPasswordSchema), teamController.resetPassword);
+router.post('/team/:id/reset-mfa', requirePermission(P.ADMINS_MANAGE), teamController.resetMfa);
 
 export default router;
