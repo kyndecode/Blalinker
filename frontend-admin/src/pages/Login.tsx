@@ -199,7 +199,7 @@ export default function AdminLogin() {
                   className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white
                              placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-green-500
                              focus:border-transparent"
-                  placeholder="admin@blalinker.com"
+                  placeholder="vous@exemple.com"
                 />
                 {errors.email && <p className="text-red-400 text-sm mt-1">{errors.email.message}</p>}
               </div>

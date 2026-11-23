@@ -4,12 +4,14 @@
  */
 import http from 'http';
 import { Server as SocketIOServer } from 'socket.io';
-import bcrypt from 'bcryptjs';
 import { app } from './app';
 import { env, getCorsOrigins } from './config/env';
 import { logger } from './config/logger';
 import { prisma } from './config/database';
 import { redis } from './config/redis';
+import { ensureBootstrapAdmin } from './config/bootstrapAdmin';
+import { isEmailConfigured } from './config/email';
+import { isSmsConfigured } from './utils/sms.util';
 import { verifyAccessToken } from './utils/jwt.util';
 import { isTokenRevoked } from './utils/jwt.util';
 
@@ -151,6 +153,13 @@ async function bootstrap() {
 
     await ensureSystemData();
 
+    // Canaux de notification (une seule ligne au démarrage, aucun secret).
+    logger.info(
+      `Notifications : e-mail ${isEmailConfigured() ? `Brevo (expéditeur ${env.BREVO_FROM_EMAIL})` : 'DÉSACTIVÉ (BREVO_API_KEY absente)'}`
+      + ` | SMS ${isSmsConfigured() ? 'Twilio' : 'non configuré (OTP par e-mail uniquement)'}`
+      + ` | MFA connexion ${env.MFA_ENABLED ? 'actif' : 'désactivé'}`,
+    );
+
     // Redis est en lazyConnect : il a pu déjà être ouvert par le rate-limiter.
     // On ne (re)connecte que si le client est encore en attente.
     if (redis.status === 'wait') {
@@ -171,43 +180,9 @@ async function bootstrap() {
 }
 
 async function ensureSystemData() {
-  const adminEmail = env.ADMIN_EMAIL.toLowerCase();
-
-  // Sécurité : on ne crée le compte admin QUE s'il n'existe pas, et UNIQUEMENT si
-  // un mot de passe est fourni via l'environnement. On ne réécrit JAMAIS un compte
-  // existant (sinon tout changement de mot de passe est écrasé à chaque redémarrage,
-  // et un déploiement pourrait réimposer un mot de passe connu).
-  if (env.ADMIN_PASSWORD) {
-    const existingAdmin = await prisma.user.findUnique({
-      where: { email: adminEmail },
-      select: { id: true },
-    });
-
-    if (!existingAdmin) {
-      const passwordHash = await bcrypt.hash(env.ADMIN_PASSWORD, 12);
-      await prisma.user.create({
-        data: {
-          email: adminEmail,
-          passwordHash,
-          role: 'super_admin',
-          status: 'active',
-          mfaEnabled: true,
-          profile: {
-            create: {
-              firstName: 'Super',
-              lastName: 'Admin',
-              country: 'SN',
-              idVerified: true,
-              idVerifiedAt: new Date(),
-            },
-          },
-        },
-      });
-      logger.info(`Compte admin bootstrap cree: ${adminEmail}`);
-    }
-  } else {
-    logger.warn('ADMIN_PASSWORD non configurée : bootstrap du compte admin ignoré.');
-  }
+  // Premier super-administrateur : jamais créé si un super-administrateur actif
+  // existe déjà (voir config/bootstrapAdmin.ts).
+  await ensureBootstrapAdmin();
 
   const categoriesCount = await prisma.category.count();
   if (categoriesCount === 0) {

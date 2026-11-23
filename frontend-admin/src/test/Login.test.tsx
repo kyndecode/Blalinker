@@ -16,7 +16,7 @@ async function submitCredentials() {
       <AdminLogin />
     </MemoryRouter>,
   );
-  await user.type(screen.getByPlaceholderText('admin@blalinker.com'), 'admin@example.test');
+  await user.type(screen.getByPlaceholderText('vous@exemple.com'), 'admin@example.test');
   await user.type(screen.getByPlaceholderText('••••••••••••'), 'not-a-real-password');
   await user.click(screen.getByRole('button', { name: 'Se connecter' }));
   return user;

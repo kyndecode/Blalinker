@@ -115,8 +115,19 @@ async function main() {
 
   // ─── 3. Admin par défaut ───────────────────────────────────
   // Aucun mot de passe par défaut : il DOIT être fourni via ADMIN_PASSWORD.
-  const adminEmail    = process.env.ADMIN_EMAIL    || 'admin@blalinker.com';
+  // Même règle qu'au démarrage du serveur : jamais de second super-administrateur.
+  const adminEmail    = (process.env.ADMIN_EMAIL || 'contact@blalinker.com').trim().toLowerCase();
   const adminPassword = process.env.ADMIN_PASSWORD;
+
+  const activeSuperAdmin = await prisma.user.findFirst({
+    where:  { role: 'super_admin', status: 'active', deletedAt: null },
+    select: { id: true },
+  });
+  if (activeSuperAdmin) {
+    console.log('ℹ️  Un super-administrateur actif existe déjà : création de l\'admin ignorée.');
+    console.log('🎉 Seed terminé (catégories uniquement).');
+    return;
+  }
 
   if (!adminPassword || adminPassword.length < 8) {
     console.log('⚠️  ADMIN_PASSWORD absente ou trop courte (≥ 8 caractères) : création de l\'admin ignorée.');
@@ -134,7 +145,7 @@ async function main() {
       passwordHash,
       role:       'super_admin',
       status:     'active',
-      mfaEnabled: false,
+      mfaEnabled: true,
       profile: {
         create: {
           firstName:  'Super',

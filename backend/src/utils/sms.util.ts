@@ -1,19 +1,30 @@
 import twilio from 'twilio';
 import { env } from '../config/env';
 import { logger } from '../config/logger';
+import { maskPhone } from './mask.util';
 
+/**
+ * Canal SMS (Twilio) — FACULTATIF.
+ * Sans TWILIO_ACCOUNT_SID + TWILIO_AUTH_TOKEN + TWILIO_PHONE_NUMBER, le canal est
+ * considéré comme indisponible : les OTP partent uniquement par e-mail et aucun
+ * appel à Twilio n'est tenté (voir AuthService._sendOtp).
+ */
 let client: ReturnType<typeof twilio> | null = null;
 
+/** Le canal SMS est-il entièrement configuré ? */
+export function isSmsConfigured(): boolean {
+  return Boolean(env.TWILIO_ACCOUNT_SID && env.TWILIO_AUTH_TOKEN && env.TWILIO_PHONE_NUMBER);
+}
+
 function getClient() {
-  if (!env.TWILIO_ACCOUNT_SID || !env.TWILIO_AUTH_TOKEN) {
-    logger.warn('Twilio non configuré — SMS désactivé (mode dev)');
-    return null;
-  }
+  if (!isSmsConfigured()) return null;
   if (!client) {
     try {
       client = twilio(env.TWILIO_ACCOUNT_SID, env.TWILIO_AUTH_TOKEN);
     } catch (err) {
-      logger.error('Configuration Twilio invalide - SMS desactive', err);
+      logger.error('Configuration Twilio invalide : canal SMS indisponible', {
+        error: err instanceof Error ? err.message : String(err),
+      });
       return null;
     }
   }
@@ -42,10 +53,11 @@ export async function sendSMS(
   if (!c) {
     const isTestRuntime = process.env.NODE_ENV === 'test' || typeof process.env.JEST_WORKER_ID !== 'undefined';
     if (env.NODE_ENV === 'production' && !isTestRuntime) {
-      logger.warn(`[SMS] Twilio non configuré en production, SMS non envoyé à ${phone}`);
+      logger.debug(`[SMS] Canal SMS non configuré : SMS ignoré (${maskPhone(phone)})`);
       return false;
     }
-    logger.debug(`[SMS DEV] À: ${phone} — ${(SMS_TEMPLATES[template] as (...args: unknown[]) => string)(...(params as unknown[]))}`);
+    // Hors production uniquement : le contenu est affiché pour faciliter le développement.
+    logger.debug(`[SMS DEV] À: ${maskPhone(phone)} — ${(SMS_TEMPLATES[template] as (...args: unknown[]) => string)(...(params as unknown[]))}`);
     return true;
   }
 
@@ -56,10 +68,14 @@ export async function sendSMS(
       from: env.TWILIO_PHONE_NUMBER!,
       to: phone,
     });
-    logger.info(`SMS envoyé à ${phone} (template: ${template})`);
+    logger.info('SMS envoyé', { to: maskPhone(phone), template });
     return true;
   } catch (err) {
-    logger.error(`Erreur envoi SMS à ${phone}:`, err);
+    logger.error('Erreur envoi SMS', {
+      to: maskPhone(phone),
+      template,
+      error: err instanceof Error ? err.message : String(err),
+    });
     return false;
   }
 }

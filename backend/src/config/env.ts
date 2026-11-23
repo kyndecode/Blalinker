@@ -65,8 +65,10 @@ const envSchema = z.object({
   TWILIO_PHONE_NUMBER: optionalStringEnv(),
 
   // Email transactionnel (Brevo / ex-Sendinblue)
+  // L'expéditeur doit être validé dans Brevo (Senders) : contact@blalinker.com est
+  // la seule boîte existante du domaine.
   BREVO_API_KEY:    optionalStringEnv(),
-  BREVO_FROM_EMAIL: z.string().email().default('noreply@blalinker.com'),
+  BREVO_FROM_EMAIL: z.string().email().default('contact@blalinker.com'),
   BREVO_FROM_NAME:  z.string().default('BLA Services'),
 
   // Stockage fichiers (Cloudinary)
@@ -98,6 +100,8 @@ const envSchema = z.object({
   }, z.boolean()),
 
   // Auth sociale
+  // En production, la connexion Google est refusée si GOOGLE_CLIENT_ID est absent
+  // (sinon l'audience du jeton ne peut pas être vérifiée).
   GOOGLE_CLIENT_ID: optionalStringEnv(),
 
   // Anti-bot — Cloudflare Turnstile (si défini, la vérification captcha est exigée)
@@ -110,9 +114,11 @@ const envSchema = z.object({
   // Monitoring
   SENTRY_DSN: optionalStringEnv(),
 
-  // Admin seed — AUCUN mot de passe par défaut (un défaut connu = compte super_admin compromis).
-  // Si ADMIN_PASSWORD est absent, le bootstrap admin est simplement ignoré au démarrage.
-  ADMIN_EMAIL:    z.string().email().default('admin@blalinker.com'),
+  // Admin — AUCUN mot de passe par défaut (un défaut connu = compte super_admin compromis).
+  // ADMIN_EMAIL : boîte qui reçoit les demandes de contact, et adresse du premier
+  // super-administrateur. ADMIN_PASSWORD ne sert qu'à créer ce premier compte, et
+  // uniquement s'il n'existe AUCUN super-administrateur actif (config/bootstrapAdmin.ts).
+  ADMIN_EMAIL:    z.string().email().default('contact@blalinker.com'),
   ADMIN_PASSWORD: z.preprocess(
     (value) => normalizeOptionalEnvValue(value),
     z.string().min(8, 'ADMIN_PASSWORD doit faire au moins 8 caractères').optional()

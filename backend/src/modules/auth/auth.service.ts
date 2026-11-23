@@ -17,8 +17,9 @@ import {
   generateTokenFamily,
 } from '../../utils/jwt.util';
 import { generateOTP, hashOTP, verifyOTP, otpExpiresAt } from '../../utils/otp.util';
-import { sendSMS } from '../../utils/sms.util';
+import { sendSMS, isSmsConfigured } from '../../utils/sms.util';
 import { sendEmail, emailTemplates } from '../../config/email';
+import { maskEmail, maskPhone } from '../../utils/mask.util';
 import type { RegisterInput, LoginInput, ResendOtpInput, GoogleLoginInput } from './auth.schemas';
 
 const MAX_LOGIN_ATTEMPTS = 5;
@@ -110,7 +111,7 @@ export class AuthService {
       }).catch((err) => {
         logger.error('Echec email activation compte', {
           userId: user.id,
-          email: user.email,
+          email: maskEmail(user.email),
           error: err instanceof Error ? err.message : String(err),
         });
       });
@@ -265,16 +266,41 @@ export class AuthService {
         },
       });
     } else {
+      // Les comptes d'administration ne peuvent pas se connecter via Google :
+      // cela contournerait le mot de passe et la double authentification.
+      if (user.role === 'admin' || user.role === 'super_admin') {
+        logger.warn('Connexion Google refusée pour un compte d\'administration', { userId: user.id, ip });
+        throw Object.assign(
+          new Error('La connexion Google n\'est pas disponible pour les comptes d\'administration.'),
+          { status: 403, code: 'GOOGLE_LOGIN_ADMIN_FORBIDDEN' }
+        );
+      }
       if (user.status === 'banned') {
         throw Object.assign(new Error('Compte suspendu. Contactez le support.'), { status: 403 });
+      }
+      if (user.status === 'suspended') {
+        throw Object.assign(
+          new Error('Votre compte est temporairement suspendu. Contactez le support.'),
+          { status: 403 }
+        );
+      }
+
+      const updateData: { lastLoginAt: Date; status?: 'active'; passwordHash?: string } = {
+        lastLoginAt: new Date(),
+      };
+      if (user.status === 'pending') {
+        // Google vient de prouver la possession de l'adresse : on active le compte,
+        // mais on renouvelle le mot de passe local, qui a pu être choisi par un tiers
+        // ayant créé ce compte avec l'adresse de la victime (pré-détournement).
+        updateData.status = 'active';
+        updateData.passwordHash = await bcrypt.hash(crypto.randomBytes(24).toString('hex'), 12);
+        await prisma.otpCode.deleteMany({ where: { userId: user.id, purpose: 'registration', usedAt: null } });
+        logger.info('Compte en attente activé par Google : mot de passe local renouvelé', { userId: user.id });
       }
 
       user = await prisma.user.update({
         where: { id: user.id },
-        data: {
-          status: 'active',
-          lastLoginAt: new Date(),
-        },
+        data: updateData,
       });
 
       await prisma.profile.upsert({
@@ -441,6 +467,19 @@ export class AuthService {
   }
 
   private async _verifyGoogleIdToken(idToken: string) {
+    // Sans GOOGLE_CLIENT_ID, impossible de vérifier que le jeton a été émis pour
+    // BLA : un jeton obtenu par n'importe quelle autre application serait accepté.
+    if (!env.GOOGLE_CLIENT_ID) {
+      if (env.NODE_ENV === 'production') {
+        logger.error('Connexion Google refusée : GOOGLE_CLIENT_ID absent en production');
+        throw Object.assign(
+          new Error('Connexion Google momentanément indisponible.'),
+          { status: 503, code: 'GOOGLE_LOGIN_NOT_CONFIGURED' }
+        );
+      }
+      logger.warn('GOOGLE_CLIENT_ID absent : audience du jeton Google non vérifiée (hors production uniquement).');
+    }
+
     try {
       const response = await axios.get('https://oauth2.googleapis.com/tokeninfo', {
         params: { id_token: idToken },
@@ -451,11 +490,17 @@ export class AuthService {
         aud?: string;
         iss?: string;
         sub?: string;
+        exp?: string;
         email?: string;
         email_verified?: string;
         given_name?: string;
         family_name?: string;
       };
+
+      const expiresAt = Number(payload.exp ?? 0);
+      if (!payload.sub || !Number.isFinite(expiresAt) || expiresAt * 1000 <= Date.now()) {
+        throw Object.assign(new Error('Jeton Google expiré ou incomplet'), { status: 401 });
+      }
 
       if (!payload.email || payload.email_verified !== 'true') {
         throw Object.assign(new Error('Compte Google non vérifié'), { status: 401 });
@@ -508,15 +553,22 @@ export class AuthService {
 
     let delivered = false;
 
-    if (phone) {
+    // Le SMS n'est tenté que si un fournisseur est configuré : sans Twilio, le
+    // canal est simplement indisponible et l'OTP part uniquement par e-mail.
+    const smsAvailable = Boolean(phone) && isSmsConfigured();
+    let smsOutcome: 'absent' | 'non configuré' | 'envoyé' | 'échec' = !phone ? 'absent' : smsAvailable ? 'échec' : 'non configuré';
+    let emailOutcome: 'absent' | 'envoyé' | 'échec' = email ? 'échec' : 'absent';
+
+    if (phone && smsAvailable) {
       try {
         const smsSent = await sendSMS(phone, template, [code]);
+        if (smsSent) smsOutcome = 'envoyé';
         delivered = delivered || smsSent;
       } catch (err) {
         logger.error('Echec canal OTP SMS', {
           userId,
           purpose,
-          phone,
+          phone: maskPhone(phone),
           error: err instanceof Error ? err.message : String(err),
         });
       }
@@ -528,27 +580,30 @@ export class AuthService {
                         : purpose === 'login'        ? emailTemplates.otpLogin(code)
                         : emailTemplates.otpPasswordReset(code);
         const emailSent = await sendEmail({ to: email, ...emailData });
+        if (emailSent) emailOutcome = 'envoyé';
         delivered = delivered || emailSent;
       } catch (err) {
         logger.error('Echec canal OTP email', {
           userId,
           purpose,
-          email,
+          email: maskEmail(email),
           error: err instanceof Error ? err.message : String(err),
         });
       }
     }
 
     if (!delivered) {
+      // La cause précise (ex. IP refusée par Brevo) est journalisée par le service e-mail.
+      logger.error('OTP non délivré : aucun canal disponible', { userId, purpose, email: emailOutcome, sms: smsOutcome });
       throw Object.assign(
         new Error('Aucun canal OTP disponible. Utilisez un email valide ou contactez le support.'),
-        { status: 503 }
+        { status: 503, code: 'OTP_DELIVERY_FAILED' }
       );
     }
 
-    // En dev, afficher l'OTP dans les logs
+    // Hors production uniquement : afficher l'OTP dans les logs pour le développement.
     if (process.env.NODE_ENV !== 'production') {
-      logger.debug(`[OTP DEV] Code pour ${phone ?? email}: ${code}`);
+      logger.debug(`[OTP DEV] Code pour ${phone ? maskPhone(phone) : maskEmail(email)}: ${code}`);
     }
   }
 
