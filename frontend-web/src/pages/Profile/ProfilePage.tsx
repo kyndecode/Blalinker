@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import ServiceEditDialog from '../../components/provider/ServiceEditDialog';
+import { ConfirmDialog } from '../../components/booking/BookingDialogs';
+import { getApiErrorMessage } from '../../utils/apiError';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -102,6 +105,10 @@ export default function ProfilePage() {
   const [locMsg, setLocMsg] = useState('');
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [kycUploading, setKycUploading] = useState(false);
+  const [editingService, setEditingService] = useState<ProviderService | null>(null);
+  const [deletingService, setDeletingService] = useState<ProviderService | null>(null);
+  const [serviceDialogBusy, setServiceDialogBusy] = useState(false);
+  const [serviceDialogError, setServiceDialogError] = useState<string | null>(null);
   const [kycMsg, setKycMsg] = useState('');
   const [balance, setBalance] = useState<{ available: number; held: number; pendingWithdrawal: number; currency: string } | null>(null);
   const [payouts, setPayouts] = useState<Array<{ id: string; amount: number; currency: string; status: string; createdAt: string }>>([]);
@@ -389,38 +396,35 @@ export default function ProfilePage() {
     }
   };
 
-  const editService = async (service: ProviderService) => {
-    const title = window.prompt('Titre du service', service.title) ?? '';
-    if (!title.trim()) return;
-    const description = window.prompt('Description du service', service.description ?? '') ?? '';
-    const priceRaw = window.prompt('Prix (XOF)', service.price ? String(service.price) : '') ?? '';
-    const price = Number(priceRaw);
-    if (!Number.isFinite(price) || price <= 0) {
-      setServiceError('Prix invalide');
-      return;
-    }
+  // Modification et suppression via des fenêtres accessibles (plus d'invites du navigateur).
+  const editService = (service: ProviderService) => { setServiceDialogError(null); setEditingService(service); };
+  const removeService = (service: ProviderService) => { setServiceDialogError(null); setDeletingService(service); };
 
+  const saveService = async (values: { title: string; description?: string; price: number }) => {
+    if (!editingService) return;
+    setServiceDialogBusy(true);
     try {
-      await api.put(`/providers/me/services/${service.id}`, {
-        title: title.trim(),
-        description: description.trim() || undefined,
-        price,
-      });
+      await api.put(`/providers/me/services/${editingService.id}`, values);
+      setEditingService(null);
       await loadProviderData();
     } catch (error: unknown) {
-      const e = error as { response?: { data?: { error?: string } } };
-      setServiceError(e?.response?.data?.error || 'Impossible de modifier le service');
+      setServiceDialogError(getApiErrorMessage(error, 'Impossible de modifier le service'));
+    } finally {
+      setServiceDialogBusy(false);
     }
   };
 
-  const removeService = async (service: ProviderService) => {
-    if (!window.confirm(`Supprimer le service "${service.title}" ?`)) return;
+  const confirmRemoveService = async () => {
+    if (!deletingService) return;
+    setServiceDialogBusy(true);
     try {
-      await api.delete(`/providers/me/services/${service.id}`);
+      await api.delete(`/providers/me/services/${deletingService.id}`);
+      setDeletingService(null);
       await loadProviderData();
     } catch (error: unknown) {
-      const e = error as { response?: { data?: { error?: string } } };
-      setServiceError(e?.response?.data?.error || 'Impossible de supprimer le service');
+      setServiceDialogError(getApiErrorMessage(error, 'Impossible de supprimer le service'));
+    } finally {
+      setServiceDialogBusy(false);
     }
   };
 
@@ -804,6 +808,11 @@ export default function ProfilePage() {
           </div>
         </>
       )}
+      <ServiceEditDialog service={editingService} busy={serviceDialogBusy} error={serviceDialogError}
+        onClose={() => setEditingService(null)} onSave={saveService} />
+      <ConfirmDialog open={Boolean(deletingService)} onClose={() => setDeletingService(null)} busy={serviceDialogBusy} error={serviceDialogError}
+        title="Supprimer le service" message={`« ${deletingService?.title ?? ''} » ne sera plus proposé aux clients.`}
+        confirmLabel="Supprimer" danger onConfirm={confirmRemoveService} />
     </div>
   );
 }
