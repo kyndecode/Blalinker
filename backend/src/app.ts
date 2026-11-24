@@ -32,6 +32,7 @@ import reportsRoutes    from './modules/reports/reports.routes';
 import uploadsRoutes    from './modules/uploads/uploads.routes';
 import payoutsRoutes    from './modules/payouts/payouts.routes';
 import siteRoutes       from './modules/site/site.routes';
+import searchRoutes     from './modules/search/search.routes';
 
 export const app = express();
 
@@ -136,6 +137,7 @@ app.use(`${API}/reports`,       reportsRoutes);
 app.use(`${API}/uploads`,       uploadsRoutes);
 app.use(`${API}/payouts`,       payoutsRoutes);
 app.use(`${API}/site`,          siteRoutes);
+app.use(`${API}/search`,        searchRoutes);
 
 // ─── 404 ──────────────────────────────────────────────────────
 app.use((_req, res) => {
