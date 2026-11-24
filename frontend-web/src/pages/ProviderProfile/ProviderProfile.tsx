@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../../store/authStore';
 import { ReportDialog } from '../../components/report/ReportDialog';
+import SimilarProviders from '../../components/provider/SimilarProviders';
 import { MapPin, Star, CheckCircle, MessageSquare, Calendar } from 'lucide-react';
 import api from '../../services/api';
 
@@ -286,6 +287,8 @@ export default function ProviderProfile() {
           </div>
         )}
       </div>
+
+      {id && <SimilarProviders providerId={id} />}
 
       {isAuthenticated && user?.id !== id && id && (
         <div className="text-center">

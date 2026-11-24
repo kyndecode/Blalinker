@@ -7,6 +7,7 @@ import L from 'leaflet';
 import { ProviderCard, type ProviderData } from '../../components/provider/ProviderCard';
 import { Button } from '../../components/common/Button';
 import api from '../../services/api';
+import TextSearch from './TextSearch';
 
 interface Category {
   id: string;
@@ -62,7 +63,7 @@ function buildProviderIcon(isAvailable: boolean): L.DivIcon {
   });
 }
 
-export default function SearchPage() {
+function MapSearch() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [params] = useSearchParams();
@@ -171,9 +172,14 @@ export default function SearchPage() {
         </div>
       )}
 
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-        {activeParent ? activeParent.name : t('search.title')}
-      </h1>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+          {activeParent ? activeParent.name : t('search.title')}
+        </h1>
+        <button onClick={() => navigate(categorySlug ? `/search?category=${encodeURIComponent(categorySlug)}` : '/search')} className="text-sm font-medium text-green-700 dark:text-green-400 hover:underline">
+          Recherche par mot-clé et par ville
+        </button>
+      </div>
 
       {subcategories.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-6">
@@ -437,4 +443,13 @@ export default function SearchPage() {
       </div>
     </div>
   );
+}
+
+/**
+ * /search : recherche par mot-clé, ville et catégorie (tolérante aux fautes) par défaut ;
+ * la carte des prestataires vérifiés autour de soi reste disponible (?mode=map).
+ */
+export default function SearchPage() {
+  const [params] = useSearchParams();
+  return params.get('mode') === 'map' ? <MapSearch /> : <TextSearch />;
 }
