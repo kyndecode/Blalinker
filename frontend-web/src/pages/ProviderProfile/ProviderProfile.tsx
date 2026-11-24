@@ -1,5 +1,8 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { useAuthStore } from '../../store/authStore';
+import { ReportDialog } from '../../components/report/ReportDialog';
 import { MapPin, Star, CheckCircle, MessageSquare, Calendar } from 'lucide-react';
 import api from '../../services/api';
 
@@ -9,15 +12,14 @@ type ProviderCategory = {
   category?: { name?: string };
 };
 
+/** Avis publié (GET /providers/:id/reviews) : nom abrégé de l'auteur, jamais son identifiant. */
 type ProviderReview = {
-  id: string | number;
-  rating?: number;
-  comment?: string;
-  createdAt: string | Date;
-  client?: {
-    firstName?: string;
-    email?: string;
-  };
+  id: string;
+  rating: number;
+  comment: string | null;
+  response: string | null;
+  createdAt: string;
+  reviewerName: string;
 };
 
 type ProviderData = {
@@ -40,7 +42,6 @@ type ProviderData = {
   };
   categories?: ProviderCategory[];
   services?: ProviderCategory[];
-  reviews?: ProviderReview[];
   isVerified?: boolean;
 };
 
@@ -68,7 +69,15 @@ export default function ProviderProfile() {
   const bio = profile?.bio ?? provider?.bio ?? '';
   const city = profile?.city ?? provider?.city ?? '';
   const categories: ProviderCategory[] = provider?.categories ?? provider?.services ?? [];
-  const reviews: ProviderReview[] = provider?.reviews ?? [];
+  const reviewsQuery = useQuery<{ data: ProviderReview[]; meta: { total: number } }>({
+    queryKey: ['provider-reviews', id],
+    queryFn: () => api.get(`/providers/${id}/reviews`, { params: { limit: 10 } }).then((r) => r.data),
+    enabled: !!id,
+  });
+  const reviews: ProviderReview[] = reviewsQuery.data?.data ?? [];
+  const user = useAuthStore((s) => s.user);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const [reportOpen, setReportOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -244,7 +253,7 @@ export default function ProviderProfile() {
               <div key={rev.id} className="pb-4 border-b border-gray-100 dark:border-gray-700 last:border-0 last:pb-0">
                 <div className="flex items-center justify-between mb-1.5">
                   <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                    {rev.client?.firstName ?? rev.client?.email ?? 'Anonyme'}
+                    {rev.reviewerName}
                   </span>
                   <div className="flex">
                     {Array.from({ length: 5 }).map((_, i) => (
@@ -264,14 +273,28 @@ export default function ProviderProfile() {
                     {rev.comment}
                   </p>
                 )}
-                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   {new Date(rev.createdAt).toLocaleDateString('fr-FR')}
                 </p>
+                {rev.response && (
+                  <p className="mt-2 border-l-2 border-green-500 pl-3 text-sm text-gray-600 dark:text-gray-400">
+                    <span className="font-medium">Réponse du prestataire :</span> {rev.response}
+                  </p>
+                )}
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {isAuthenticated && user?.id !== id && id && (
+        <div className="text-center">
+          <button onClick={() => setReportOpen(true)} className="text-xs text-gray-500 dark:text-gray-400 hover:text-red-600 hover:underline">
+            Signaler ce profil
+          </button>
+          <ReportDialog open={reportOpen} onClose={() => setReportOpen(false)} reportedId={id} reportedName={`${firstName} ${lastName}`.trim() || 'ce prestataire'} />
+        </div>
+      )}
     </div>
   );
 }

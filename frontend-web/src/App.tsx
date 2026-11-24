@@ -29,6 +29,7 @@ const BookingsList    = lazy(() => import('./pages/Booking/BookingsList'));
 const BookingNew      = lazy(() => import('./pages/Booking/BookingNew'));
 const BookingDetail   = lazy(() => import('./pages/Booking/BookingDetail'));
 const ProfilePage     = lazy(() => import('./pages/Profile/ProfilePage'));
+const NotificationsPage = lazy(() => import('./pages/Notifications/NotificationsPage'));
 const NotFound        = lazy(() => import('./pages/NotFound/NotFound'));
 
 function PageFallback() {
@@ -134,6 +135,7 @@ export default function App() {
           <Route path="/bookings/new" element={<RequireAuth><BookingNew /></RequireAuth>} />
           <Route path="/bookings/:id" element={<RequireAuth><BookingDetail /></RequireAuth>} />
           <Route path="/profile"      element={<RequireAuth><ProfilePage /></RequireAuth>} />
+          <Route path="/notifications" element={<RequireAuth><NotificationsPage /></RequireAuth>} />
 
           {/* 404 — affiche une vraie page plutôt qu'une redirection silencieuse */}
           <Route path="*" element={<NotFound />} />

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { SkeletonCard } from '../../components/common/Skeleton';
 import api from '../../services/api';
+import MyReviews from '../../components/reviews/MyReviews';
 
 interface Booking {
   id: string;
@@ -171,6 +172,10 @@ export default function Dashboard() {
           </div>
         )}
       </section>
+
+      <div className="mt-8">
+        <MyReviews isProvider={isProvider} />
+      </div>
     </div>
   );
 }

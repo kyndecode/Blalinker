@@ -5,6 +5,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useThemeStore } from '../../store/themeStore';
 import api from '../../services/api';
 import Logo from '../common/Logo';
+import NotificationBell from '../notifications/NotificationBell';
 
 const LANGUAGES = [
   { code: 'fr', shortLabel: 'FR', label: 'Francais' },
@@ -159,6 +160,7 @@ export default function Header() {
             {/* Auth */}
             {isAuthenticated ? (
               <div className="flex items-center gap-2">
+                <NotificationBell />
                 {/* Avatar + nom */}
                 <div className="relative" ref={userMenuRef}>
                   <button
@@ -220,6 +222,7 @@ export default function Header() {
 
           {/* Mobile â€” droite */}
           <div className="flex lg:hidden items-center gap-2">
+            {isAuthenticated && <NotificationBell variant="mobile" />}
             {isAuthenticated && (
               <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center text-white text-sm font-bold">
                 {initial}

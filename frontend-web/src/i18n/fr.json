@@ -148,8 +148,8 @@
     "step1_desc": "Trouvez un prestataire par service et localisation",
     "step2_title": "Réservez",
     "step2_desc": "Choisissez votre créneau et confirmez en ligne",
-    "step3_title": "Payez",
-    "step3_desc": "Payez via Wave, Orange Money ou carte bancaire",
+    "step3_title": "Validez",
+    "step3_desc": "Confirmez la réalisation de la mission puis laissez un avis",
     "cta_title": "Vous êtes prestataire ?",
     "cta_desc": "Rejoignez BLA Services et développez votre clientèle. Inscription gratuite, commissions transparentes.",
     "cta_btn": "Rejoindre BLA",
@@ -247,7 +247,7 @@
     "brand_description": "Connectez-vous aux meilleurs prestataires verifies en Cote d'Ivoire, au Togo, au Mali et au Burkina Faso.",
     "follow_us": "Suivez-nous",
     "legal_notice": "Mentions légales",
-    "payments": "Paiements acceptés",
+    "payments": "Paiement en ligne sécurisé",
     "email_label": "Email :",
     "phone_label": "Téléphone :",
     "available_in": "Disponible dans :",
@@ -324,7 +324,7 @@
     },
     "q5": {
       "question": "Quels moyens de paiement sont disponibles ?",
-      "answer": "La plateforme prevoit Mobile Money, carte bancaire et wallet interne, selon disponibilite dans votre zone."
+      "answer": "Le paiement en ligne n'est pas encore ouvert sur la plateforme. Dès son activation, les moyens disponibles dans votre pays seront affichés au moment du paiement."
     },
     "q6": {
       "question": "Que faire en cas de litige ?",

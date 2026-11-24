@@ -2,6 +2,7 @@
 import { useTranslation } from 'react-i18next';
 import Logo from '../common/Logo';
 import { CONTACT_EMAIL, CONTACT_PHONE_DISPLAY, CONTACT_PHONE_TEL, SOCIAL_LINKS } from '../../config/site';
+import { useSiteConfig } from '../../hooks/useSiteConfig';
 
 const ICON_PROPS = {
   width: 18,
@@ -51,6 +52,7 @@ const SOCIAL = [
 
 export default function Footer() {
   const { t } = useTranslation();
+  const onlinePayment = useSiteConfig().data?.onlinePayment;
 
   const navigationLinks = [
     { label: t('nav.home'), to: '/' },
@@ -127,18 +129,17 @@ export default function Footer() {
               ))}
             </ul>
 
-            <div className="mt-8">
-              <p className="text-xs font-semibold text-white/60 uppercase tracking-widest mb-3">
-                {t('footer.payments')}
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {['Wave', 'Orange Money', 'Free Money', 'Stripe'].map((payment) => (
-                  <span key={payment} className="px-2 py-0.5 bg-white/10 rounded text-xs text-white/50 border border-white/10">
-                    {payment}
-                  </span>
-                ))}
+            {/* Affiché uniquement si le paiement en ligne est réellement actif (jamais annoncé à tort). */}
+            {onlinePayment?.available && !onlinePayment.simulated && (
+              <div className="mt-8" data-testid="footer-payments">
+                <p className="text-xs font-semibold text-white/60 uppercase tracking-widest mb-3">
+                  {t('footer.payments')}
+                </p>
+                <span className="px-2 py-0.5 bg-white/10 rounded text-xs text-white/70 border border-white/10">
+                  Mobile Money · CinetPay
+                </span>
               </div>
-            </div>
+            )}
           </div>
 
           <div>

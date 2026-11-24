@@ -148,8 +148,8 @@
     "step1_desc": "Find a provider by service and location",
     "step2_title": "Book",
     "step2_desc": "Choose your time slot and confirm online",
-    "step3_title": "Pay",
-    "step3_desc": "Pay via Wave, Orange Money or card",
+    "step3_title": "Confirm",
+    "step3_desc": "Confirm the job is done, then leave a review",
     "cta_title": "Are you a provider?",
     "cta_desc": "Join BLA Services and grow your client base. Free registration, transparent fees.",
     "cta_btn": "Join BLA",
@@ -247,7 +247,7 @@
     "brand_description": "Connect with top verified providers in Côte d'Ivoire, Togo, Mali and Burkina Faso.",
     "follow_us": "Follow us",
     "legal_notice": "Legal notice",
-    "payments": "Accepted payments",
+    "payments": "Secure online payment",
     "email_label": "Email:",
     "phone_label": "Phone:",
     "available_in": "Available in:",
@@ -324,7 +324,7 @@
     },
     "q5": {
       "question": "Which payment methods are available?",
-      "answer": "The platform supports Mobile Money, bank card and internal wallet depending on your market."
+      "answer": "Online payment is not open on the platform yet. Once enabled, the methods available in your country will be shown at checkout."
     },
     "q6": {
       "question": "What if I have a dispute?",

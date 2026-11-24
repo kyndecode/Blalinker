@@ -33,3 +33,27 @@ export async function fetchTestimonials(): Promise<Testimonial[]> {
     ? (items as Testimonial[]).filter((t) => typeof t?.comment === 'string' && t.comment.trim().length > 0)
     : [];
 }
+
+/** Capacités publiques du site (aucune valeur de configuration, uniquement des booléens). */
+export interface SiteConfig {
+  onlinePayment: { available: boolean; provider: string | null; simulated: boolean };
+}
+
+const OFFLINE_CONFIG: SiteConfig = { onlinePayment: { available: false, provider: null, simulated: false } };
+
+/** En cas d'erreur, le paiement en ligne est considéré comme indisponible (jamais annoncé à tort). */
+export async function fetchSiteConfig(): Promise<SiteConfig> {
+  try {
+    const { data } = await api.get('/site/config');
+    const online = data?.onlinePayment;
+    return {
+      onlinePayment: {
+        available: online?.available === true,
+        provider: typeof online?.provider === 'string' ? online.provider : null,
+        simulated: online?.simulated === true,
+      },
+    };
+  } catch {
+    return OFFLINE_CONFIG;
+  }
+}
