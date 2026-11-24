@@ -866,6 +866,38 @@ export const adminController = {
     }
   },
 
+  /**
+   * DELETE /admin/categories/:id — uniquement si aucune prestation ni sous-catégorie ne
+   * l'utilise (sinon 409 : la désactiver). Contenu conservé dans le journal d'audit.
+   */
+  async deleteCategory(req: Request, res: Response) {
+    const { id } = req.params;
+    try {
+      const category = await prisma.category.findUnique({
+        where: { id },
+        include: { _count: { select: { services: true, children: true } } },
+      });
+      if (!category) return res.status(404).json({ error: 'Catégorie introuvable' });
+      const { services, children } = category._count;
+      if (services > 0 || children > 0) {
+        return res.status(409).json({
+          error: 'Catégorie utilisée : désactivez-la plutôt que de la supprimer.',
+          code: 'CATEGORY_IN_USE',
+          usage: { services, children },
+        });
+      }
+      await prisma.category.delete({ where: { id } });
+      const { _count: _ignored, ...snapshot } = category;
+      await auditFromReq(req, 'admin.category.delete', { entity: 'category', entityId: id, oldData: snapshot, newData: { result: 'success' } });
+      return res.json({ message: 'Catégorie supprimée' });
+    } catch (err) {
+      if (prismaCode(err) === 'P2025') return res.status(404).json({ error: 'Catégorie introuvable' });
+      if (prismaCode(err) === 'P2003') return res.status(409).json({ error: 'Catégorie utilisée : désactivez-la.', code: 'CATEGORY_IN_USE' });
+      logger.error('Erreur suppression catégorie', { error: err instanceof Error ? err.message : String(err) });
+      return res.status(500).json({ error: 'Erreur serveur' });
+    }
+  },
+
   /** GET /admin/contacts */
   async listContacts(req: Request, res: Response) {
     const { page, limit } = getPaginationParams(req.query as Record<string, unknown>);

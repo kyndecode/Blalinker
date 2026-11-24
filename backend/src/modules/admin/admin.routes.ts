@@ -17,6 +17,20 @@ import {
 import { payoutsController } from '../payouts/payouts.controller';
 import { processPayoutSchema } from '../payouts/payouts.schemas';
 import { PERMISSIONS as P } from '../../config/permissions';
+import multer from 'multer';
+import { contentAdminController as content } from '../content/content.controller';
+import {
+  createAnnouncementSchema, createCountrySchema, createFaqSchema, createPageSchema,
+  updateAnnouncementSchema, updateCountrySchema, updateFaqSchema, updateMediaSchema, updatePageSchema, upsertSettingSchema,
+} from '../content/content.schemas';
+
+/** Images du site : JPEG, PNG, WebP ou GIF (pas de SVG, qui peut contenir du script), 5 Mo maximum. */
+const SITE_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+const siteImage = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => cb(null, SITE_IMAGE_TYPES.has(file.mimetype)),
+});
 
 const router = Router();
 
@@ -58,6 +72,7 @@ router.post('/bookings/:id/resolve-dispute', requirePermission(P.REPORTS_HANDLE)
 router.patch('/contacts/:id/status', requirePermission(P.CONTACTS_HANDLE), validate(updateContactStatusSchema), adminController.updateContactStatus);
 
 router.post('/categories',      requirePermission(P.CATEGORIES_MANAGE), validate(createCategorySchema), adminController.createCategory);
+router.delete('/categories/:id', requirePermission(P.CATEGORIES_MANAGE), adminController.deleteCategory);
 router.put('/categories/:id',   requirePermission(P.CATEGORIES_MANAGE), validate(updateCategorySchema), adminController.updateCategory);
 
 // ─── Journal d'audit ──────────────────────────────────────────
@@ -72,5 +87,33 @@ router.delete('/team/:id', requirePermission(P.ADMINS_MANAGE), teamController.re
 router.post('/team/:id/force-logout', requirePermission(P.ADMINS_MANAGE), teamController.forceLogout);
 router.post('/team/:id/reset-password', requirePermission(P.ADMINS_MANAGE), validate(resetAdminPasswordSchema), teamController.resetPassword);
 router.post('/team/:id/reset-mfa', requirePermission(P.ADMINS_MANAGE), teamController.resetMfa);
+
+// ─── Contenus du site (lot 2) ───────────────────────────────
+const CM = requirePermission(P.CONTENT_MANAGE);
+const SM = requirePermission(P.SETTINGS_MANAGE);
+router.get('/content/pages', CM, content.listPages);
+router.post('/content/pages', CM, validate(createPageSchema), content.createPage);
+router.get('/content/pages/:id', CM, content.getPage);
+router.put('/content/pages/:id', CM, validate(updatePageSchema), content.updatePage);
+router.delete('/content/pages/:id', CM, content.deletePage);
+router.get('/content/faq', CM, content.listFaq);
+router.post('/content/faq', CM, validate(createFaqSchema), content.createFaq);
+router.put('/content/faq/:id', CM, validate(updateFaqSchema), content.updateFaq);
+router.delete('/content/faq/:id', CM, content.deleteFaq);
+router.get('/content/announcements', CM, content.listAnnouncements);
+router.post('/content/announcements', CM, validate(createAnnouncementSchema), content.createAnnouncement);
+router.put('/content/announcements/:id', CM, validate(updateAnnouncementSchema), content.updateAnnouncement);
+router.delete('/content/announcements/:id', CM, content.deleteAnnouncement);
+router.get('/media', CM, content.listMedia);
+router.post('/media', CM, siteImage.single('file'), content.uploadMedia);
+router.patch('/media/:id', CM, validate(updateMediaSchema), content.updateMedia);
+router.delete('/media/:id', CM, content.deleteMedia);
+router.get('/settings', SM, content.listSettings);
+router.put('/settings', SM, validate(upsertSettingSchema), content.upsertSetting);
+router.delete('/settings/:key', SM, content.deleteSetting);
+router.get('/countries', SM, content.listCountries);
+router.post('/countries', SM, validate(createCountrySchema), content.createCountry);
+router.put('/countries/:code', SM, validate(updateCountrySchema), content.updateCountry);
+router.delete('/countries/:code', SM, content.deleteCountry);
 
 export default router;
