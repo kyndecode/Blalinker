@@ -3,13 +3,13 @@ import { z } from 'zod';
 export const userStatusValues = ['active', 'suspended', 'banned', 'pending'] as const;
 
 export const updateUserStatusSchema = z.object({
-  status: z.enum(userStatusValues, { errorMap: () => ({ message: 'Statut invalide' }) }),
+  status: z.enum(userStatusValues, { error: 'Statut invalide' }),
   reason: z.string().trim().max(500).optional(),
 });
 export type UpdateUserStatusInput = z.infer<typeof updateUserStatusSchema>;
 
 export const verifyIdentitySchema = z.object({
-  approved: z.boolean({ required_error: 'Décision requise', invalid_type_error: 'Décision invalide' }),
+  approved: z.boolean({ error: (issue) => (issue.input === undefined ? 'Décision requise' : 'Décision invalide') }),
   comment: z.string().trim().max(500).optional(),
 }).refine((v) => v.approved || (v.comment && v.comment.length >= 5), {
   message: 'Indiquez le motif du refus (5 caractères minimum).',
@@ -20,7 +20,7 @@ export type VerifyIdentityInput = z.infer<typeof verifyIdentitySchema>;
 export const reportStatusValues = ['pending', 'reviewed', 'resolved', 'dismissed'] as const;
 
 export const resolveReportSchema = z.object({
-  status: z.enum(reportStatusValues, { errorMap: () => ({ message: 'Statut invalide' }) }).default('resolved'),
+  status: z.enum(reportStatusValues, { error: 'Statut invalide' }).default('resolved'),
 });
 export type ResolveReportInput = z.infer<typeof resolveReportSchema>;
 
@@ -65,7 +65,7 @@ export const rejectReviewSchema = z.object({
 export type RejectReviewInput = z.infer<typeof rejectReviewSchema>;
 
 export const resolveDisputeSchema = z.object({
-  outcome: z.enum(['validate', 'cancel'], { errorMap: () => ({ message: 'Décision invalide' }) }),
+  outcome: z.enum(['validate', 'cancel'], { error: 'Décision invalide' }),
   note: z.string().trim().min(5, 'Expliquez la décision (5 caractères minimum)').max(500, 'Note trop longue'),
 }).strict();
 export type ResolveDisputeInput = z.infer<typeof resolveDisputeSchema>;

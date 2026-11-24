@@ -16,7 +16,7 @@ export type CreateBookingInput = z.infer<typeof createBookingSchema>;
 
 export const disputeBookingSchema = z.object({
   reason: z.enum(['fraud', 'inappropriate', 'no_show', 'harassment', 'other'], {
-    errorMap: () => ({ message: 'Motif invalide' }),
+    error: 'Motif invalide',
   }),
   description: z.string().trim().min(10, 'Décrivez le problème (10 caractères minimum)').max(1000, 'Description trop longue'),
 });

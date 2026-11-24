@@ -58,7 +58,7 @@ const schema = z.object({
     const rule = getPhoneLengthRule(data.countryCode);
     const lengthMessage = rule.min === rule.max ? `${rule.min}` : `${rule.min}-${rule.max}`;
     ctx.addIssue({
-      code: z.ZodIssueCode.custom,
+      code: 'custom',
       message: `Numero invalide pour ce pays (${lengthMessage} chiffres)`,
       path: ['phoneLocal'],
     });
@@ -68,7 +68,7 @@ const schema = z.object({
   const phone = formatInternationalPhone(data.phoneLocal, data.countryCode);
   if (!E164_PHONE_REGEX.test(phone)) {
     ctx.addIssue({
-      code: z.ZodIssueCode.custom,
+      code: 'custom',
       message: 'Format téléphone invalide',
       path: ['phoneLocal'],
     });

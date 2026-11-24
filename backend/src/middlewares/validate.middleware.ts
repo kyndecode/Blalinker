@@ -1,11 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
-import { ZodSchema, ZodError } from 'zod';
+import { ZodType, ZodError } from 'zod';
 
 /**
  * Middleware de validation Zod pour body, query et params.
  * Retourne des erreurs de validation formatées (422).
  */
-export function validate(schema: ZodSchema, source: 'body' | 'query' | 'params' = 'body') {
+export function validate(schema: ZodType, source: 'body' | 'query' | 'params' = 'body') {
   return (req: Request, res: Response, next: NextFunction) => {
     const result = schema.safeParse(req[source]);
     if (!result.success) {

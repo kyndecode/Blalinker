@@ -43,12 +43,12 @@ export const registerSchema = z.object({
     .regex(/[a-z]/, 'Doit contenir au moins une lettre minuscule')
     .regex(/[0-9]/, 'Doit contenir au moins un chiffre'),
   role: z.enum(['client', 'provider'], {
-    errorMap: () => ({ message: 'Rôle doit être "client" ou "provider"' }),
+    error: 'Rôle doit être "client" ou "provider"',
   }),
 }).superRefine((data, ctx) => {
   if (!isValidE164ForCountry(data.phone, data.countryCode)) {
     ctx.addIssue({
-      code: z.ZodIssueCode.custom,
+      code: 'custom',
       path: ['phone'],
       message: `Numéro invalide pour ${data.countryCode}`,
     });
@@ -81,10 +81,10 @@ export const loginMfaSchema = z.object({
 }).superRefine((d, ctx) => {
   if (d.method === 'recovery') {
     if (!/^[A-Za-z0-9]{5}-?[A-Za-z0-9]{5}$/.test(d.otpCode)) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['otpCode'], message: 'Code de récupération invalide (format XXXXX-XXXXX)' });
+      ctx.addIssue({ code: 'custom', path: ['otpCode'], message: 'Code de récupération invalide (format XXXXX-XXXXX)' });
     }
   } else if (!/^\d{6}$/.test(d.otpCode)) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['otpCode'], message: 'Le code doit faire 6 chiffres' });
+    ctx.addIssue({ code: 'custom', path: ['otpCode'], message: 'Le code doit faire 6 chiffres' });
   }
 });
 

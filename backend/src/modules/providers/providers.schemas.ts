@@ -42,7 +42,7 @@ export const createProviderServiceSchema = z.object({
 }).superRefine((input, ctx) => {
   if (input.priceType && input.price === undefined) {
     ctx.addIssue({
-      code: z.ZodIssueCode.custom,
+      code: 'custom',
       path: ['price'],
       message: 'Le prix est requis quand priceType est défini',
     });

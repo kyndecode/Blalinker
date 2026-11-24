@@ -41,7 +41,7 @@ const formSchema = z.object({
     const rule = getPhoneLengthRule(data.countryCode);
     const lengthMessage = rule.min === rule.max ? `${rule.min}` : `${rule.min}-${rule.max}`;
     ctx.addIssue({
-      code: z.ZodIssueCode.custom,
+      code: 'custom',
       path: ['phoneLocal'],
       message: `Numéro invalide (${lengthMessage} chiffres)`,
     });
