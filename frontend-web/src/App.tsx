@@ -8,6 +8,7 @@ import api from './services/api';
 // Layout (chargé immédiatement — présent sur toutes les pages)
 import Header from './components/layout/Header';
 import Footer from './components/layout/Footer';
+import AnnouncementBar from './components/content/AnnouncementBar';
 
 // Pages — chargées à la demande (code-splitting) pour alléger le bundle initial.
 const Home            = lazy(() => import('./pages/Home/Home'));
@@ -31,6 +32,7 @@ const BookingDetail   = lazy(() => import('./pages/Booking/BookingDetail'));
 const ProfilePage     = lazy(() => import('./pages/Profile/ProfilePage'));
 const NotificationsPage = lazy(() => import('./pages/Notifications/NotificationsPage'));
 const NotFound        = lazy(() => import('./pages/NotFound/NotFound'));
+const ContentPage     = lazy(() => import('./pages/Content/ContentPage'));
 
 function PageFallback() {
   return (
@@ -108,6 +110,7 @@ export default function App() {
         </div>
       )}
 
+      <AnnouncementBar />
       <Header />
 
       <main className={`flex-1 ${!isOnline ? 'mt-10' : ''}`}>
@@ -128,6 +131,7 @@ export default function App() {
           <Route path="/terms"        element={<TermsPage />} />
           <Route path="/search"       element={<SearchPage />} />
           <Route path="/provider/:id" element={<ProviderProfile />} />
+          <Route path="/page/:slug"   element={<ContentPage />} />
 
           {/* Authentifiées */}
           <Route path="/dashboard"    element={<RequireAuth><Dashboard /></RequireAuth>} />

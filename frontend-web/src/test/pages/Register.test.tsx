@@ -1,32 +1,39 @@
 ﻿import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import Register from '../../pages/Auth/Register';
 
-const { postMock } = vi.hoisted(() => ({
+const { postMock, getMock } = vi.hoisted(() => ({
   postMock: vi.fn(),
+  getMock: vi.fn(),
 }));
 
 vi.mock('../../services/api', () => ({
   default: {
     post: postMock,
+    get: getMock,
   },
 }));
 
 function renderRegister(initialEntry = '/register') {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
+    <QueryClientProvider client={client}>
     <MemoryRouter initialEntries={[initialEntry]}>
       <Routes>
         <Route path="/register" element={<Register />} />
       </Routes>
     </MemoryRouter>
+    </QueryClientProvider>
   );
 }
 
 describe('Register page', () => {
   beforeEach(() => {
     postMock.mockReset();
+    getMock.mockReset().mockImplementation((url: string) => Promise.resolve({ data: url === '/site/settings' ? { values: {} } : { items: [] } }));
   });
 
   it('submits required registration fields', async () => {

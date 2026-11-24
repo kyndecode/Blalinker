@@ -17,6 +17,8 @@ import {
   getCountryOptions,
   isValidLocalPhoneForCountry,
 } from '../../utils/phoneCountries';
+import type { CountryOption } from '../../utils/phoneCountries';
+import { useActiveCountries, useSiteSettings } from '../../hooks/useSiteContent';
 
 const E164_PHONE_REGEX = /^\+[1-9]\d{7,14}$/;
 
@@ -33,7 +35,7 @@ const schema = z.object({
     .max(100, 'Nom trop long'),
   countryCode: z
     .string()
-    .regex(/^[A-Z]{2}$/, 'Pays invalide'),
+    .regex(/^[A-Z]{2}$/, 'Choisissez votre pays'),
   phoneLocal: z
     .string()
     .trim()
@@ -89,8 +91,20 @@ export default function Register() {
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID?.toString().trim();
 
   const lang = (i18n.resolvedLanguage || i18n.language || 'fr').split('-')[0];
-  const countries = useMemo(() => getCountryOptions(lang), [lang]);
-  const detectedCountryCode = useMemo(() => detectDefaultCountryCode(countries), [countries]);
+  // Pays actifs (administration) en tête de liste ; tous les autres restent disponibles.
+  const { data: activeCountries = [] } = useActiveCountries();
+  const { data: siteSettings } = useSiteSettings();
+  const activeCodes = useMemo(() => activeCountries.map((c) => c.code), [activeCountries]);
+  const countries = useMemo(() => {
+    const all = getCountryOptions(lang);
+    const first = activeCodes.map((code) => all.find((c) => c.code === code)).filter((c): c is CountryOption => Boolean(c));
+    return [...first, ...all.filter((c) => !activeCodes.includes(c.code))];
+  }, [lang, activeCodes]);
+  const configuredDefault = typeof siteSettings?.['markets.defaultCountry'] === 'string' ? siteSettings['markets.defaultCountry'] as string : undefined;
+  const detectedCountryCode = useMemo(
+    () => detectDefaultCountryCode(countries, [configuredDefault, ...activeCodes].filter((c): c is string => Boolean(c))),
+    [countries, configuredDefault, activeCodes],
+  );
 
   const {
     register,
@@ -283,6 +297,7 @@ export default function Register() {
                 className={`input ${errors.countryCode?.message ? 'input-error' : ''}`}
                 {...register('countryCode')}
               >
+                <option value="" disabled>{t('auth.phone_country_placeholder')}</option>
                 {countries.map((country) => (
                   <option key={country.code} value={country.code}>
                     {country.flag} +{country.dialCode} {country.name}

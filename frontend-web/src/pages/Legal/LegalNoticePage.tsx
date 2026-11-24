@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
+import ManagedPage from '../../components/content/ManagedPage';
 
-export default function LegalNoticePage() {
+function LegalNoticePageBuiltin() {
   const { t } = useTranslation();
 
   return (
@@ -32,4 +33,9 @@ export default function LegalNoticePage() {
       </div>
     </div>
   );
+}
+
+/** Version publiée depuis l'administration, sinon texte intégré. */
+export default function LegalNoticePage() {
+  return <ManagedPage slug="legal-notice" fallback={<LegalNoticePageBuiltin />} />;
 }

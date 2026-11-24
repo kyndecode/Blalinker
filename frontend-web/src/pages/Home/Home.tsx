@@ -3,6 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { fetchSiteStats, fetchTestimonials, type PublicStat } from '../../services/site';
+import api from '../../services/api';
+import { contentLocale, settingText, useActiveCountries, useSiteSettings } from '../../hooks/useSiteContent';
+
+/** Catégorie active publiée par l'administration (GET /categories). */
+interface ApiCategory { id: string; name: string; slug: string; iconUrl: string | null; children?: Array<{ id: string; name: string; slug: string }> }
+const CARD_STYLES = [
+  'bg-orange-50 dark:bg-orange-950/40 border-orange-100 dark:border-orange-900',
+  'bg-blue-50 dark:bg-blue-950/40 border-blue-100 dark:border-blue-900',
+  'bg-pink-50 dark:bg-pink-950/40 border-pink-100 dark:border-pink-900',
+  'bg-green-50 dark:bg-green-950/40 border-green-100 dark:border-green-900',
+];
 
 const CATEGORIES = [
   {
@@ -140,6 +151,27 @@ export default function Home() {
   const [query, setQuery] = useState('');
 
   // Données réelles uniquement ; en cas d'absence ou d'erreur, la section est masquée.
+  const locale = contentLocale(i18n?.language);
+  const { data: settings } = useSiteSettings();
+  const { data: countries = [] } = useActiveCountries();
+  // Catégories gérées depuis l'administration ; à défaut, catégories intégrées.
+  const { data: apiCategories = [] } = useQuery<ApiCategory[]>({
+    queryKey: ['home-categories'],
+    queryFn: () => api.get('/categories').then((r) => (Array.isArray(r.data) ? r.data : [])),
+    staleTime: 5 * 60_000,
+    retry: 1,
+  });
+  const heroTitle = settingText(settings, 'home.heroTitle', locale);
+  const heroSubtitle = settingText(settings, 'home.heroSubtitle', locale);
+  const homeCategories = apiCategories.length > 0
+    ? apiCategories.slice(0, 8).map((c, i) => ({
+      slug: c.slug,
+      label: c.name,
+      icon: c.iconUrl,
+      style: CARD_STYLES[i % CARD_STYLES.length],
+      subs: (c.children ?? []).slice(0, 3).map((child) => child.name),
+    }))
+    : CATEGORIES.map((c) => ({ slug: c.slug, label: t(c.labelKey), icon: c.icon, style: `${c.bg} ${c.border}`, subs: c.subKeys.map((k) => t(k)) }));
   const { data: stats = [] } = useQuery({
     queryKey: ['site-stats'],
     queryFn: fetchSiteStats,
@@ -181,19 +213,25 @@ export default function Home() {
         </div>
 
         <div className="relative mx-auto max-w-4xl px-4 py-24 sm:py-32 text-center">
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-xs font-medium text-white/80 backdrop-blur-sm">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-orange-400" />
-            {t('home.available_countries')}
-          </div>
+          {countries.length > 0 && (
+            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-xs font-medium text-white/80 backdrop-blur-sm" data-testid="home-countries">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-orange-400" />
+              {t('home.available_in')} {countries.map((c) => c.name).join(' · ')}
+            </div>
+          )}
 
           <h1 className="mb-5 text-4xl font-extrabold leading-tight tracking-tight text-white sm:text-5xl lg:text-6xl">
-            {t('app.tagline')}
-            <br />
-            <span className="text-orange-300">{t('app.tagline2')}</span>
+            {heroTitle ?? (
+              <>
+                {t('app.tagline')}
+                <br />
+                <span className="text-orange-300">{t('app.tagline2')}</span>
+              </>
+            )}
           </h1>
 
           <p className="mx-auto mb-10 max-w-xl text-base text-green-100 sm:text-lg">
-            {t('home.hero_subtitle')}
+            {heroSubtitle ?? t('home.hero_subtitle')}
           </p>
 
           <form
@@ -269,21 +307,25 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
-            {CATEGORIES.map((category) => (
+            {homeCategories.map((category) => (
               <button
                 key={category.slug}
-                onClick={() => navigate(`/search?category=${category.slug}`)}
-                className={`group flex flex-col items-start gap-2 rounded-2xl border p-4 sm:p-5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 ${category.bg} ${category.border}`}
+                onClick={() => navigate(`/search?category=${encodeURIComponent(category.slug)}`)}
+                className={`group flex flex-col items-start gap-2 rounded-2xl border p-4 sm:p-5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 ${category.style}`}
               >
-                <span className="text-3xl transition-transform duration-200 group-hover:scale-110">{category.icon}</span>
-                <span className="text-sm font-bold text-gray-900 dark:text-white">{t(category.labelKey)}</span>
-                <div className="hidden sm:flex flex-wrap gap-1 mt-0.5">
-                  {category.subKeys.map((subKey) => (
-                    <span key={subKey} className="text-[10px] text-gray-500 dark:text-gray-400 bg-white/60 dark:bg-black/20 rounded-full px-1.5 py-0.5">
-                      {t(subKey)}
-                    </span>
-                  ))}
-                </div>
+                {category.icon && /^https:\/\//.test(category.icon)
+                  ? <img src={category.icon} alt="" className="h-9 w-9 rounded-lg object-cover" loading="lazy" />
+                  : <span className="text-3xl transition-transform duration-200 group-hover:scale-110" aria-hidden="true">{category.icon || '🏷️'}</span>}
+                <span className="text-sm font-bold text-gray-900 dark:text-white">{category.label}</span>
+                {category.subs.length > 0 && (
+                  <div className="hidden sm:flex flex-wrap gap-1 mt-0.5">
+                    {category.subs.map((sub) => (
+                      <span key={sub} className="text-[10px] text-gray-600 dark:text-gray-400 bg-white/60 dark:bg-black/20 rounded-full px-1.5 py-0.5">
+                        {sub}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </button>
             ))}
           </div>

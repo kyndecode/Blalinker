@@ -97,7 +97,12 @@ export function getCountryOptions(locale: string): CountryOption[] {
     .sort((a, b) => a.name.localeCompare(b.name, locale));
 }
 
-export function detectDefaultCountryCode(countries: CountryOption[]): string {
+/**
+ * Pays proposé par défaut : région du navigateur, puis fuseau horaire, puis pays
+ * configurés dans l'administration (`preferred`). Aucun pays n'est présupposé :
+ * à défaut, chaîne vide (la personne choisit elle-même).
+ */
+export function detectDefaultCountryCode(countries: CountryOption[], preferred: string[] = []): string {
   const languageRegion = navigator.language.split('-')[1]?.toUpperCase();
   if (languageRegion && countries.some((country) => country.code === languageRegion)) {
     return languageRegion;
@@ -119,7 +124,7 @@ export function detectDefaultCountryCode(countries: CountryOption[]): string {
     return byTimezone.countryCode;
   }
 
-  return countries.some((country) => country.code === 'SN') ? 'SN' : (countries[0]?.code ?? 'US');
+  return preferred.find((code) => countries.some((country) => country.code === code)) ?? '';
 }
 
 function normalizeLocalDigits(rawValue: string, countryCode: string): string {

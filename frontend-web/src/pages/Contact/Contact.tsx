@@ -7,7 +7,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
 import api from '../../services/api';
-import { CONTACT_PHONE_DISPLAY, CONTACT_PHONE_TEL } from '../../config/site';
+import { useContactInfo } from '../../hooks/useContactInfo';
 import { useAuthStore } from '../../store/authStore';
 import {
   detectDefaultCountryCode,
@@ -17,6 +17,7 @@ import {
   getPhoneLengthRule,
   isValidLocalPhoneForCountry,
 } from '../../utils/phoneCountries';
+import { useActiveCountries, useSiteSettings } from '../../hooks/useSiteContent';
 
 const CONTACT_SUBJECTS = [
   'support_account',
@@ -31,7 +32,7 @@ const formSchema = z.object({
   firstName: z.string().trim().min(2, 'Prénom requis').max(100),
   lastName: z.string().trim().min(2, 'Nom requis').max(100),
   email: z.string().trim().email('Email invalide').max(255),
-  countryCode: z.string().trim().toUpperCase().regex(/^[A-Z]{2}$/),
+  countryCode: z.string().trim().toUpperCase().regex(/^[A-Z]{2}$/, 'Choisissez votre pays'),
   phoneLocal: z.string().trim().min(6, 'Téléphone requis').max(20),
   subject: z.enum(CONTACT_SUBJECTS),
   message: z.string().trim().min(10, 'Message trop court').max(1500, 'Message trop long (1500 max)'),
@@ -66,6 +67,7 @@ function getLocalPhoneFromE164(phone: string, countryCode: string): string {
 }
 
 export default function Contact() {
+  const contact = useContactInfo();
   const { t, i18n } = useTranslation();
   const [searchParams] = useSearchParams();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -75,7 +77,13 @@ export default function Contact() {
 
   const language = (i18n.resolvedLanguage || i18n.language || 'fr').split('-')[0];
   const countries = useMemo(() => getCountryOptions(language), [language]);
-  const detectedCountryCode = useMemo(() => detectDefaultCountryCode(countries), [countries]);
+  const { data: activeCountries = [] } = useActiveCountries();
+  const { data: siteSettings } = useSiteSettings();
+  const configuredDefault = typeof siteSettings?.['markets.defaultCountry'] === 'string' ? siteSettings['markets.defaultCountry'] as string : undefined;
+  const detectedCountryCode = useMemo(
+    () => detectDefaultCountryCode(countries, [configuredDefault, ...activeCountries.map((c) => c.code)].filter((c): c is string => Boolean(c))),
+    [countries, configuredDefault, activeCountries],
+  );
   const subjectFromQuery = searchParams.get('subject');
   const providerIdFromQuery = searchParams.get('providerId');
   const defaultSubject = CONTACT_SUBJECTS.includes(subjectFromQuery as typeof CONTACT_SUBJECTS[number])
@@ -247,6 +255,7 @@ export default function Contact() {
                   className={`input ${errors.countryCode ? 'input-error' : ''}`}
                   {...register('countryCode')}
                 >
+                  <option value="" disabled>{t('auth.phone_country_placeholder')}</option>
                   {countries.map((country) => (
                     <option key={country.code} value={country.code}>
                       {country.flag} +{country.dialCode} {country.name}
@@ -325,8 +334,8 @@ export default function Contact() {
           <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-5">
             <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{t('contact.direct_title')}</p>
             <p className="mt-2 text-sm text-gray-700 dark:text-gray-200">{t('contact.direct_phone_label')}</p>
-            <a href={`tel:${CONTACT_PHONE_TEL}`} className="text-lg font-bold text-green-700 dark:text-green-400">
-              {CONTACT_PHONE_DISPLAY}
+            <a href={`tel:${contact.phoneTel}`} className="text-lg font-bold text-green-700 dark:text-green-400">
+              {contact.phoneDisplay}
             </a>
             <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">{t('contact.available_markets')}</p>
             <div className="mt-2 flex items-center gap-2 text-lg">
