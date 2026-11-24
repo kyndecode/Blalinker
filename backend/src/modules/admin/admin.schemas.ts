@@ -11,6 +11,9 @@ export type UpdateUserStatusInput = z.infer<typeof updateUserStatusSchema>;
 export const verifyIdentitySchema = z.object({
   approved: z.boolean({ required_error: 'Décision requise', invalid_type_error: 'Décision invalide' }),
   comment: z.string().trim().max(500).optional(),
+}).refine((v) => v.approved || (v.comment && v.comment.length >= 5), {
+  message: 'Indiquez le motif du refus (5 caractères minimum).',
+  path: ['comment'],
 });
 export type VerifyIdentityInput = z.infer<typeof verifyIdentitySchema>;
 
@@ -55,3 +58,14 @@ export const updateCategorySchema = z
   .strict()
   .refine((v) => Object.keys(v).length > 0, 'Aucune modification fournie');
 export type UpdateCategoryInput = z.infer<typeof updateCategorySchema>;
+
+export const rejectReviewSchema = z.object({
+  reason: z.string().trim().min(5, 'Motif trop court (5 caractères minimum)').max(500, 'Motif trop long'),
+}).strict();
+export type RejectReviewInput = z.infer<typeof rejectReviewSchema>;
+
+export const resolveDisputeSchema = z.object({
+  outcome: z.enum(['validate', 'cancel'], { errorMap: () => ({ message: 'Décision invalide' }) }),
+  note: z.string().trim().min(5, 'Expliquez la décision (5 caractères minimum)').max(500, 'Note trop longue'),
+}).strict();
+export type ResolveDisputeInput = z.infer<typeof resolveDisputeSchema>;

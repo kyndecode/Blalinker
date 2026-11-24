@@ -37,15 +37,16 @@ export const uploadsController = {
     if (!req.file) return res.status(400).json({ error: 'Aucun fichier fourni' });
 
     try {
-      // Dossier privé + type auto (accepte PDF et images)
-      const result = await uploadBuffer(req.file.buffer, `bla/kyc/${req.user!.id}`, 'auto');
+      // Livraison « authenticated » : lisible uniquement via une URL signée temporaire
+      // générée pour un membre de l'équipe habilité (GET /admin/users/:id/id-document).
+      const result = await uploadBuffer(req.file.buffer, `bla/kyc/${req.user!.id}`, 'auto', 'authenticated');
       await ensureProfile(req.user!.id);
       // Nouveau document → repasse en non vérifié (l'admin devra re-valider)
       await prisma.profile.update({
         where: { userId: req.user!.id },
         data: { idCardUrl: result.secure_url, idVerified: false, idVerifiedAt: null, idVerifiedBy: null },
       });
-      return res.json({ url: result.secure_url, message: 'Document envoyé. Il sera vérifié par notre équipe.' });
+      return res.json({ uploaded: true, message: 'Document envoyé. Il sera vérifié par notre équipe.' });
     } catch (err) {
       logger.error('Erreur upload KYC', err);
       return res.status(500).json({ error: 'Échec du téléversement' });

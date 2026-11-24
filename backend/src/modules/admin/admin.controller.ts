@@ -5,6 +5,8 @@ import { logger } from '../../config/logger';
 import { PERMISSIONS as P } from '../../config/permissions';
 import { adminPersonSelect, adminUserScalarSelect } from '../../utils/serializers';
 import type {
+  RejectReviewInput,
+  ResolveDisputeInput,
   CreateCategoryInput,
   ResolveReportInput,
   UpdateCategoryInput,
@@ -16,6 +18,8 @@ import { sendEmail } from '../../config/email';
 import { escapeHtml, escapeHtmlMultiline } from '../../utils/html.util';
 import { auditFromReq } from '../../utils/audit.util';
 import { contactLabels } from '../contact/contact.controller';
+import { notifyUser, notifyUsers } from '../notifications/notifications.service';
+import { isCloudinaryConfigured, parseCloudinaryUrl, signedDownloadUrl } from '../../config/cloudinary';
 
 type ContactRequestStatus = 'new' | 'read' | 'answered' | 'done' | 'closed';
 
@@ -68,6 +72,7 @@ const USER_ROLES = ['client', 'provider', 'admin', 'super_admin'] as const;
 const USER_STATUSES = ['pending', 'active', 'suspended', 'banned'] as const;
 const BOOKING_STATUSES = ['pending', 'accepted', 'rejected', 'in_progress', 'completed', 'validated', 'cancelled', 'disputed'] as const;
 const REPORT_STATUSES = ['pending', 'reviewed', 'resolved', 'dismissed'] as const;
+const REVIEW_FILTERS = ['pending', 'published', 'rejected'] as const;
 
 /** Champs du profil réservés à la vérification d'identité (KYC). */
 const KYC_PROFILE_FIELDS = ['idCardUrl', 'dateOfBirth', 'address', 'latitude', 'longitude'] as const;
@@ -367,23 +372,37 @@ export const adminController = {
   /** GET /admin/reviews */
   async listReviews(req: Request, res: Response) {
     const { page, limit } = getPaginationParams(req.query as Record<string, unknown>);
+    const status = req.query.status;
+    if (status !== undefined && !isOneOf(REVIEW_FILTERS, status)) {
+      return res.status(422).json({ error: 'Statut invalide' });
+    }
+    const where: Prisma.ReviewWhereInput = status === 'pending'
+      ? { isApproved: false, isFlagged: false }
+      : status === 'published'
+        ? { isApproved: true, isFlagged: false }
+        : status === 'rejected'
+          ? { isFlagged: true }
+          : {};
 
     try {
       const [reviews, total] = await Promise.all([
         prisma.review.findMany({
+          where,
           skip: getSkip({ page, limit }),
           take: limit,
-          orderBy: { createdAt: 'desc' },
+          orderBy: { createdAt: status === 'pending' ? 'asc' : 'desc' },
           include: {
             reviewer: { select: adminPersonSelect },
             reviewed: { select: adminPersonSelect },
+            booking: { select: { id: true, status: true, service: { select: { title: true } } } },
           },
         }),
-        prisma.review.count(),
+        prisma.review.count({ where }),
       ]);
 
       const rows = reviews.map((review) => ({
         ...review,
+        moderation: review.isApproved && !review.isFlagged ? 'published' : review.isFlagged ? 'rejected' : 'pending',
         client: {
           email: review.reviewer.email,
           firstName: review.reviewer.profile?.firstName ?? '',
@@ -420,9 +439,12 @@ export const adminController = {
       if (!user) return res.status(404).json({ error: 'Utilisateur introuvable' });
 
       const canSeeKyc = hasPermission(req, P.PROVIDERS_VERIFY);
-      const profile = user.profile && !canSeeKyc
-        ? Object.fromEntries(Object.entries(user.profile).filter(([k]) => !(KYC_PROFILE_FIELDS as readonly string[]).includes(k)))
-        : user.profile;
+      const hasIdDocument = Boolean(user.profile?.idCardUrl);
+      // L'URL du document n'est jamais renvoyée : consultation via /id-document (lien signé, journalisé).
+      const hidden: readonly string[] = canSeeKyc ? ['idCardUrl'] : KYC_PROFILE_FIELDS;
+      const profile = user.profile
+        ? { ...Object.fromEntries(Object.entries(user.profile).filter(([k]) => !hidden.includes(k))), hasIdDocument }
+        : null;
       res.json({ ...user, profile });
     } catch {
       return res.status(500).json({ error: 'Erreur serveur' });
@@ -507,7 +529,21 @@ export const adminController = {
           prisma.user.updateMany({ where: { id, status: 'pending' }, data: { status: 'active' } }),
         ]);
         activated = activation.count === 1;
+      } else {
+        // Refus : l'identité n'est plus considérée comme vérifiée ; le document reste conservé.
+        await prisma.profile.update({
+          where: { userId: id },
+          data: { idVerified: false, idVerifiedAt: null, idVerifiedBy: null },
+        });
       }
+      await notifyUser(id, approved
+        ? { type: 'kyc.approved', title: 'Identité vérifiée', body: 'Votre pièce d’identité a été validée.', link: '/profile' }
+        : {
+          type: 'kyc.rejected',
+          title: 'Pièce d’identité refusée',
+          body: `Votre document n’a pas pu être validé${comment ? ` : ${comment}` : '.'} Vous pouvez en envoyer un nouveau depuis votre profil.`,
+          link: '/profile',
+        });
       await auditFromReq(req, 'admin.user.verify_id', {
         entity: 'user',
         entityId: id,
@@ -517,6 +553,57 @@ export const adminController = {
       res.json({ message: approved ? 'Identité validée' : 'Identité rejetée', comment, activated });
     } catch (err) {
       logger.error('Erreur vérification identité', { error: err instanceof Error ? err.message : String(err) });
+      return res.status(500).json({ error: 'Erreur serveur' });
+    }
+  },
+
+  /**
+   * GET /admin/users/:id/id-document — lien de consultation de la pièce d'identité.
+   * Réservé à la permission KYC, journalisé. Les documents « authenticated » sont servis
+   * par une URL signée valable 5 minutes.
+   */
+  async idDocument(req: Request, res: Response) {
+    const { id } = req.params;
+    try {
+      const target = await prisma.user.findFirst({
+        where: { id, deletedAt: null },
+        select: { id: true, role: true, profile: { select: { idCardUrl: true } } },
+      });
+      if (!target?.profile?.idCardUrl) {
+        return res.status(404).json({ error: "Aucune pièce d'identité déposée.", code: 'ID_DOCUMENT_MISSING' });
+      }
+      if (ADMIN_ROLES.includes(target.role)) {
+        return res.status(403).json({ error: 'Action non applicable à un compte administrateur.', code: 'ADMIN_TARGET_FORBIDDEN' });
+      }
+      const ref = parseCloudinaryUrl(target.profile.idCardUrl);
+      if (!ref) {
+        return res.status(422).json({ error: 'Adresse du document non reconnue.', code: 'ID_DOCUMENT_UNREADABLE' });
+      }
+
+      let url: string;
+      let expiresAt: Date | null = null;
+      let protectedDelivery = true;
+      if (ref.deliveryType === 'upload') {
+        // Document déposé avant la protection (lien public non devinable) : à migrer
+        // avec scripts/kyc-protect-documents.ts.
+        url = target.profile.idCardUrl;
+        protectedDelivery = false;
+      } else {
+        if (!isCloudinaryConfigured()) {
+          return res.status(503).json({ error: 'Stockage de fichiers non configuré.' });
+        }
+        const signed = signedDownloadUrl(ref, 300);
+        url = signed.url;
+        expiresAt = signed.expiresAt;
+      }
+
+      await auditFromReq(req, 'admin.kyc.view_document', {
+        entity: 'user', entityId: id, newData: { protectedDelivery, result: 'success' },
+      });
+      res.setHeader('Cache-Control', 'no-store');
+      return res.json({ url, expiresAt, format: ref.format, protectedDelivery });
+    } catch (err) {
+      logger.error('Erreur consultation pièce d’identité', { error: err instanceof Error ? err.message : String(err) });
       return res.status(500).json({ error: 'Erreur serveur' });
     }
   },
@@ -551,15 +638,15 @@ export const adminController = {
     try {
       const review = await prisma.review.findUnique({
         where: { id },
-        select: { id: true, reviewedId: true, isApproved: true },
+        select: { id: true, reviewerId: true, reviewedId: true, isApproved: true, isFlagged: true },
       });
       if (!review) return res.status(404).json({ error: 'Avis introuvable' });
-      if (review.isApproved) return res.json({ message: 'Avis déjà approuvé' });
+      if (review.isApproved && !review.isFlagged) return res.json({ message: 'Avis déjà approuvé' });
 
       const approvedNow = await prisma.$transaction(async (tx) => {
         const { count } = await tx.review.updateMany({
-          where: { id, isApproved: false },
-          data: { isApproved: true, approvedBy: req.user!.id, approvedAt: new Date() },
+          where: { id, OR: [{ isApproved: false }, { isFlagged: true }] },
+          data: { isApproved: true, isFlagged: false, flagReason: null, approvedBy: req.user!.id, approvedAt: new Date() },
         });
         if (count === 0) return false;
         await recomputeProviderRating(tx, review.reviewedId);
@@ -569,10 +656,56 @@ export const adminController = {
         await auditFromReq(req, 'admin.review.approve', {
           entity: 'review', entityId: id, newData: { providerId: review.reviewedId, result: 'success' },
         });
+        await notifyUser(review.reviewerId, {
+          type: 'review.published', title: 'Votre avis est publié', body: 'Merci pour votre retour.', link: '/dashboard',
+        });
+        await notifyUser(review.reviewedId, {
+          type: 'review.received', title: 'Nouvel avis publié', body: 'Un client a publié un avis sur votre profil.', link: '/dashboard',
+        });
       }
       res.json({ message: approvedNow ? 'Avis approuvé' : 'Avis déjà approuvé' });
     } catch (err) {
       logger.error('Erreur approbation avis', { error: err instanceof Error ? err.message : String(err) });
+      return res.status(500).json({ error: 'Erreur serveur' });
+    }
+  },
+
+  /**
+   * PUT /admin/reviews/:id/reject — refus motivé : l'avis est masqué (conservé pour
+   * l'historique) et la note est recalculée s'il était publié.
+   */
+  async rejectReview(req: Request, res: Response) {
+    const { id } = req.params;
+    const { reason } = req.body as RejectReviewInput;
+    try {
+      const review = await prisma.review.findUnique({
+        where: { id },
+        select: { id: true, reviewerId: true, reviewedId: true, isApproved: true, isFlagged: true },
+      });
+      if (!review) return res.status(404).json({ error: 'Avis introuvable' });
+      if (review.isFlagged) return res.json({ message: 'Avis déjà refusé' });
+
+      await prisma.$transaction(async (tx) => {
+        await tx.review.update({
+          where: { id },
+          data: { isApproved: false, isFlagged: true, flagReason: reason, approvedBy: req.user!.id, approvedAt: new Date() },
+        });
+        if (review.isApproved) await recomputeProviderRating(tx, review.reviewedId);
+      });
+      await auditFromReq(req, 'admin.review.reject', {
+        entity: 'review', entityId: id,
+        oldData: { isApproved: review.isApproved },
+        newData: { reason, result: 'success' },
+      });
+      await notifyUser(review.reviewerId, {
+        type: 'review.rejected',
+        title: 'Avis non publié',
+        body: `Votre avis n’a pas été publié : ${reason}`,
+        link: '/dashboard',
+      });
+      res.json({ message: review.isApproved ? 'Avis dépublié' : 'Avis refusé' });
+    } catch (err) {
+      logger.error('Erreur refus avis', { error: err instanceof Error ? err.message : String(err) });
       return res.status(500).json({ error: 'Erreur serveur' });
     }
   },
@@ -620,6 +753,7 @@ export const adminController = {
           include: {
             reporter: { select: adminPersonSelect },
             reported: { select: adminPersonSelect },
+            booking: { select: { id: true, status: true, amount: true, currency: true, transaction: { select: { status: true } } } },
           },
         }),
         prisma.report.count({ where }),
@@ -635,7 +769,7 @@ export const adminController = {
     const { id } = req.params;
     const { status } = req.body as ResolveReportInput;
     try {
-      const report = await prisma.report.findUnique({ where: { id }, select: { id: true, status: true } });
+      const report = await prisma.report.findUnique({ where: { id }, select: { id: true, status: true, reporterId: true } });
       if (!report) return res.status(404).json({ error: 'Signalement introuvable' });
       await prisma.report.update({
         where: { id },
@@ -644,9 +778,90 @@ export const adminController = {
       await auditFromReq(req, 'admin.report.status', {
         entity: 'report', entityId: id, oldData: { status: report.status }, newData: { status, result: 'success' },
       });
+      if ((status === 'resolved' || status === 'dismissed') && report.status !== status) {
+        await notifyUser(report.reporterId, {
+          type: 'report.updated',
+          title: 'Signalement traité',
+          body: status === 'resolved'
+            ? 'Votre signalement a été traité par notre équipe.'
+            : 'Après examen, votre signalement a été classé sans suite.',
+          link: '/dashboard',
+        });
+      }
       res.json({ message: 'Signalement mis à jour', status });
     } catch (err) {
       logger.error('Erreur mise à jour signalement', { error: err instanceof Error ? err.message : String(err) });
+      return res.status(500).json({ error: 'Erreur serveur' });
+    }
+  },
+
+  /**
+   * POST /admin/bookings/:id/resolve-dispute — décision de l'équipe sur un litige.
+   * - validate : la mission est considérée réalisée, les fonds sont libérés ;
+   * - cancel   : la réservation est annulée ; si elle était payée, le remboursement
+   *              se fait ensuite depuis « Paiements » (permission dédiée).
+   * Les signalements ouverts de la réservation sont clôturés. Transition atomique.
+   */
+  async resolveDispute(req: Request, res: Response) {
+    const { id } = req.params;
+    const { outcome, note } = req.body as ResolveDisputeInput;
+    const now = new Date();
+    try {
+      const result = await prisma.$transaction(async (tx) => {
+        const { count } = await tx.booking.updateMany({
+          where: { id, status: 'disputed' },
+          data: outcome === 'validate'
+            ? { status: 'validated', validatedAt: now }
+            : { status: 'cancelled', cancellationReason: `Litige : ${note}`.slice(0, 500) },
+        });
+        if (count === 0) return null;
+        if (outcome === 'validate') {
+          await tx.transaction.updateMany({
+            where: { bookingId: id, status: 'completed', releasedAt: null },
+            data: { releasedAt: now },
+          });
+        }
+        const reports = await tx.report.updateMany({
+          where: { bookingId: id, status: { in: ['pending', 'reviewed'] } },
+          data: { status: 'resolved', resolvedBy: req.user!.id, resolvedAt: now },
+        });
+        const booking = await tx.booking.findUniqueOrThrow({
+          where: { id },
+          select: { id: true, clientId: true, providerId: true, transaction: { select: { status: true } } },
+        });
+        return { booking, reportsClosed: reports.count };
+      });
+
+      if (!result) {
+        const exists = await prisma.booking.findUnique({ where: { id }, select: { status: true } });
+        return exists
+          ? res.status(409).json({ error: 'Cette réservation n’est pas en litige.', code: 'BOOKING_NOT_DISPUTED', status: exists.status })
+          : res.status(404).json({ error: 'Réservation introuvable' });
+      }
+
+      const paidStatus = result.booking.transaction?.status;
+      const refundRequired = outcome === 'cancel' && (paidStatus === 'completed' || paidStatus === 'processing');
+      await auditFromReq(req, 'admin.booking.resolve_dispute', {
+        entity: 'booking', entityId: id,
+        oldData: { status: 'disputed' },
+        newData: { outcome, note, reportsClosed: result.reportsClosed, refundRequired, result: 'success' },
+      });
+      await notifyUsers([result.booking.clientId, result.booking.providerId], {
+        type: 'booking.dispute_resolved',
+        title: 'Litige traité',
+        body: outcome === 'validate'
+          ? 'Après examen, la mission est considérée comme réalisée.'
+          : 'Après examen, la réservation a été annulée.',
+        link: `/bookings/${id}`,
+        data: { bookingId: id, outcome },
+      });
+      return res.json({
+        message: outcome === 'validate' ? 'Mission validée' : 'Réservation annulée',
+        status: outcome === 'validate' ? 'validated' : 'cancelled',
+        refundRequired,
+      });
+    } catch (err) {
+      logger.error('Erreur arbitrage litige', { error: err instanceof Error ? err.message : String(err) });
       return res.status(500).json({ error: 'Erreur serveur' });
     }
   },

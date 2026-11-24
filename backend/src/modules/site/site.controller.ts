@@ -7,6 +7,7 @@ import { Request, Response } from 'express';
 import { prisma } from '../../config/database';
 import { redis } from '../../config/redis';
 import { logger } from '../../config/logger';
+import { env } from '../../config/env';
 
 /** Seuils d'affichage : en dessous, l'indicateur est masqué plutôt qu'affiché faible. */
 export const PUBLIC_STATS_THRESHOLDS = {
@@ -77,10 +78,10 @@ export interface Testimonial {
 }
 
 /** « Aminata Diallo » → « Aminata D. » : pas de nom complet sur la page d'accueil. */
-export function shortName(firstName?: string | null, lastName?: string | null): string {
+export function shortName(firstName?: string | null, lastName?: string | null, fallback = 'Client vérifié'): string {
   const first = (firstName ?? '').trim();
   const initial = (lastName ?? '').trim().charAt(0).toUpperCase();
-  if (!first) return 'Client vérifié';
+  if (!first) return fallback;
   return initial ? `${first} ${initial}.` : first;
 }
 
@@ -118,7 +119,30 @@ export async function computeTestimonials(): Promise<Testimonial[]> {
     }));
 }
 
+/**
+ * Capacités publiques du site : uniquement des booléens, jamais de valeur de configuration.
+ * Le paiement en ligne n'est annoncé que si CinetPay est réellement configuré
+ * (hors production, la simulation de développement est signalée comme telle).
+ */
+export function publicCapabilities() {
+  const cinetpay = Boolean(env.CINETPAY_API_KEY && env.CINETPAY_SITE_ID);
+  const simulated = !cinetpay && env.NODE_ENV !== 'production';
+  return {
+    onlinePayment: {
+      available: cinetpay || simulated,
+      provider: cinetpay ? 'cinetpay' : null,
+      simulated,
+    },
+  };
+}
+
 export const siteController = {
+  /** GET /site/config — capacités publiques (paiement en ligne disponible ou non) */
+  config(_req: Request, res: Response) {
+    res.set('Cache-Control', 'public, max-age=60');
+    return res.json(publicCapabilities());
+  },
+
   /** GET /site/stats — indicateurs réels au-dessus de leur seuil (liste vide = section masquée) */
   async stats(_req: Request, res: Response) {
     try {

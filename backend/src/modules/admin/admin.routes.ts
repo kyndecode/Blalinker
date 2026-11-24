@@ -7,6 +7,8 @@ import { updateContactStatusSchema } from '../contact/contact.schemas';
 import { createAdminSchema, updateAdminSchema, resetAdminPasswordSchema } from './team.schemas';
 import {
   createCategorySchema,
+  rejectReviewSchema,
+  resolveDisputeSchema,
   resolveReportSchema,
   updateCategorySchema,
   updateUserStatusSchema,
@@ -26,6 +28,7 @@ router.use(adminRateLimit, authenticate, requireAdmin, requireAdminTotpWhenEnfor
 router.get('/dashboard',        requirePermission(P.STATS_READ),        adminController.dashboard);
 router.get('/users',            requirePermission(P.USERS_READ),        adminController.listUsers);
 router.get('/users/:id',        requirePermission(P.USERS_READ),        adminController.getUser);
+router.get('/users/:id/id-document', requirePermission(P.PROVIDERS_VERIFY), adminController.idDocument);
 router.get('/providers',        requirePermission(P.PROVIDERS_READ),    adminController.listProviders);
 router.get('/bookings',         requirePermission(P.BOOKINGS_READ),     adminController.listBookings);
 router.get('/reviews',          requirePermission(P.REVIEWS_MODERATE),  adminController.listReviews);
@@ -45,10 +48,12 @@ router.put('/users/:id/status',     requirePermission(P.USERS_SUSPEND),   valida
 router.post('/users/:id/verify-id', requirePermission(P.PROVIDERS_VERIFY), validate(verifyIdentitySchema), adminController.verifyIdentity);
 
 router.put('/reviews/:id/approve',  requirePermission(P.REVIEWS_MODERATE), adminController.approveReview);
+router.put('/reviews/:id/reject',   requirePermission(P.REVIEWS_MODERATE), validate(rejectReviewSchema), adminController.rejectReview);
 router.delete('/reviews/:id',       requirePermission(P.REVIEWS_MODERATE), adminController.deleteReview);
 
 router.patch('/reports/:id',        requirePermission(P.REPORTS_HANDLE), validate(resolveReportSchema), adminController.resolveReport);
 router.put('/reports/:id/resolve',  requirePermission(P.REPORTS_HANDLE), validate(resolveReportSchema), adminController.resolveReport);
+router.post('/bookings/:id/resolve-dispute', requirePermission(P.REPORTS_HANDLE), validate(resolveDisputeSchema), adminController.resolveDispute);
 
 router.patch('/contacts/:id/status', requirePermission(P.CONTACTS_HANDLE), validate(updateContactStatusSchema), adminController.updateContactStatus);
 

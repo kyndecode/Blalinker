@@ -309,11 +309,13 @@ describeDb('PostgreSQL réel — aucune fuite de données dans les réponses (lo
       }
     });
 
-    it('fiche utilisateur : pièce d\'identité visible avec la permission KYC uniquement', async () => {
+    it('fiche utilisateur : données KYC avec la permission KYC uniquement, jamais l\'URL du document', async () => {
       const kyc = await request(app).get(`/api/v1/admin/users/${ids.client}`).set(auth(ids.kyc));
       expect(kyc.status).toBe(200);
       expectNoSecrets(kyc);
-      expect(kyc.body.profile.idCardUrl).toBe(SECRET.clientIdCard);
+      expect(raw(kyc)).not.toContain(SECRET.clientIdCard);
+      expect(kyc.body.profile.hasIdDocument).toBe(true);
+      expect(kyc.body.profile.dateOfBirth).toBeDefined();
 
       const support = await request(app).get(`/api/v1/admin/users/${ids.client}`).set(auth(ids.support));
       expect(support.status).toBe(200);

@@ -5,7 +5,9 @@ import { logger } from '../../config/logger';
 import { getPaginationParams, getSkip, paginate } from '../../utils/pagination.util';
 import { escapeHtml } from '../../utils/html.util';
 import { publicPersonSelect, toPublicPerson } from '../../utils/serializers';
-import type { CreateBookingInput } from './bookings.schemas';
+import type { Prisma } from '@prisma/client';
+import { notifyStaff, notifyUser, type NotificationType } from '../notifications/notifications.service';
+import type { CreateBookingInput, DisputeBookingInput } from './bookings.schemas';
 
 type BookingStatus = 'pending' | 'accepted' | 'rejected' | 'in_progress' | 'completed' | 'validated' | 'cancelled' | 'disputed';
 
@@ -199,6 +201,39 @@ async function notifyBookingStatusChanged(bookingId: string, status: BookingStat
   }
 }
 
+/** Notification dans l'application pour la contrepartie de l'action (jamais l'auteur). */
+const IN_APP_STATUS: Partial<Record<BookingStatus, { type: NotificationType; title: string; body: string; to: 'client' | 'provider' | 'other' }>> = {
+  accepted:    { type: 'booking.accepted',  to: 'client',   title: 'Réservation acceptée', body: 'Le prestataire a accepté votre demande.' },
+  rejected:    { type: 'booking.rejected',  to: 'client',   title: 'Réservation refusée',  body: "Le prestataire n'est pas disponible pour cette demande." },
+  in_progress: { type: 'booking.started',   to: 'client',   title: 'Mission démarrée',     body: 'Le prestataire a démarré la mission.' },
+  completed:   { type: 'booking.completed', to: 'client',   title: 'Mission terminée',     body: 'Confirmez la réalisation ou signalez un problème.' },
+  validated:   { type: 'booking.validated', to: 'provider', title: 'Mission validée',      body: 'Le client a confirmé la réalisation de la mission.' },
+  cancelled:   { type: 'booking.cancelled', to: 'other',    title: 'Réservation annulée',  body: 'La réservation a été annulée.' },
+  disputed:    { type: 'booking.disputed',  to: 'provider', title: 'Problème signalé',     body: "Le client a signalé un problème. L'équipe BLA examine la situation." },
+};
+
+export async function notifyBookingInApp(
+  booking: { id: string; clientId: string; providerId: string },
+  status: BookingStatus,
+  actorId: string,
+): Promise<void> {
+  const cfg = IN_APP_STATUS[status];
+  if (!cfg) return;
+  const recipient = cfg.to === 'client'
+    ? booking.clientId
+    : cfg.to === 'provider'
+      ? booking.providerId
+      : (actorId === booking.clientId ? booking.providerId : booking.clientId);
+  if (recipient === actorId) return;
+  await notifyUser(recipient, {
+    type: cfg.type,
+    title: cfg.title,
+    body: cfg.body,
+    link: `/bookings/${booking.id}`,
+    data: { bookingId: booking.id, status },
+  });
+}
+
 const BOOKING_STATUSES: readonly BookingStatus[] = [
   'pending', 'accepted', 'rejected', 'in_progress', 'completed', 'validated', 'cancelled', 'disputed',
 ];
@@ -234,6 +269,9 @@ export const BOOKING_TRANSITIONS = {
   complete: { from: ['in_progress'], to: 'completed',   actor: 'provider', role: 'provider', stamp: 'completedAt' },
   validate: { from: ['completed'],   to: 'validated',   actor: 'client',   role: 'client',   stamp: 'validatedAt' },
   cancel:   { from: ['pending', 'accepted'], to: 'cancelled', actor: 'either' },
+  // Le client signale un problème pendant ou après la mission : les fonds restent bloqués
+  // jusqu'à la décision de l'équipe (POST /admin/bookings/:id/resolve-dispute).
+  dispute:  { from: ['in_progress', 'completed'], to: 'disputed', actor: 'client', role: 'client' },
 } satisfies Record<string, TransitionRule>;
 
 function ownership(actor: Actor, userId: string) {
@@ -257,7 +295,15 @@ const NOT_PAID = {
  * appartient à l'utilisateur ET est encore dans l'état attendu. Deux requêtes
  * simultanées ne peuvent donc pas appliquer deux fois la même transition.
  */
-async function applyTransition(req: Request, res: Response, rule: TransitionRule, extraData: Record<string, unknown> = {}) {
+type TransitionHook = (tx: Prisma.TransactionClient, booking: { id: string; clientId: string; providerId: string }) => Promise<void>;
+
+async function applyTransition(
+  req: Request,
+  res: Response,
+  rule: TransitionRule,
+  extraData: Record<string, unknown> = {},
+  inTransaction?: TransitionHook,
+) {
   const { id } = req.params;
   const userId = req.user!.id;
   if (rule.role && req.user!.role !== rule.role) {
@@ -282,7 +328,9 @@ async function applyTransition(req: Request, res: Response, rule: TransitionRule
           data: { releasedAt: now },
         });
       }
-      return tx.booking.findUnique({ where: { id } });
+      const booking = await tx.booking.findUniqueOrThrow({ where: { id } });
+      if (inTransaction) await inTransaction(tx, booking);
+      return booking;
     });
 
     if (!updated) {
@@ -308,6 +356,7 @@ async function applyTransition(req: Request, res: Response, rule: TransitionRule
     void notifyBookingStatusChanged(updated.id, rule.to).catch((error) => {
       logger.error(`Erreur notifications reservation ${rule.to} (${updated.id})`, error);
     });
+    void notifyBookingInApp(updated, rule.to, userId);
     return res.json(updated);
   } catch (err) {
     logger.error('Erreur transition réservation', { bookingId: id, to: rule.to, error: err instanceof Error ? err.message : String(err) });
@@ -376,11 +425,24 @@ export const bookingsController = {
 
   async create(req: Request, res: Response) {
     const data = req.body as CreateBookingInput;
+    if (req.user!.role !== 'client') {
+      return res.status(403).json({ error: 'Seuls les comptes clients peuvent réserver une prestation.', code: 'CLIENT_ONLY' });
+    }
+    if (data.providerId === req.user!.id) {
+      return res.status(400).json({ error: 'Vous ne pouvez pas vous réserver vous-même.' });
+    }
+    if (data.scheduledAt && new Date(data.scheduledAt).getTime() < Date.now() - 5 * 60_000) {
+      return res.status(422).json({ error: 'La date souhaitée doit être dans le futur.', code: 'DATE_IN_PAST' });
+    }
     try {
       const provider = await prisma.user.findFirst({
         where: { id: data.providerId, role: 'provider', status: 'active', deletedAt: null },
+        select: { id: true, providerProfile: { select: { isAvailable: true } } },
       });
       if (!provider) return res.status(404).json({ error: 'Prestataire introuvable ou inactif' });
+      if (provider.providerProfile && provider.providerProfile.isAvailable === false) {
+        return res.status(409).json({ error: "Ce prestataire n'accepte pas de nouvelles demandes pour le moment.", code: 'PROVIDER_UNAVAILABLE' });
+      }
 
       // Le montant est déterminé UNIQUEMENT côté serveur via le service choisi.
       // On exige donc un service actif avec un prix défini (anti-manipulation de prix).
@@ -399,6 +461,19 @@ export const bookingsController = {
 
       if (!selectedService) {
         return res.status(404).json({ error: 'Service introuvable pour ce prestataire' });
+      }
+
+      // Une seule demande en attente par client et par service (évite les doublons).
+      const duplicate = await prisma.booking.findFirst({
+        where: { clientId: req.user!.id, providerId: data.providerId, serviceId: selectedService.id, status: 'pending' },
+        select: { id: true },
+      });
+      if (duplicate) {
+        return res.status(409).json({
+          error: 'Vous avez déjà une demande en attente pour ce service.',
+          code: 'BOOKING_DUPLICATE',
+          bookingId: duplicate.id,
+        });
       }
 
       const amount = selectedService.price !== null && selectedService.price !== undefined
@@ -425,6 +500,13 @@ export const bookingsController = {
       });
       void notifyBookingCreated(booking.id).catch((error) => {
         logger.error(`Erreur notifications reservation create (${booking.id})`, error);
+      });
+      void notifyUser(booking.providerId, {
+        type: 'booking.created',
+        title: 'Nouvelle demande de réservation',
+        body: 'Un client vous a envoyé une demande : acceptez-la ou refusez-la.',
+        link: `/bookings/${booking.id}`,
+        data: { bookingId: booking.id, status: 'pending' },
       });
       return res.status(201).json(booking);
     } catch (err) {
@@ -486,5 +568,39 @@ export const bookingsController = {
   async cancel(req: Request, res: Response) {
     const raw = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
     return applyTransition(req, res, BOOKING_TRANSITIONS.cancel, { cancellationReason: raw ? raw.slice(0, 500) : null });
+  },
+
+  /**
+   * PUT /bookings/:id/dispute — le client signale un problème (mission en cours ou terminée).
+   * Transition et signalement sont créés dans la même transaction ; les fonds éventuels
+   * restent bloqués jusqu'à la décision de l'équipe.
+   */
+  async dispute(req: Request, res: Response) {
+    const { reason, description } = req.body as DisputeBookingInput;
+    let reportId: string | null = null;
+    const result = await applyTransition(req, res, BOOKING_TRANSITIONS.dispute, {}, async (tx, booking) => {
+      const report = await tx.report.create({
+        data: {
+          reporterId: booking.clientId,
+          reportedId: booking.providerId,
+          bookingId: booking.id,
+          reason,
+          description,
+          status: 'pending',
+        },
+        select: { id: true },
+      });
+      reportId = report.id;
+    });
+    if (reportId) {
+      void notifyStaff('reports.handle', {
+        type: 'report.created',
+        title: 'Litige sur une réservation',
+        body: 'Un client a signalé un problème sur une mission.',
+        link: '/reports',
+        data: { reportId, bookingId: req.params.id },
+      });
+    }
+    return result;
   },
 };

@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { bookingsController } from './bookings.controller';
 import { authenticate } from '../../middlewares/auth.middleware';
 import { validate } from '../../middlewares/validate.middleware';
-import { createBookingSchema } from './bookings.schemas';
+import { createBookingSchema, disputeBookingSchema } from './bookings.schemas';
 
 const router = Router();
 
@@ -18,5 +18,6 @@ router.put('/:id/start',    bookingsController.start);
 router.put('/:id/complete', bookingsController.complete);
 router.put('/:id/validate', bookingsController.validate);
 router.put('/:id/cancel',   bookingsController.cancel);
+router.put('/:id/dispute',  validate(disputeBookingSchema), bookingsController.dispute);
 
 export default router;

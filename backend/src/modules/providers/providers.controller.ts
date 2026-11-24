@@ -1,7 +1,8 @@
 import { Request, Response } from 'express';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/database';
-import { paginate, getSkip } from '../../utils/pagination.util';
+import { shortName } from '../site/site.controller';
+import { paginate, getSkip, getPaginationParams } from '../../utils/pagination.util';
 import {
   coarseCoordinate,
   coarseDistanceKm,
@@ -166,28 +167,36 @@ export const providersController = {
   /** GET /providers/:id/reviews — Avis publics */
   async getReviews(req: Request, res: Response) {
     const { id } = req.params;
-    const page  = Number(req.query.page)  || 1;
-    const limit = Number(req.query.limit) || 10;
+    const { page, limit } = getPaginationParams(req.query as Record<string, unknown>);
+    // Avis publiés uniquement ; aucun identifiant interne (auteur, réservation, modérateur).
+    const where = { reviewedId: id, isApproved: true, isFlagged: false };
 
     try {
       const [reviews, total] = await Promise.all([
         prisma.review.findMany({
-          where:   { reviewedId: id, isApproved: true },
+          where,
           orderBy: { createdAt: 'desc' },
-          skip:    getSkip({ page, limit }),
-          take:    limit,
-          include: {
-            reviewer: {
-              select: {
-                profile: { select: { firstName: true, lastName: true, avatarUrl: true } },
-              },
-            },
+          skip: getSkip({ page, limit }),
+          take: limit,
+          select: {
+            id: true,
+            rating: true,
+            comment: true,
+            response: true,
+            responseAt: true,
+            createdAt: true,
+            reviewer: { select: { profile: { select: { firstName: true, lastName: true, avatarUrl: true } } } },
           },
         }),
-        prisma.review.count({ where: { reviewedId: id, isApproved: true } }),
+        prisma.review.count({ where }),
       ]);
 
-      res.json(paginate(reviews, total, { page, limit }));
+      const rows = reviews.map(({ reviewer, ...review }) => ({
+        ...review,
+        reviewerName: shortName(reviewer.profile?.firstName, reviewer.profile?.lastName),
+        reviewerAvatarUrl: reviewer.profile?.avatarUrl ?? null,
+      }));
+      res.json(paginate(rows, total, { page, limit }));
     } catch (err) {
       res.status(500).json({ error: 'Erreur serveur' });
     }
