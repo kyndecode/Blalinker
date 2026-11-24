@@ -111,6 +111,11 @@ export const teamController = {
     const { id } = req.params;
     const data = req.body as UpdateAdminInput;
 
+    // Ni auto-promotion ni auto-suspension : ses propres droits sont modifiés par un autre membre habilité.
+    if (id === req.user!.id && (data.status !== undefined || data.preset !== undefined || data.permissions !== undefined)) {
+      return res.status(400).json({ error: 'Vous ne pouvez pas modifier vos propres droits ni votre statut.' });
+    }
+
     try {
       const target = await prisma.user.findFirst({
         where: { id, role: { in: [...ADMIN_ROLES] }, deletedAt: null },
@@ -139,6 +144,11 @@ export const teamController = {
         data: update,
         select: { id: true, email: true, role: true, status: true, adminTitle: true, permissions: true },
       });
+
+      // Membre suspendu : ses sessions sont fermées immédiatement.
+      if (data.status === 'suspended') {
+        await prisma.userSession.deleteMany({ where: { userId: id } });
+      }
 
       await auditFromReq(req, 'admin.team.update', { entity: 'user', entityId: id, oldData: target, newData: update });
       return res.json({ message: 'Membre mis à jour', member: updated });
@@ -188,8 +198,18 @@ export const teamController = {
   async forceLogout(req: Request, res: Response) {
     const { id } = req.params;
     try {
-      await prisma.userSession.deleteMany({ where: { userId: id } });
-      await auditFromReq(req, 'admin.team.force_logout', { entity: 'user', entityId: id });
+      // Uniquement un membre de l'équipe ; un super_admin ne peut être déconnecté que par un super_admin.
+      const target = await prisma.user.findFirst({
+        where: { id, role: { in: [...ADMIN_ROLES] }, deletedAt: null },
+        select: { id: true, role: true },
+      });
+      if (!target) return res.status(404).json({ error: 'Membre admin introuvable' });
+      if (target.role === 'super_admin' && !isSuperAdmin(req)) {
+        return res.status(403).json({ error: 'Action réservée au super administrateur' });
+      }
+
+      const { count } = await prisma.userSession.deleteMany({ where: { userId: id } });
+      await auditFromReq(req, 'admin.team.force_logout', { entity: 'user', entityId: id, newData: { sessionsRevoked: count, result: 'success' } });
       return res.json({ message: 'Sessions révoquées' });
     } catch (err) {
       logger.error('Erreur force logout', err);

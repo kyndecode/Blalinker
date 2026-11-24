@@ -10,6 +10,7 @@ import client from 'prom-client';
 import { env, getCorsOrigins } from './config/env';
 import { applySecurityMiddlewares, requestLogger } from './middlewares/security.middleware';
 import { requestId } from './middlewares/requestId.middleware';
+import { responseSanitizer } from './middlewares/responseSanitizer.middleware';
 import { openApiSpec } from './config/openapi';
 import { logger } from './config/logger';
 import { prisma } from './config/database';
@@ -30,6 +31,7 @@ import notificationsRoutes from './modules/notifications/notifications.routes';
 import reportsRoutes    from './modules/reports/reports.routes';
 import uploadsRoutes    from './modules/uploads/uploads.routes';
 import payoutsRoutes    from './modules/payouts/payouts.routes';
+import siteRoutes       from './modules/site/site.routes';
 
 export const app = express();
 
@@ -60,12 +62,17 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-request', 'X-Admin-Request', 'X-Auth-Mode'],
 }));
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// 1 Mo suffit à toutes les routes JSON (les fichiers passent en multipart, cf. uploads).
+// Limite aussi l'impact de l'alerte zod GHSA-mrhx-c7xc-m3w5 (cf. security/EXCEPTIONS-AUDIT.md).
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(cookieParser());
 
 // ─── Observabilité ────────────────────────────────────────────
 app.use(requestId);
+
+// ─── Confidentialité : aucun secret dans une réponse JSON ─────
+app.use(responseSanitizer);
 
 // ─── Sécurité ─────────────────────────────────────────────────
 applySecurityMiddlewares(app);
@@ -129,6 +136,7 @@ app.use(`${API}/notifications`, notificationsRoutes);
 app.use(`${API}/reports`,       reportsRoutes);
 app.use(`${API}/uploads`,       uploadsRoutes);
 app.use(`${API}/payouts`,       payoutsRoutes);
+app.use(`${API}/site`,          siteRoutes);
 
 // ─── 404 ──────────────────────────────────────────────────────
 app.use((_req, res) => {

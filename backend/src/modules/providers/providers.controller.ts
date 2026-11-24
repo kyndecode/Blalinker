@@ -2,6 +2,13 @@ import { Request, Response } from 'express';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/database';
 import { paginate, getSkip } from '../../utils/pagination.util';
+import {
+  coarseCoordinate,
+  coarseDistanceKm,
+  ownAccountSelect,
+  publicProfileSelect,
+  publicProviderProfileSelect,
+} from '../../utils/serializers';
 import type {
   SearchInput,
   UpsertProviderProfileInput,
@@ -25,7 +32,6 @@ export const providersController = {
           p.avatar_url     AS "avatarUrl",
           p.city,
           p.country,
-          p.address,
           p.latitude::float AS latitude,
           p.longitude::float AS longitude,
           p.id_verified    AS "idVerified",
@@ -69,7 +75,7 @@ export const providersController = {
             POWER(SIN(RADIANS((p.longitude::float - ${q.lng}::float) / 2.0)), 2)
           ))) <= ${q.radius}
         GROUP BY
-          u.id, p.first_name, p.last_name, p.avatar_url, p.city, p.country, p.address,
+          u.id, p.first_name, p.last_name, p.avatar_url, p.city, p.country,
           p.id_verified, pp.rating_average, pp.rating_count, pp.hourly_rate,
           pp.is_available, pp.completed_jobs, pp.is_premium,
           p.longitude, p.latitude
@@ -106,7 +112,14 @@ export const providersController = {
       `;
 
       const total = Number(countResult[0]?.count ?? 0);
-      res.json(paginate(providers, total, { page: q.page, limit: q.limit }));
+      // Position publique approximative (≈ 1 km) : jamais l'adresse ni les coordonnées exactes.
+      const rows = providers.map((row) => ({
+        ...row,
+        latitude: coarseCoordinate(row.latitude),
+        longitude: coarseCoordinate(row.longitude),
+        distanceKm: coarseDistanceKm(row.distanceKm),
+      }));
+      res.json(paginate(rows, total, { page: q.page, limit: q.limit }));
     } catch (err) {
       console.error('Search error:', err);
       res.status(500).json({ error: 'Erreur de recherche' });
@@ -117,31 +130,34 @@ export const providersController = {
   async getProfile(req: Request, res: Response) {
     const { id } = req.params;
     try {
+      // Liste blanche : ni e-mail, ni téléphone, ni adresse, ni donnée de compte.
       const provider = await prisma.user.findFirst({
         where: { id, role: 'provider', status: 'active', deletedAt: null },
-        include: {
-          profile: {
-            select: {
-              firstName: true, lastName: true, avatarUrl: true,
-              city: true, country: true, idVerified: true, bio: true,
-            },
-          },
-          providerProfile: true,
+        select: {
+          id: true,
+          role: true,
+          createdAt: true,
+          profile: { select: publicProfileSelect },
+          providerProfile: { select: publicProviderProfileSelect },
           services: {
             where: { isActive: true },
-            include: { category: { select: { name: true, slug: true } } },
-          },
-          _count: {
             select: {
-              receivedReviews: true,
+              id: true, title: true, description: true, priceType: true, price: true, categoryId: true,
+              category: { select: { name: true, slug: true } },
             },
           },
+          _count: { select: { receivedReviews: { where: { isApproved: true } } } },
         },
       });
 
       if (!provider) return res.status(404).json({ error: 'Prestataire introuvable' });
 
-      return res.json(provider);
+      return res.json({
+        ...provider,
+        rating: Number(provider.providerProfile?.ratingAverage ?? 0),
+        reviewCount: provider.providerProfile?.ratingCount ?? 0,
+        isVerified: provider.profile?.idVerified ?? false,
+      });
     } catch (err) {
       return res.status(500).json({ error: 'Erreur serveur' });
     }
@@ -186,10 +202,7 @@ export const providersController = {
           role: 'provider',
           deletedAt: null,
         },
-        include: {
-          profile: true,
-          providerProfile: true,
-        },
+        select: { ...ownAccountSelect, profile: true, providerProfile: true },
       });
 
       if (!provider) {
@@ -265,7 +278,7 @@ export const providersController = {
 
         return tx.user.findUnique({
           where: { id: providerId },
-          include: { profile: true, providerProfile: true },
+          select: { ...ownAccountSelect, profile: true, providerProfile: true },
         });
       });
 

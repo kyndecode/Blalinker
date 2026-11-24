@@ -5,6 +5,13 @@ import { authenticate, requireAdmin, requirePermission, adminRateLimit, requireA
 import { validate } from '../../middlewares/validate.middleware';
 import { updateContactStatusSchema } from '../contact/contact.schemas';
 import { createAdminSchema, updateAdminSchema, resetAdminPasswordSchema } from './team.schemas';
+import {
+  createCategorySchema,
+  resolveReportSchema,
+  updateCategorySchema,
+  updateUserStatusSchema,
+  verifyIdentitySchema,
+} from './admin.schemas';
 import { payoutsController } from '../payouts/payouts.controller';
 import { processPayoutSchema } from '../payouts/payouts.schemas';
 import { PERMISSIONS as P } from '../../config/permissions';
@@ -15,38 +22,38 @@ const router = Router();
 // (+ application d'authentification obligatoire si ADMIN_TOTP_REQUIRED=true)
 router.use(adminRateLimit, authenticate, requireAdmin, requireAdminTotpWhenEnforced);
 
-// ─── Lecture (tout admin) ─────────────────────────────────────
-router.get('/dashboard',        adminController.dashboard);
-router.get('/users',            adminController.listUsers);
-router.get('/users/:id',        adminController.getUser);
-router.get('/providers',        adminController.listProviders);
-router.get('/bookings',         adminController.listBookings);
-router.get('/reviews',          adminController.listReviews);
-router.get('/reviews/pending',  adminController.pendingReviews);
-router.get('/reports',          adminController.listReports);
-router.get('/contacts',         adminController.listContacts);
-router.get('/transactions',     adminController.listTransactions);
+// ─── Lecture : chaque liste exige sa permission (super_admin : toutes) ───
+router.get('/dashboard',        requirePermission(P.STATS_READ),        adminController.dashboard);
+router.get('/users',            requirePermission(P.USERS_READ),        adminController.listUsers);
+router.get('/users/:id',        requirePermission(P.USERS_READ),        adminController.getUser);
+router.get('/providers',        requirePermission(P.PROVIDERS_READ),    adminController.listProviders);
+router.get('/bookings',         requirePermission(P.BOOKINGS_READ),     adminController.listBookings);
+router.get('/reviews',          requirePermission(P.REVIEWS_MODERATE),  adminController.listReviews);
+router.get('/reviews/pending',  requirePermission(P.REVIEWS_MODERATE),  adminController.pendingReviews);
+router.get('/reports',          requirePermission(P.REPORTS_HANDLE),    adminController.listReports);
+router.get('/contacts',         requirePermission(P.CONTACTS_HANDLE),   adminController.listContacts);
+router.get('/transactions',     requirePermission(P.PAYMENTS_READ),     adminController.listTransactions);
 
 // ─── Marketplace : retraits & remboursements ──────────────────
 router.get('/payouts',              requirePermission(P.PAYMENTS_READ),   payoutsController.adminList);
 router.patch('/payouts/:id',        requirePermission(P.PAYMENTS_REFUND), validate(processPayoutSchema), payoutsController.adminProcess);
 router.post('/transactions/:id/refund', requirePermission(P.PAYMENTS_REFUND), payoutsController.adminRefund);
-router.get('/categories',       adminController.listCategories);
+router.get('/categories',       requirePermission(P.CATEGORIES_MANAGE), adminController.listCategories);
 
 // ─── Actions (permissions granulaires — super_admin bypass) ───
-router.put('/users/:id/status',     requirePermission(P.USERS_SUSPEND),   adminController.updateUserStatus);
-router.post('/users/:id/verify-id', requirePermission(P.PROVIDERS_VERIFY), adminController.verifyIdentity);
+router.put('/users/:id/status',     requirePermission(P.USERS_SUSPEND),   validate(updateUserStatusSchema), adminController.updateUserStatus);
+router.post('/users/:id/verify-id', requirePermission(P.PROVIDERS_VERIFY), validate(verifyIdentitySchema), adminController.verifyIdentity);
 
 router.put('/reviews/:id/approve',  requirePermission(P.REVIEWS_MODERATE), adminController.approveReview);
 router.delete('/reviews/:id',       requirePermission(P.REVIEWS_MODERATE), adminController.deleteReview);
 
-router.patch('/reports/:id',        requirePermission(P.REPORTS_HANDLE), adminController.resolveReport);
-router.put('/reports/:id/resolve',  requirePermission(P.REPORTS_HANDLE), adminController.resolveReport);
+router.patch('/reports/:id',        requirePermission(P.REPORTS_HANDLE), validate(resolveReportSchema), adminController.resolveReport);
+router.put('/reports/:id/resolve',  requirePermission(P.REPORTS_HANDLE), validate(resolveReportSchema), adminController.resolveReport);
 
 router.patch('/contacts/:id/status', requirePermission(P.CONTACTS_HANDLE), validate(updateContactStatusSchema), adminController.updateContactStatus);
 
-router.post('/categories',      requirePermission(P.CATEGORIES_MANAGE), adminController.createCategory);
-router.put('/categories/:id',   requirePermission(P.CATEGORIES_MANAGE), adminController.updateCategory);
+router.post('/categories',      requirePermission(P.CATEGORIES_MANAGE), validate(createCategorySchema), adminController.createCategory);
+router.put('/categories/:id',   requirePermission(P.CATEGORIES_MANAGE), validate(updateCategorySchema), adminController.updateCategory);
 
 // ─── Journal d'audit ──────────────────────────────────────────
 router.get('/audit', requirePermission(P.AUDIT_READ), teamController.auditLog);

@@ -4,6 +4,7 @@ import { sendEmail } from '../../config/email';
 import { logger } from '../../config/logger';
 import { getPaginationParams, getSkip, paginate } from '../../utils/pagination.util';
 import { escapeHtml } from '../../utils/html.util';
+import { publicPersonSelect, toPublicPerson } from '../../utils/serializers';
 import type { CreateBookingInput } from './bookings.schemas';
 
 type BookingStatus = 'pending' | 'accepted' | 'rejected' | 'in_progress' | 'completed' | 'validated' | 'cancelled' | 'disputed';
@@ -198,21 +199,141 @@ async function notifyBookingStatusChanged(bookingId: string, status: BookingStat
   }
 }
 
+const BOOKING_STATUSES: readonly BookingStatus[] = [
+  'pending', 'accepted', 'rejected', 'in_progress', 'completed', 'validated', 'cancelled', 'disputed',
+];
+
+/** Transaction visible par le client et le prestataire (sans métadonnées du prestataire de paiement). */
+const bookingTransactionSelect = {
+  id: true,
+  status: true,
+  amount: true,
+  commission: true,
+  netAmount: true,
+  currency: true,
+  method: true,
+  paidAt: true,
+  releasedAt: true,
+} as const;
+
+type Actor = 'client' | 'provider' | 'either';
+
+interface TransitionRule {
+  from: BookingStatus[];
+  to: BookingStatus;
+  actor: Actor;
+  /** Rôle exigé (403 sinon) ; absent = pas de contrôle de rôle supplémentaire. */
+  role?: 'client' | 'provider';
+  stamp?: 'startedAt' | 'completedAt' | 'validatedAt';
+}
+
+export const BOOKING_TRANSITIONS = {
+  accept:   { from: ['pending'],     to: 'accepted',    actor: 'provider', role: 'provider' },
+  reject:   { from: ['pending'],     to: 'rejected',    actor: 'provider', role: 'provider' },
+  start:    { from: ['accepted'],    to: 'in_progress', actor: 'provider', role: 'provider', stamp: 'startedAt' },
+  complete: { from: ['in_progress'], to: 'completed',   actor: 'provider', role: 'provider', stamp: 'completedAt' },
+  validate: { from: ['completed'],   to: 'validated',   actor: 'client',   role: 'client',   stamp: 'validatedAt' },
+  cancel:   { from: ['pending', 'accepted'], to: 'cancelled', actor: 'either' },
+} satisfies Record<string, TransitionRule>;
+
+function ownership(actor: Actor, userId: string) {
+  if (actor === 'provider') return { providerId: userId };
+  if (actor === 'client') return { clientId: userId };
+  return { OR: [{ clientId: userId }, { providerId: userId }] };
+}
+
+const PAID_STATUSES: ('completed' | 'processing')[] = ['completed', 'processing'];
+
+/** Une réservation déjà payée ne s'annule pas en libre-service (remboursement via le support). */
+const NOT_PAID = {
+  OR: [
+    { transaction: { is: null } },
+    { transaction: { is: { status: { notIn: PAID_STATUSES } } } },
+  ],
+};
+
+/**
+ * Changement d'état ATOMIQUE : la mise à jour n'a lieu que si la réservation
+ * appartient à l'utilisateur ET est encore dans l'état attendu. Deux requêtes
+ * simultanées ne peuvent donc pas appliquer deux fois la même transition.
+ */
+async function applyTransition(req: Request, res: Response, rule: TransitionRule, extraData: Record<string, unknown> = {}) {
+  const { id } = req.params;
+  const userId = req.user!.id;
+  if (rule.role && req.user!.role !== rule.role) {
+    return res.status(403).json({ error: 'Action non autorisée' });
+  }
+
+  const owner = ownership(rule.actor, userId);
+  const guard = rule.to === 'cancelled' ? [owner, NOT_PAID] : [owner];
+  const now = new Date();
+
+  try {
+    const updated = await prisma.$transaction(async (tx) => {
+      const { count } = await tx.booking.updateMany({
+        where: { id, status: { in: rule.from }, AND: guard },
+        data: { status: rule.to, ...(rule.stamp ? { [rule.stamp]: now } : {}), ...extraData },
+      });
+      if (count === 0) return null;
+      if (rule.to === 'validated') {
+        // Escrow : la validation client libère les fonds vers le solde du prestataire.
+        await tx.transaction.updateMany({
+          where: { bookingId: id, status: 'completed', releasedAt: null },
+          data: { releasedAt: now },
+        });
+      }
+      return tx.booking.findUnique({ where: { id } });
+    });
+
+    if (!updated) {
+      const current = await prisma.booking.findFirst({
+        where: { id, ...owner },
+        select: { status: true, transaction: { select: { status: true } } },
+      });
+      if (!current) return res.status(404).json({ error: 'Réservation introuvable' });
+      const paid = PAID_STATUSES.includes(current.transaction?.status as 'completed' | 'processing');
+      if (rule.to === 'cancelled' && rule.from.includes(current.status as BookingStatus) && paid) {
+        return res.status(409).json({
+          error: 'Cette réservation est déjà payée : contactez le support pour une annulation avec remboursement.',
+          code: 'BOOKING_ALREADY_PAID',
+        });
+      }
+      return res.status(409).json({
+        error: "Action impossible dans l'état actuel de la réservation.",
+        code: 'BOOKING_STATUS_CONFLICT',
+        status: current.status,
+      });
+    }
+
+    void notifyBookingStatusChanged(updated.id, rule.to).catch((error) => {
+      logger.error(`Erreur notifications reservation ${rule.to} (${updated.id})`, error);
+    });
+    return res.json(updated);
+  } catch (err) {
+    logger.error('Erreur transition réservation', { bookingId: id, to: rule.to, error: err instanceof Error ? err.message : String(err) });
+    return res.status(500).json({ error: 'Erreur serveur' });
+  }
+}
+
 export const bookingsController = {
   async list(req: Request, res: Response) {
     const { page, limit } = getPaginationParams(req.query as Record<string, unknown>);
     const status = typeof req.query.status === 'string' ? req.query.status : undefined;
+    if (status && !BOOKING_STATUSES.includes(status as BookingStatus)) {
+      return res.status(422).json({ error: 'Statut invalide' });
+    }
 
+    // Uniquement SES réservations ; la vue globale passe par /admin/bookings (permission dédiée).
     const roleFilter =
       req.user!.role === 'client'
         ? { clientId: req.user!.id }
         : req.user!.role === 'provider'
           ? { providerId: req.user!.id }
-          : {};
+          : { OR: [{ clientId: req.user!.id }, { providerId: req.user!.id }] };
 
     const where = {
       ...roleFilter,
-      ...(status ? { status: status as 'pending' | 'accepted' | 'rejected' | 'in_progress' | 'completed' | 'validated' | 'cancelled' | 'disputed' } : {}),
+      ...(status ? { status: status as BookingStatus } : {}),
     };
 
     try {
@@ -223,19 +344,12 @@ export const bookingsController = {
           skip: getSkip({ page, limit }),
           take: limit,
           include: {
-            client: {
-              include: {
-                profile: { select: { firstName: true, lastName: true } },
-              },
-            },
-            provider: {
-              include: {
-                profile: { select: { firstName: true, lastName: true } },
-              },
-            },
+            client: { select: publicPersonSelect },
+            provider: { select: publicPersonSelect },
             service: {
               select: { id: true, title: true, price: true, category: { select: { name: true, slug: true } } },
             },
+            transaction: { select: { status: true } },
           },
         }),
         prisma.booking.count({ where }),
@@ -243,6 +357,8 @@ export const bookingsController = {
 
       const normalized = bookings.map((booking) => ({
         ...booking,
+        client: toPublicPerson(booking.client),
+        provider: toPublicPerson(booking.provider),
         service: booking.service
           ? { ...booking.service, name: booking.service.title }
           : null,
@@ -319,148 +435,56 @@ export const bookingsController = {
   async getOne(req: Request, res: Response) {
     const { id } = req.params;
     try {
+      // Chaque partie ne voit de l'autre que son nom et son avatar (jamais e-mail,
+      // téléphone, pièce d'identité, date de naissance ou adresse personnelle).
       const booking = await prisma.booking.findFirst({
         where: { id, OR: [{ clientId: req.user!.id }, { providerId: req.user!.id }] },
         include: {
-          client:      { include: { profile: true } },
-          provider:    { include: { profile: true, providerProfile: true } },
-          service:     { include: { category: true } },
-          transaction: true,
+          client: { select: publicPersonSelect },
+          provider: {
+            select: {
+              ...publicPersonSelect,
+              providerProfile: { select: { businessName: true, ratingAverage: true, ratingCount: true } },
+            },
+          },
+          service: { include: { category: { select: { id: true, name: true, slug: true } } } },
+          transaction: { select: bookingTransactionSelect },
         },
       });
       if (!booking) return res.status(404).json({ error: 'Réservation introuvable' });
-      return res.json(booking);
+      return res.json({
+        ...booking,
+        client: toPublicPerson(booking.client),
+        provider: { ...toPublicPerson(booking.provider), providerProfile: booking.provider.providerProfile },
+        service: booking.service ? { ...booking.service, name: booking.service.title } : null,
+      });
     } catch (err) {
       return res.status(500).json({ error: 'Erreur serveur' });
     }
   },
 
   async accept(req: Request, res: Response) {
-    return bookingsController._updateStatus(req, res, 'accepted', 'provider');
+    return applyTransition(req, res, BOOKING_TRANSITIONS.accept);
   },
 
   async reject(req: Request, res: Response) {
-    return bookingsController._updateStatus(req, res, 'rejected', 'provider');
+    return applyTransition(req, res, BOOKING_TRANSITIONS.reject);
   },
 
   async start(req: Request, res: Response) {
-    const { id } = req.params;
-    try {
-      const booking = await prisma.booking.findFirst({
-        where: { id, providerId: req.user!.id, status: 'accepted' },
-      });
-      if (!booking) return res.status(404).json({ error: 'Réservation introuvable ou statut invalide' });
-
-      const updated = await prisma.booking.update({
-        where: { id },
-        data:  { status: 'in_progress', startedAt: new Date() },
-      });
-      void notifyBookingStatusChanged(updated.id, 'in_progress').catch((error) => {
-        logger.error(`Erreur notifications reservation start (${updated.id})`, error);
-      });
-      return res.json(updated);
-    } catch (err) {
-      return res.status(500).json({ error: 'Erreur serveur' });
-    }
+    return applyTransition(req, res, BOOKING_TRANSITIONS.start);
   },
 
   async complete(req: Request, res: Response) {
-    const { id } = req.params;
-    try {
-      const booking = await prisma.booking.findFirst({
-        where: { id, providerId: req.user!.id, status: 'in_progress' },
-      });
-      if (!booking) return res.status(404).json({ error: 'Réservation introuvable ou statut invalide' });
-
-      const updated = await prisma.booking.update({
-        where: { id },
-        data:  { status: 'completed', completedAt: new Date() },
-      });
-      void notifyBookingStatusChanged(updated.id, 'completed').catch((error) => {
-        logger.error(`Erreur notifications reservation complete (${updated.id})`, error);
-      });
-      return res.json(updated);
-    } catch (err) {
-      return res.status(500).json({ error: 'Erreur serveur' });
-    }
+    return applyTransition(req, res, BOOKING_TRANSITIONS.complete);
   },
 
   async validate(req: Request, res: Response) {
-    const { id } = req.params;
-    try {
-      const booking = await prisma.booking.findFirst({
-        where: { id, clientId: req.user!.id, status: 'completed' },
-      });
-      if (!booking) return res.status(404).json({ error: 'Réservation introuvable ou statut invalide' });
-
-      const updated = await prisma.booking.update({
-        where: { id },
-        data:  { status: 'validated', validatedAt: new Date() },
-      });
-      // Escrow : la validation client libère les fonds vers le solde du prestataire
-      await prisma.transaction.updateMany({
-        where: { bookingId: id, status: 'completed', releasedAt: null },
-        data:  { releasedAt: new Date() },
-      });
-      void notifyBookingStatusChanged(updated.id, 'validated').catch((error) => {
-        logger.error(`Erreur notifications reservation validate (${updated.id})`, error);
-      });
-      return res.json(updated);
-    } catch (err) {
-      return res.status(500).json({ error: 'Erreur serveur' });
-    }
+    return applyTransition(req, res, BOOKING_TRANSITIONS.validate);
   },
 
   async cancel(req: Request, res: Response) {
-    const { id } = req.params;
-    const { reason } = req.body;
-    try {
-      const booking = await prisma.booking.findFirst({
-        where: {
-          id,
-          OR: [{ clientId: req.user!.id }, { providerId: req.user!.id }],
-          status: { in: ['pending', 'accepted'] },
-        },
-      });
-      if (!booking) return res.status(404).json({ error: 'Annulation impossible' });
-
-      const updated = await prisma.booking.update({
-        where: { id },
-        data:  { status: 'cancelled', cancellationReason: reason },
-      });
-      void notifyBookingStatusChanged(updated.id, 'cancelled').catch((error) => {
-        logger.error(`Erreur notifications reservation cancel (${updated.id})`, error);
-      });
-      return res.json(updated);
-    } catch (err) {
-      return res.status(500).json({ error: 'Erreur serveur' });
-    }
-  },
-
-  async _updateStatus(req: Request, res: Response, status: string, requiredRole: string) {
-    const { id } = req.params;
-    if (req.user!.role !== requiredRole && req.user!.role !== 'admin') {
-      return res.status(403).json({ error: 'Action non autorisée' });
-    }
-    try {
-      const where = requiredRole === 'provider'
-        ? { id, providerId: req.user!.id, status: 'pending' as const }
-        : { id, clientId: req.user!.id };
-
-      const booking = await prisma.booking.findFirst({ where });
-      if (!booking) return res.status(404).json({ error: 'Réservation introuvable' });
-
-      const updated = await prisma.booking.update({
-        where: { id },
-        data:  { status: status as 'accepted' | 'rejected' },
-      });
-      const nextStatus = status as 'accepted' | 'rejected';
-      void notifyBookingStatusChanged(updated.id, nextStatus).catch((error) => {
-        logger.error(`Erreur notifications reservation status (${updated.id})`, error);
-      });
-      return res.json(updated);
-    } catch (err) {
-      return res.status(500).json({ error: 'Erreur serveur' });
-    }
+    const raw = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
+    return applyTransition(req, res, BOOKING_TRANSITIONS.cancel, { cancellationReason: raw ? raw.slice(0, 500) : null });
   },
 };
