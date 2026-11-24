@@ -34,6 +34,8 @@ const PERMISSION_LABELS: Record<string, string> = {
   'exports.run': 'Exporter',
   'audit.read': "Journal d'audit",
   'admins.manage': 'Gérer les admins',
+  'content.manage': 'Gérer les contenus du site',
+  'settings.manage': 'Gérer paramètres et pays',
 };
 
 const STATUS_COLORS: Record<string, string> = {
