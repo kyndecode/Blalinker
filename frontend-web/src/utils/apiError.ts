@@ -1,3 +1,18 @@
+/** Premier message d'erreur de validation : format serveur { champ: [messages] } (ou tableau). */
+function firstValidationMessage(errors: unknown): string | undefined {
+  if (Array.isArray(errors)) {
+    const m = errors.find((x) => typeof (x as { message?: unknown })?.message === 'string') as { message: string } | undefined;
+    return m?.message;
+  }
+  if (errors && typeof errors === 'object') {
+    for (const list of Object.values(errors as Record<string, unknown>)) {
+      const first = Array.isArray(list) ? list.find((x) => typeof x === 'string') : typeof list === 'string' ? list : undefined;
+      if (typeof first === 'string' && first.trim()) return first;
+    }
+  }
+  return undefined;
+}
+
 /**
  * Message compréhensible à partir d'une erreur de l'API :
  * - erreur de validation (422) : premier message de champ ;
@@ -6,11 +21,11 @@
  */
 export function getApiErrorMessage(error: unknown, fallback = 'Une erreur est survenue. Réessayez.'): string {
   const e = error as {
-    response?: { status?: number; data?: { error?: unknown; errors?: Array<{ message?: unknown }> } };
+    response?: { status?: number; data?: { error?: unknown; errors?: unknown } };
     code?: string;
   } | null;
   const data = e?.response?.data;
-  const fieldMessage = Array.isArray(data?.errors) ? data?.errors.find((x) => typeof x?.message === 'string')?.message : undefined;
+  const fieldMessage = firstValidationMessage(data?.errors);
   if (typeof fieldMessage === 'string' && fieldMessage.trim()) return fieldMessage;
   if (typeof data?.error === 'string' && data.error.trim()) return data.error;
   if (!e?.response) {

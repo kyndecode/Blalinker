@@ -330,7 +330,7 @@ export const contentAdminController = {
       const startsAt = data.startsAt === undefined ? current.startsAt : data.startsAt ? new Date(data.startsAt) : null;
       const endsAt = data.endsAt === undefined ? current.endsAt : data.endsAt ? new Date(data.endsAt) : null;
       if (startsAt && endsAt && startsAt >= endsAt) {
-        return res.status(422).json({ error: 'La fin doit être postérieure au début', errors: [{ field: 'endsAt', message: 'La fin doit être postérieure au début' }] });
+        return res.status(422).json({ error: 'La fin doit être postérieure au début', errors: { endsAt: ['La fin doit être postérieure au début'] } });
       }
       const row = await prisma.announcement.update({
         where: { id: current.id },
@@ -367,7 +367,7 @@ export const contentAdminController = {
   async listSettings(_req: Request, res: Response) {
     try {
       const rows = await prisma.siteSetting.findMany({ orderBy: [{ key: 'asc' }, { scope: 'asc' }] });
-      const catalog = Object.entries(SETTINGS_REGISTRY).map(([key, def]) => ({ key, label: def.label, group: def.group }));
+      const catalog = Object.entries(SETTINGS_REGISTRY).map(([key, def]) => ({ key, label: def.label, group: def.group, kind: def.kind }));
       return res.json({ catalog, items: rows });
     } catch (err) {
       return fail(res, 'Liste des paramètres', err);
@@ -376,16 +376,16 @@ export const contentAdminController = {
 
   async upsertSetting(req: Request, res: Response) {
     const { key, scope, value } = req.body as UpsertSettingInput;
-    if (!isSettingKey(key)) return res.status(422).json({ error: 'Paramètre inconnu', errors: [{ field: 'key', message: 'Paramètre inconnu' }] });
+    if (!isSettingKey(key)) return res.status(422).json({ error: 'Paramètre inconnu', errors: { key: ['Paramètre inconnu'] } });
     const parsed = SETTINGS_REGISTRY[key].schema.safeParse(value);
     if (!parsed.success) {
       const message = parsed.error.issues[0]?.message ?? 'Valeur invalide';
-      return res.status(422).json({ error: message, errors: [{ field: 'value', message }] });
+      return res.status(422).json({ error: message, errors: { value: [message] } });
     }
     try {
       if (scope !== 'global') {
         const country = await prisma.country.findUnique({ where: { code: scope }, select: { code: true } });
-        if (!country) return res.status(422).json({ error: 'Pays inconnu : ajoutez-le d’abord dans « Pays ».', errors: [{ field: 'scope', message: 'Pays inconnu' }] });
+        if (!country) return res.status(422).json({ error: 'Pays inconnu : ajoutez-le d’abord dans « Pays ».', errors: { scope: ['Pays inconnu'] } });
       }
       const previous = await prisma.siteSetting.findUnique({ where: { key_scope: { key, scope } } });
       const row = await prisma.siteSetting.upsert({

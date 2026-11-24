@@ -137,6 +137,14 @@ export function publicCapabilities() {
 }
 
 export const siteController = {
+  /** GET /site/health — état réel de l'API (base + cache), sans détail d'environnement */
+  async health(_req: Request, res: Response) {
+    const [db, cache] = await Promise.allSettled([prisma.$queryRaw`SELECT 1`, redis.ping()]);
+    const checks = { database: db.status === 'fulfilled', cache: cache.status === 'fulfilled' };
+    res.set('Cache-Control', 'no-store');
+    return res.status(checks.database ? 200 : 503).json({ status: checks.database && checks.cache ? 'ok' : 'degraded', checks });
+  },
+
   /** GET /site/config — capacités publiques (paiement en ligne disponible ou non) */
   config(_req: Request, res: Response) {
     res.set('Cache-Control', 'public, max-age=60');

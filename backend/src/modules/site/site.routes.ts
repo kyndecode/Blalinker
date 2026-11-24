@@ -5,6 +5,7 @@ import { contentPublicController } from '../content/content.controller';
 const router = Router();
 
 // Données publiques en lecture seule (aucune donnée personnelle).
+router.get('/health', siteController.health);
 router.get('/config', siteController.config);
 router.get('/stats', siteController.stats);
 router.get('/testimonials', siteController.testimonials);
