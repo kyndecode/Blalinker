@@ -143,8 +143,8 @@ export default function Team() {
         </button>
       </div>
 
-      <div className="bg-[#1a2744] rounded-xl border border-white/10 overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="bg-[#1a2744] rounded-xl border border-white/10 overflow-x-auto">
+        <table className="w-full min-w-[640px] text-sm">
           <thead>
             <tr className="border-b border-white/10 text-gray-400">
               <th className="text-left px-4 py-3 font-medium">Membre</th>

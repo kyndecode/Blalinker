@@ -164,8 +164,8 @@ export default function Contacts() {
             </select>
           </div>
 
-          <div className="bg-[#1a2744] border border-white/10 rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
+          <div className="bg-[#1a2744] border border-white/10 rounded-xl overflow-x-auto">
+            <table className="w-full min-w-[640px] text-sm">
               <thead>
                 <tr className="text-gray-400 border-b border-white/10">
                   <th className="text-left font-medium px-4 py-3">Contact</th>
