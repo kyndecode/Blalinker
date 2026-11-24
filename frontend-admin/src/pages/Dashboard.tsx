@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import AccessDenied, { isForbidden } from '../components/AccessDenied';
 import api from '../services/api';
 import {
   Users, Briefcase, CalendarCheck, DollarSign,
@@ -11,6 +12,8 @@ interface DashboardStats {
   providers: { total: number; active: number; pendingApproval: number };
   bookings:  { total: number; today: number; inProgress: number; completed: number };
   revenue:   { total: number; thisMonth: number; currency: string };
+  /** Commissions réellement enregistrées (absent sur un ancien serveur). */
+  commissions?: { thisMonth: number; currency: string };
   reports:   { open: number };
   reviews:   { pending: number };
 }
@@ -52,7 +55,7 @@ function MiniBar({ value, max, color }: { value: number; max: number; color: str
 }
 
 export default function Dashboard() {
-  const { data, isLoading } = useQuery<DashboardStats>({
+  const { data, isLoading, error } = useQuery<DashboardStats>({
     queryKey: ['admin-dashboard'],
     queryFn:  () => api.get('/admin/dashboard').then((r) => r.data),
     refetchInterval: 60_000,
@@ -61,6 +64,8 @@ export default function Dashboard() {
   const now = new Date();
   const h = now.getHours();
   const greeting = h < 12 ? 'Bonjour' : h < 18 ? 'Bon après-midi' : 'Bonsoir';
+
+  if (isForbidden(error)) return <AccessDenied permission="Voir statistiques" />;
 
   return (
     <div className="space-y-8">
@@ -90,17 +95,17 @@ export default function Dashboard() {
         <>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard icon={Users}         label="Utilisateurs"         value={data.users.total}
-              sub={`${data.users.active} actifs · +${data.users.newThisWeek}/sem`} color="bg-blue-600"    trend={12} />
+              sub={`${data.users.active} actifs · +${data.users.newThisWeek}/sem`} color="bg-blue-600" />
             <StatCard icon={ShieldCheck}   label="Vérifications KYC"    value={data.users.pendingVerification}
-              sub="Identités à valider"                                   color="bg-amber-500"   trend={-3} />
+              sub="Identités à valider"                                   color="bg-amber-500" />
             <StatCard icon={Briefcase}     label="Prestataires"         value={data.providers.total}
-              sub={`${data.providers.pendingApproval} en attente approbation`} color="bg-purple-600"  trend={8}  />
+              sub={`${data.providers.pendingApproval} en attente approbation`} color="bg-purple-600" />
             <StatCard icon={CalendarCheck} label="Réservations"         value={data.bookings.total}
-              sub={`${data.bookings.today} aujourd'hui`}                  color="bg-green-600"   trend={15} />
+              sub={`${data.bookings.today} aujourd'hui`}                  color="bg-green-600" />
             <StatCard icon={Clock}         label="Missions en cours"    value={data.bookings.inProgress}
               sub="Temps réel"                                            color="bg-orange-600"  />
-            <StatCard icon={DollarSign}    label="Revenus du mois"      value={`${data.revenue.thisMonth.toLocaleString()} ${data.revenue.currency}`}
-              sub={`Commission: ${Math.round(data.revenue.thisMonth * 0.05).toLocaleString()}`} color="bg-emerald-600" trend={22} />
+            <StatCard icon={DollarSign}    label="Paiements encaissés (mois)" value={`${data.revenue.thisMonth.toLocaleString()} ${data.revenue.currency}`}
+              sub={data.commissions ? `Commissions : ${data.commissions.thisMonth.toLocaleString()} ${data.commissions.currency}` : undefined} color="bg-emerald-600" />
             <StatCard icon={AlertTriangle} label="Signalements"         value={data.reports.open}
               sub="À traiter en priorité"                                 color="bg-red-600"     />
             <StatCard icon={TrendingUp}    label="Avis à modérer"       value={data.reviews.pending}
@@ -155,18 +160,20 @@ export default function Dashboard() {
               <h3 className="text-white font-semibold text-sm mb-5">Finances</h3>
               <div className="space-y-5">
                 <div>
-                  <p className="text-gray-500 text-xs mb-1">Revenus ce mois</p>
+                  <p className="text-gray-500 text-xs mb-1">Paiements encaissés ce mois</p>
                   <p className="text-3xl font-extrabold text-white">{data.revenue.thisMonth.toLocaleString()}</p>
                   <p className="text-gray-500 text-xs">{data.revenue.currency}</p>
                 </div>
                 <div className="pt-4 border-t border-white/10">
-                  <p className="text-gray-500 text-xs mb-1">Revenus cumulés</p>
+                  <p className="text-gray-500 text-xs mb-1">Paiements encaissés (cumul)</p>
                   <p className="text-xl font-bold text-green-400">{data.revenue.total.toLocaleString()} {data.revenue.currency}</p>
                 </div>
-                <div className="pt-4 border-t border-white/10">
-                  <p className="text-gray-500 text-xs mb-1">Commission plateforme (5%)</p>
-                  <p className="text-xl font-bold text-amber-400">{Math.round(data.revenue.thisMonth * 0.05).toLocaleString()} {data.revenue.currency}</p>
-                </div>
+                {data.commissions && (
+                  <div className="pt-4 border-t border-white/10">
+                    <p className="text-gray-500 text-xs mb-1">Commissions du mois (enregistrées)</p>
+                    <p className="text-xl font-bold text-amber-400">{data.commissions.thisMonth.toLocaleString()} {data.commissions.currency}</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>

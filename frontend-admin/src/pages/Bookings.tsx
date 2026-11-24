@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import AccessDenied, { isForbidden } from '../components/AccessDenied';
 import { useQuery } from '@tanstack/react-query';
 import api from '../services/api';
 
@@ -17,12 +18,14 @@ export default function Bookings() {
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState('');
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ['admin-bookings', page, status],
     queryFn: () => api.get('/admin/bookings', {
       params: { page, limit: 20, status: status || undefined },
     }).then((r) => r.data),
   });
+
+  if (isForbidden(error)) return <AccessDenied permission="Voir réservations" />;
 
   return (
     <div className="space-y-4">

@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import AccessDenied, { isForbidden } from '../components/AccessDenied';
 import api from '../services/api';
 
 const REASON_LABELS: Record<string, string> = {
@@ -8,7 +9,7 @@ const REASON_LABELS: Record<string, string> = {
 
 export default function Reports() {
   const qc = useQueryClient();
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ['admin-reports'],
     queryFn: () => api.get('/admin/reports', { params: { page: 1, limit: 20 } }).then((r) => r.data),
   });
@@ -17,6 +18,8 @@ export default function Reports() {
     mutationFn: (id: string) => api.patch(`/admin/reports/${id}`, { status: 'resolved' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-reports'] }),
   });
+
+  if (isForbidden(error)) return <AccessDenied permission="Gérer signalements" />;
 
   return (
     <div className="space-y-4">

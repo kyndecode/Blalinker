@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import AccessDenied, { isForbidden } from '../components/AccessDenied';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import { Search, CheckCircle, XCircle, ShieldCheck, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -23,7 +24,7 @@ export default function Users() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ['admin-users', page, search, status],
     queryFn:  () => api.get('/admin/users', {
       params: { page, limit: 20, search: search || undefined, status: status || undefined },
@@ -40,6 +41,8 @@ export default function Users() {
     mutationFn: (id: string) => api.post(`/admin/users/${id}/verify-id`, { approved: true }),
     onSuccess:  () => qc.invalidateQueries({ queryKey: ['admin-users'] }),
   });
+
+  if (isForbidden(error)) return <AccessDenied permission="Voir utilisateurs" />;
 
   return (
     <div className="space-y-4">

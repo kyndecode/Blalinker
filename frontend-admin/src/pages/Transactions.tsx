@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import AccessDenied, { isForbidden } from '../components/AccessDenied';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import { RotateCcw } from 'lucide-react';
@@ -7,7 +8,7 @@ export default function Transactions() {
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ['admin-transactions', page],
     queryFn: () => api.get('/admin/transactions', { params: { page, limit: 20 } }).then((r) => r.data),
   });
@@ -17,6 +18,8 @@ export default function Transactions() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-transactions'] }),
     onError: (e: unknown) => alert((e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Remboursement impossible'),
   });
+
+  if (isForbidden(error)) return <AccessDenied permission="Voir paiements" />;
 
   return (
     <div className="space-y-4">

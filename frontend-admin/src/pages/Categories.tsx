@@ -1,13 +1,16 @@
 import { useQuery } from '@tanstack/react-query';
+import AccessDenied, { isForbidden } from '../components/AccessDenied';
 import api from '../services/api';
 
 export default function Categories() {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ['admin-categories'],
     queryFn: () => api.get('/admin/categories').then((r) => r.data),
   });
 
   const categories = Array.isArray(data) ? data : data?.data ?? [];
+
+  if (isForbidden(error)) return <AccessDenied permission="Gérer catégories" />;
 
   return (
     <div className="space-y-4">

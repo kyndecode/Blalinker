@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import AccessDenied, { isForbidden } from '../components/AccessDenied';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight, Search, Send, Archive } from 'lucide-react';
 import api from '../services/api';
@@ -112,6 +113,8 @@ export default function Contacts() {
       adminResponse: adminResponse.trim(),
     });
   };
+
+  if (isForbidden(query.error)) return <AccessDenied permission="Gérer contacts" />;
 
   return (
     <div className="space-y-5">

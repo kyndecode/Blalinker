@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import AccessDenied, { isForbidden } from '../components/AccessDenied';
 import { useQuery } from '@tanstack/react-query';
 import { Search, CheckCircle, XCircle } from 'lucide-react';
 import api from '../services/api';
@@ -20,12 +21,14 @@ export default function Providers() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ['admin-providers', page, search],
     queryFn: () => api.get('/admin/providers', {
       params: { page, limit: 20, search: search || undefined },
     }).then((r) => r.data),
   });
+
+  if (isForbidden(error)) return <AccessDenied permission="Voir prestataires" />;
 
   return (
     <div className="space-y-4">

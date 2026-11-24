@@ -1,11 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
+import AccessDenied, { isForbidden } from '../components/AccessDenied';
 import api from '../services/api';
 
 export default function Reviews() {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ['admin-reviews'],
     queryFn: () => api.get('/admin/reviews', { params: { page: 1, limit: 20 } }).then((r) => r.data),
   });
+
+  if (isForbidden(error)) return <AccessDenied permission="Modérer les avis" />;
 
   return (
     <div className="space-y-4">
