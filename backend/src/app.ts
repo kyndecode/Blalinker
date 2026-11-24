@@ -62,7 +62,6 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-request', 'X-Admin-Request', 'X-Auth-Mode'],
 }));
 
-// 1 Mo suffit à toutes les routes JSON (les fichiers passent en multipart, cf. uploads).
 // Corps limités à 1 Mo : aucune route n'en attend davantage (les fichiers passent par multer).
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));

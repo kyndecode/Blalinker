@@ -1,3 +1,4 @@
+import { auditWhere } from './insights.controller';
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../../config/database';
@@ -277,8 +278,8 @@ export const teamController = {
   /** GET /admin/audit — journal d'audit */
   async auditLog(req: Request, res: Response) {
     const { page, limit } = getPaginationParams(req.query as Record<string, unknown>);
-    const action = typeof req.query.action === 'string' ? req.query.action : undefined;
-    const where = action ? { action: { contains: action } } : {};
+    // Filtres : action, entité, auteur (userId), période.
+    const where = auditWhere(req.query as Record<string, unknown>);
     try {
       const [rows, total] = await Promise.all([
         prisma.auditLog.findMany({

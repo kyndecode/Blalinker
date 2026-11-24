@@ -19,6 +19,7 @@ import { escapeHtml, escapeHtmlMultiline } from '../../utils/html.util';
 import { auditFromReq } from '../../utils/audit.util';
 import { contactLabels } from '../contact/contact.controller';
 import { notifyUser, notifyUsers } from '../notifications/notifications.service';
+import { bookingWhere, sortOrder, transactionWhere, userWhere } from './insights.controller';
 import { isCloudinaryConfigured, parseCloudinaryUrl, signedDownloadUrl } from '../../config/cloudinary';
 
 type ContactRequestStatus = 'new' | 'read' | 'answered' | 'done' | 'closed';
@@ -148,7 +149,7 @@ export const adminController = {
         prisma.booking.count({ where: { status: { in: ['completed', 'validated'] } } }),
         prisma.profile.count({ where: { idVerified: false, idCardUrl: { not: null } } }),
         prisma.report.count({ where: { status: 'pending' } }),
-        prisma.review.count({ where: { isApproved: false } }),
+        prisma.review.count({ where: { isApproved: false, isFlagged: false } }),
         contactRequestModel.count({ where: { status: { in: OPEN_CONTACT_STATUSES } } }),
         prisma.transaction.aggregate({
           where: {
@@ -250,7 +251,7 @@ export const adminController = {
           where,
           skip: getSkip({ page, limit }),
           take: limit,
-          orderBy: { createdAt: 'desc' },
+          orderBy: sortOrder(req.query.sort, ['createdAt', 'lastLoginAt'] as const, 'createdAt'),
           select: {
             ...adminUserScalarSelect,
             profile: { select: { firstName: true, lastName: true, avatarUrl: true, idVerified: true } },
@@ -268,31 +269,21 @@ export const adminController = {
   /** GET /admin/providers */
   async listProviders(req: Request, res: Response) {
     const { page, limit } = getPaginationParams(req.query as Record<string, unknown>);
-    const { search } = req.query;
 
     try {
-      const where = {
-        role: 'provider' as const,
-        deletedAt: null,
-        ...(search ? {
-          OR: [
-            { email: { contains: search as string, mode: 'insensitive' as const } },
-            { phone: { contains: search as string } },
-            { profile: { is: { firstName: { contains: search as string, mode: 'insensitive' as const } } } },
-            { profile: { is: { lastName: { contains: search as string, mode: 'insensitive' as const } } } },
-          ],
-        } : {}),
-      };
+      // Filtres serveur : recherche, statut, identité vérifiée, période ; tri en liste blanche.
+      const where = userWhere(req.query as Record<string, unknown>, 'provider');
 
       const [providers, total] = await Promise.all([
         prisma.user.findMany({
           where,
           skip: getSkip({ page, limit }),
           take: limit,
-          orderBy: { createdAt: 'desc' },
-          include: {
+          orderBy: sortOrder(req.query.sort, ['createdAt', 'lastLoginAt'] as const, 'createdAt'),
+          select: {
+            ...adminUserScalarSelect,
             profile: { select: { firstName: true, lastName: true, city: true, idVerified: true } },
-            providerProfile: { select: { isAvailable: true, ratingAverage: true, ratingCount: true } },
+            providerProfile: { select: { isAvailable: true, ratingAverage: true, ratingCount: true, completedJobs: true } },
           },
         }),
         prisma.user.count({ where }),
@@ -329,14 +320,14 @@ export const adminController = {
     }
 
     try {
-      const where = isOneOf(BOOKING_STATUSES, status) ? { status } : {};
+      const where = bookingWhere(req.query as Record<string, unknown>);
 
       const [bookings, total] = await Promise.all([
         prisma.booking.findMany({
           where,
           skip: getSkip({ page, limit }),
           take: limit,
-          orderBy: { createdAt: 'desc' },
+          orderBy: sortOrder(req.query.sort, ['createdAt', 'scheduledAt', 'amount'] as const, 'createdAt'),
           include: {
             client: { select: adminPersonSelect },
             provider: { select: adminPersonSelect },
@@ -1029,18 +1020,22 @@ export const adminController = {
   /** GET /admin/transactions */
   async listTransactions(req: Request, res: Response) {
     const { page, limit } = getPaginationParams(req.query as Record<string, unknown>);
+    const where = transactionWhere(req.query as Record<string, unknown>);
     try {
       const [transactions, total] = await Promise.all([
         prisma.transaction.findMany({
+          where,
           skip: getSkip({ page, limit }),
           take: limit,
-          orderBy: { createdAt: 'desc' },
-          include: {
+          orderBy: sortOrder(req.query.sort, ['createdAt', 'amount', 'paidAt'] as const, 'createdAt'),
+          select: {
+            id: true, bookingId: true, amount: true, commission: true, netAmount: true, currency: true, method: true,
+            status: true, paidAt: true, releasedAt: true, createdAt: true,
             payer: { select: adminPersonSelect },
             payee: { select: adminPersonSelect },
           },
         }),
-        prisma.transaction.count(),
+        prisma.transaction.count({ where }),
       ]);
       res.json(paginate(transactions, total, { page, limit }));
     } catch {

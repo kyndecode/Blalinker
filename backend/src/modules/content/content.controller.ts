@@ -438,7 +438,8 @@ export const contentAdminController = {
     try {
       const row = await prisma.country.create({ data });
       await invalidateCache(CACHE_KEYS.countries);
-      await auditFromReq(req, 'admin.country.create', { entity: 'country', entityId: row.code, newData: { ...row, result: 'success' } });
+      // entity_id est un UUID : le code pays figure dans les données de l'entrée.
+      await auditFromReq(req, 'admin.country.create', { entity: 'country', newData: { ...row, result: 'success' } });
       return res.status(201).json(row);
     } catch (err) {
       if (prismaCode(err) === 'P2002') return res.status(409).json({ error: 'Ce pays existe déjà.', code: 'COUNTRY_EXISTS' });
@@ -454,7 +455,7 @@ export const contentAdminController = {
       if (!current) return res.status(404).json({ error: 'Pays introuvable' });
       const row = await prisma.country.update({ where: { code }, data });
       await invalidateCache(CACHE_KEYS.countries);
-      await auditFromReq(req, 'admin.country.update', { entity: 'country', entityId: code, oldData: current, newData: { ...data, result: 'success' } });
+      await auditFromReq(req, 'admin.country.update', { entity: 'country', oldData: current, newData: { code, ...data, result: 'success' } });
       return res.json(row);
     } catch (err) {
       return fail(res, 'Modification de pays', err);
@@ -481,7 +482,7 @@ export const contentAdminController = {
       }
       await prisma.country.delete({ where: { code } });
       await invalidateCache(CACHE_KEYS.countries);
-      await auditFromReq(req, 'admin.country.delete', { entity: 'country', entityId: code, oldData: current, newData: { result: 'success' } });
+      await auditFromReq(req, 'admin.country.delete', { entity: 'country', oldData: current, newData: { code, result: 'success' } });
       return res.json({ message: 'Pays supprimé' });
     } catch (err) {
       return fail(res, 'Suppression de pays', err);

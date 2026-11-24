@@ -134,7 +134,7 @@ export class AuthService {
       });
     }
 
-    const tokens = await this._generateTokens(user.id, user.role);
+    const tokens = await this._generateTokens(user.id, user.role, { method: 'otp_registration' });
     return { ...tokens, user: { id: user.id, role: user.role } };
   }
 
@@ -235,7 +235,7 @@ export class AuthService {
     }
 
     // MFA désactivé → connexion directe
-    const tokens = await this._generateTokens(user.id, user.role);
+    const tokens = await this._generateTokens(user.id, user.role, { method: 'password', ip });
     await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
     return { mfaRequired: false, ...tokens, user: { id: user.id, role: user.role } };
   }
@@ -265,7 +265,7 @@ export class AuthService {
     }
     await redis.del(`mfa_temp:${tempToken}`);
 
-    const tokens = await this._generateTokens(userId, user.role);
+    const tokens = await this._generateTokens(userId, user.role, { method: `mfa_${chosen}`, ip });
     await prisma.user.update({ where: { id: userId }, data: { lastLoginAt: new Date() } });
 
     logger.info(`Connexion réussie: ${userId} depuis ${ip}`);
@@ -519,7 +519,7 @@ export class AuthService {
       }
     }
 
-    const tokens = await this._generateTokens(user.id, user.role);
+    const tokens = await this._generateTokens(user.id, user.role, { method: 'google', ip });
     logger.info(`Connexion Google réussie: ${user.id} (${ip})`);
 
     return {
@@ -563,7 +563,7 @@ export class AuthService {
 
     // Renouveler les tokens
     await prisma.userSession.delete({ where: { id: session.id } });
-    return this._generateTokens(user.id, user.role);
+    return this._generateTokens(user.id, user.role, { method: 'refresh', ip: session.ipAddress ?? undefined, silent: true });
   }
 
   /** Déconnexion — révoque le token */
@@ -845,6 +845,10 @@ export class AuthService {
     }
 
     await prisma.user.update({ where: { id: userId }, data });
+    await writeAudit({
+      userId, action: 'auth.login.failed', entity: 'user', entityId: userId,
+      newData: { attempts, locked: attempts >= MAX_LOGIN_ATTEMPTS },
+    });
   }
 
   private async _createMfaTempToken(userId: string, ip: string): Promise<string> {
@@ -853,15 +857,28 @@ export class AuthService {
     return token;
   }
 
-  private async _generateTokens(userId: string, role: string) {
+  /**
+   * Ouvre une session. Chaque connexion (hors renouvellement silencieux du jeton) est
+   * journalisée « auth.login.success » avec la méthode et l'adresse IP : c'est
+   * l'historique des connexions consultable par l'équipe habilitée.
+   */
+  private async _generateTokens(
+    userId: string,
+    role: string,
+    ctx: { method: string; ip?: string; silent?: boolean } = { method: 'inconnue' },
+  ) {
     // Créer une session
     const session = await prisma.userSession.create({
       data: {
         userId,
         refreshHash: generateTokenFamily(),
+        ipAddress: ctx.ip ? ctx.ip.slice(0, 45) : null,
         expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       },
     });
+    if (!ctx.silent) {
+      await writeAudit({ userId, action: 'auth.login.success', entity: 'user', entityId: userId, ip: ctx.ip, newData: { method: ctx.method } });
+    }
 
     const accessToken = signAccessToken({ userId, role, sessionId: session.id });
     const refreshToken = signRefreshToken({

@@ -19,6 +19,7 @@ import { processPayoutSchema } from '../payouts/payouts.schemas';
 import { PERMISSIONS as P } from '../../config/permissions';
 import multer from 'multer';
 import { contentAdminController as content } from '../content/content.controller';
+import { bulkReviewsSchema, insightsController } from './insights.controller';
 import {
   createAnnouncementSchema, createCountrySchema, createFaqSchema, createPageSchema,
   updateAnnouncementSchema, updateCountrySchema, updateFaqSchema, updateMediaSchema, updatePageSchema, upsertSettingSchema,
@@ -43,6 +44,10 @@ router.get('/dashboard',        requirePermission(P.STATS_READ),        adminCon
 router.get('/users',            requirePermission(P.USERS_READ),        adminController.listUsers);
 router.get('/users/:id',        requirePermission(P.USERS_READ),        adminController.getUser);
 router.get('/users/:id/id-document', requirePermission(P.PROVIDERS_VERIFY), adminController.idDocument);
+router.get('/users/:id/activity', requirePermission(P.USERS_READ), insightsController.userActivity);
+router.get('/dashboard/trends', requirePermission(P.STATS_READ), insightsController.trends);
+router.get('/exports/:dataset', requirePermission(P.EXPORTS_RUN), insightsController.exportCsv);
+router.post('/reviews/bulk', requirePermission(P.REVIEWS_MODERATE), validate(bulkReviewsSchema), insightsController.bulkReviews);
 router.get('/providers',        requirePermission(P.PROVIDERS_READ),    adminController.listProviders);
 router.get('/bookings',         requirePermission(P.BOOKINGS_READ),     adminController.listBookings);
 router.get('/reviews',          requirePermission(P.REVIEWS_MODERATE),  adminController.listReviews);
