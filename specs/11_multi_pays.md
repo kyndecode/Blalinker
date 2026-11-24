@@ -67,3 +67,32 @@ déploiement, et supprimer les valeurs par défaut contradictoires du code.
 Écrans « Pays » et « Paramètres » : ajouter / modifier / désactiver (jamais
 supprimer un pays utilisé par des comptes ou des réservations), journal d'audit,
 permission dédiée `settings.manage` réservée au super-administrateur par défaut.
+
+## 3. Réalisé au lot 2 (2026-11-25)
+
+- Tables `countries` (code ISO, indicatif, devise, langue, actif) et `site_settings`
+  (portée `global` ou code pays) — **vides à la création** : aucun marché n'est présupposé.
+- Administration : pages « Pays » et « Paramètres » (permission `settings.manage`) ;
+  une valeur par pays remplace la valeur globale.
+- Site : bandeau des pays desservis affiché seulement pour les pays actifs ; pays actifs en
+  tête des listes d'indicatifs (inscription, contact) ; pays proposé par défaut =
+  navigateur, puis paramètre `markets.defaultCountry`, sinon choix explicite.
+- Annonces ciblables par pays.
+
+## 4. Paramètres restant à renseigner par l'exploitant
+
+1. Pays réellement desservis (page « Pays », activer ceux qui le sont).
+2. `markets.defaultCountry` si un pays doit être proposé par défaut.
+3. Coordonnées par pays (`contact.phone`, `contact.address`…) si elles diffèrent.
+
+## 5. Présupposés encore présents dans le code (à traiter après confirmation des marchés)
+
+| Présupposé | Où | Effet |
+|---|---|---|
+| `Profile.country @default("SN")` | `schema.prisma` (valeur par défaut en base) | profil créé sans pays → SN ; changer la valeur par défaut demande une migration (non faite sans décision) |
+| Pays par défaut `SN` à l'inscription Google, `CI` dans quelques mises à jour de profil | `auth.schemas.ts`, `users.controller.ts`, `team.controller.ts`, `uploads.controller.ts` | idem |
+| Centre de la carte (mode carte de la recherche) | `SearchPage.tsx` : Abidjan si la géolocalisation est refusée | affichage uniquement |
+| Devise `XOF` | services, réservations, tableau de bord | cohérent tant que les marchés sont en zone UEMOA |
+
+Les requêtes SQL en lecture seule du §1 permettent de confirmer la répartition réelle
+avant de modifier ces valeurs.
