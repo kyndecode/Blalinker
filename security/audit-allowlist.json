@@ -1,0 +1,15 @@
+{
+  "exceptions": [
+    {
+      "id": "GHSA-mrhx-c7xc-m3w5",
+      "package": "zod",
+      "projects": ["backend", "frontend-web", "frontend-admin"],
+      "severity": "high",
+      "added": "2026-11-24",
+      "expires": "2027-01-31",
+      "reason": "Correctif disponible uniquement en zod 4 (changement majeur d'API sur tous les schémas de validation).",
+      "mitigation": "Backend : corps JSON limités à 1 Mo (app.ts). Frontends : zod ne valide que les saisies de l'utilisateur dans son propre navigateur.",
+      "task": "security/TACHE-ZOD4-MIGRATION.md"
+    }
+  ]
+}
