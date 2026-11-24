@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import AccessDenied, { isForbidden } from '../components/AccessDenied';
+import TrendsPanel from '../components/TrendsPanel';
 import api from '../services/api';
 import {
   Users, Briefcase, CalendarCheck, DollarSign,
@@ -177,6 +178,7 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
+          <TrendsPanel />
         </>
       ) : (
         <div className="bg-[#1a2744] rounded-2xl p-8 border border-white/[0.08] text-center">

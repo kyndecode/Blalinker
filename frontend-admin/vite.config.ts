@@ -21,5 +21,7 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: './src/test/setup.ts',
+    // Machines lentes / CI chargée : la saisie simulée (user-event) peut dépasser 5 s.
+    testTimeout: 15_000,
   },
 });

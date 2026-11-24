@@ -1,86 +1,107 @@
 import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import AccessDenied, { isForbidden } from '../components/AccessDenied';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
+import ExportButton from '../components/ui/ExportButton';
+import Pagination from '../components/ui/Pagination';
+import { useToast } from '../components/ui/Toast';
+import { DateFilter, FilterBar, SelectFilter } from '../components/ui/Filters';
 import api from '../services/api';
-import { RotateCcw } from 'lucide-react';
+import { getApiErrorMessage } from '../utils/apiError';
+
+interface TxRow {
+  id: string; bookingId: string; amount: string; commission: string; netAmount: string; currency: string;
+  method: string; status: string; paidAt: string | null; releasedAt: string | null; createdAt: string;
+}
+
+const TX_STATUS: Record<string, { label: string; cls: string }> = {
+  pending: { label: 'En attente', cls: 'bg-yellow-900/50 text-yellow-300' },
+  processing: { label: 'En cours', cls: 'bg-blue-900/50 text-blue-300' },
+  completed: { label: 'Payée', cls: 'bg-green-900/50 text-green-300' },
+  failed: { label: 'Échec', cls: 'bg-red-900/50 text-red-300' },
+  refunded: { label: 'Remboursée', cls: 'bg-white/10 text-gray-300' },
+};
+const METHODS: Record<string, string> = {
+  wave: 'Wave', orange_money: 'Orange Money', free_money: 'Free Money', mtn_momo: 'MTN MoMo', cash: 'Espèces', bank_transfer: 'Virement',
+};
+const money = (v: string | number, c: string) => `${Number(v).toLocaleString('fr-FR')} ${c}`;
 
 export default function Transactions() {
   const qc = useQueryClient();
+  const toast = useToast();
   const [page, setPage] = useState(1);
+  const [filters, setFilters] = useState({ status: '', method: '', from: '', to: '', sort: 'createdAt:desc' });
+  const [refunding, setRefunding] = useState<TxRow | null>(null);
+  const set = (k: keyof typeof filters) => (v: string) => { setFilters((f) => ({ ...f, [k]: v })); setPage(1); };
 
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['admin-transactions', page],
-    queryFn: () => api.get('/admin/transactions', { params: { page, limit: 20 } }).then((r) => r.data),
+  const { data, isLoading, error } = useQuery<{ data: TxRow[]; meta: { total: number; totalPages: number } }>({
+    queryKey: ['admin-transactions', page, filters],
+    queryFn: () => api.get('/admin/transactions', { params: { page, limit: 20, ...Object.fromEntries(Object.entries(filters).filter(([, v]) => v)) } }).then((r) => r.data),
   });
-
   const refund = useMutation({
     mutationFn: (id: string) => api.post(`/admin/transactions/${id}/refund`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-transactions'] }),
-    onError: (e: unknown) => alert((e as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Remboursement impossible'),
+    onSuccess: () => { toast.success('Remboursement enregistré'); setRefunding(null); qc.invalidateQueries({ queryKey: ['admin-transactions'] }); },
   });
 
   if (isForbidden(error)) return <AccessDenied permission="Voir paiements" />;
+  const rows = data?.data ?? [];
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold text-white">Transactions</h1>
-      <div className="bg-[#1a2744] rounded-xl border border-white/10 overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-white/10 text-gray-400">
-              <th className="text-left px-4 py-3 font-medium">Référence</th>
-              <th className="text-left px-4 py-3 font-medium">Montant</th>
-              <th className="text-left px-4 py-3 font-medium">Méthode</th>
-              <th className="text-left px-4 py-3 font-medium">Statut</th>
-              <th className="text-left px-4 py-3 font-medium">Date</th>
-              <th className="text-right px-4 py-3 font-medium">Actions</th>
-            </tr>
-          </thead>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold text-white">Transactions</h1>
+        <ExportButton dataset="transactions" params={filters} />
+      </div>
+      <FilterBar>
+        <SelectFilter label="Statut" value={filters.status} onChange={set('status')} options={[{ value: '', label: 'Tous' }, ...Object.entries(TX_STATUS).map(([value, s]) => ({ value, label: s.label }))]} />
+        <SelectFilter label="Moyen" value={filters.method} onChange={set('method')} options={[{ value: '', label: 'Tous' }, ...Object.entries(METHODS).map(([value, label]) => ({ value, label }))]} />
+        <DateFilter label="Du" value={filters.from} onChange={set('from')} />
+        <DateFilter label="Au" value={filters.to} onChange={set('to')} />
+        <SelectFilter label="Tri" value={filters.sort} onChange={set('sort')} options={[
+          { value: 'createdAt:desc', label: 'Plus récentes' }, { value: 'amount:desc', label: 'Montant décroissant' }, { value: 'paidAt:desc', label: 'Paiement le plus récent' },
+        ]} />
+      </FilterBar>
+      {error && <p role="alert" className="text-sm text-red-400">{getApiErrorMessage(error)}</p>}
+      <div className="overflow-x-auto rounded-xl border border-white/10 bg-[#1a2744]">
+        <table className="w-full min-w-[760px] text-sm">
+          <thead><tr className="border-b border-white/10 text-gray-400">
+            <th scope="col" className="px-4 py-3 text-left font-medium">Référence</th>
+            <th scope="col" className="px-4 py-3 text-left font-medium">Montant</th>
+            <th scope="col" className="px-4 py-3 text-left font-medium">Commission</th>
+            <th scope="col" className="px-4 py-3 text-left font-medium">Moyen</th>
+            <th scope="col" className="px-4 py-3 text-left font-medium">Statut</th>
+            <th scope="col" className="px-4 py-3 text-left font-medium">Date</th>
+            <th scope="col" className="px-4 py-3 text-right font-medium"><span className="sr-only">Actions</span></th>
+          </tr></thead>
           <tbody>
-            {isLoading
-              ? Array.from({ length: 10 }).map((_, i) => (
-                <tr key={i} className="border-b border-white/10">
-                  <td colSpan={6} className="px-4 py-3"><div className="h-4 bg-white/10 rounded animate-pulse w-3/4" /></td>
-                </tr>
-              ))
-              : data?.data?.map((t: any) => (
-                <tr key={t.id} className="border-b border-white/10/50 hover:bg-white/5">
-                  <td className="px-4 py-3 text-gray-400 font-mono text-xs">{t.externalRef ?? t.id.slice(0, 8)}</td>
-                  <td className="px-4 py-3 text-white font-semibold">{t.amount?.toLocaleString('fr-FR')} XOF</td>
-                  <td className="px-4 py-3 text-gray-400 capitalize">{t.method?.replace('_', ' ') ?? '—'}</td>
-                  <td className="px-4 py-3">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${t.status === 'completed' ? 'bg-green-900/50 text-green-400' : t.status === 'failed' ? 'bg-red-900/50 text-red-400' : 'bg-yellow-900/50 text-yellow-400'}`}>
-                      {t.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-gray-400">{new Date(t.createdAt).toLocaleDateString('fr-FR')}</td>
-                  <td className="px-4 py-3 text-right">
-                    {t.status === 'completed' && (
-                      <button
-                        title="Rembourser"
-                        onClick={() => { if (confirm('Rembourser ce paiement et annuler la réservation ?')) refund.mutate(t.id); }}
-                        className="text-red-400 hover:text-red-300 inline-flex"
-                      >
-                        <RotateCcw className="w-4 h-4" />
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))
-            }
+            {isLoading && <tr><td colSpan={7} className="px-4 py-6 text-center text-gray-400">Chargement…</td></tr>}
+            {!isLoading && rows.length === 0 && <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">Aucune transaction ne correspond.</td></tr>}
+            {rows.map((t) => (
+              <tr key={t.id} className="border-b border-white/5 hover:bg-white/5">
+                <td className="px-4 py-3 font-mono text-xs text-gray-300">{t.id.slice(0, 8)}</td>
+                <td className="px-4 py-3 text-white">{money(t.amount, t.currency)}</td>
+                <td className="px-4 py-3 text-gray-300">{money(t.commission, t.currency)}</td>
+                <td className="px-4 py-3 text-gray-300">{METHODS[t.method] ?? t.method}</td>
+                <td className="px-4 py-3">
+                  <span className={`rounded-full px-2 py-0.5 text-xs ${TX_STATUS[t.status]?.cls ?? ''}`}>{TX_STATUS[t.status]?.label ?? t.status}</span>
+                  {t.releasedAt && <span className="ml-1 text-xs text-gray-500">fonds libérés</span>}
+                </td>
+                <td className="px-4 py-3 text-gray-400">{new Date(t.createdAt).toLocaleDateString('fr-FR')}</td>
+                <td className="px-4 py-3 text-right">
+                  {t.status === 'completed' && !t.releasedAt && (
+                    <button onClick={() => { refund.reset(); setRefunding(t); }} className="rounded-lg border border-red-500/40 px-3 py-1 text-xs text-red-300 hover:bg-red-500/10">Rembourser</button>
+                  )}
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
-      {data?.meta && (
-        <div className="flex items-center justify-between text-sm text-gray-400">
-          <span>{data.meta.total} transactions</span>
-          <div className="flex gap-2">
-            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="px-3 py-1 rounded bg-[#1a2744] hover:bg-white/10 disabled:opacity-40">←</button>
-            <span>Page {page} / {data.meta.totalPages}</span>
-            <button onClick={() => setPage((p) => p + 1)} disabled={page >= data.meta.totalPages} className="px-3 py-1 rounded bg-[#1a2744] hover:bg-white/10 disabled:opacity-40">→</button>
-          </div>
-        </div>
-      )}
+      {data?.meta && <Pagination page={page} totalPages={data.meta.totalPages} total={data.meta.total} label="transactions" onChange={setPage} />}
+      <ConfirmDialog open={Boolean(refunding)} danger title="Rembourser ce paiement"
+        message={refunding ? `${money(refunding.amount, refunding.currency)} — la réservation liée sera annulée. Action journalisée, réservée à la permission « Rembourser ».` : ''}
+        confirmLabel="Rembourser" busy={refund.isPending} error={refund.isError ? getApiErrorMessage(refund.error) : null}
+        onClose={() => setRefunding(null)} onConfirm={() => refunding && refund.mutate(refunding.id)} />
     </div>
   );
 }

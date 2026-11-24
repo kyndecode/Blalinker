@@ -5,6 +5,7 @@ import AccessDenied, { isForbidden } from '../components/AccessDenied';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import Modal from '../components/ui/Modal';
 import Pagination from '../components/ui/Pagination';
+import ExportButton from '../components/ui/ExportButton';
 import { useToast } from '../components/ui/Toast';
 import api from '../services/api';
 import { getApiErrorMessage } from '../utils/apiError';
@@ -41,6 +42,53 @@ const STATUS_ACTIONS: Record<StatusAction['next'], { title: string; label: strin
 
 const fullName = (u: { profile: { firstName: string; lastName: string } | null }) =>
   (u.profile ? `${u.profile.firstName} ${u.profile.lastName}`.trim() : '') || '—';
+
+interface Activity {
+  lastLoginAt: string | null; failedAttempts: number; lockedUntil: string | null;
+  logins: Array<{ success: boolean; at: string; ip: string | null; method: string | null }>;
+  sessions: Array<{ id: string; createdAt: string; lastUsedAt: string; ipAddress: string | null }>;
+}
+const METHOD_LABELS: Record<string, string> = {
+  password: 'mot de passe', mfa_email: 'code e-mail', mfa_totp: 'application', mfa_recovery: 'code de secours',
+  google: 'Google', otp_registration: 'inscription',
+};
+
+/** Historique des connexions et sessions ouvertes (IP masquée sans la permission « audit »). */
+function UserActivity({ userId }: { userId: string }) {
+  const { data, isLoading, error } = useQuery<Activity>({
+    queryKey: ['admin-user-activity', userId],
+    queryFn: () => api.get(`/admin/users/${userId}/activity`).then((r) => r.data),
+  });
+  return (
+    <section aria-labelledby="activity-title" className="rounded-xl border border-white/10 p-4">
+      <h3 id="activity-title" className="mb-2 font-semibold">Connexions</h3>
+      {isLoading && <p className="text-gray-400">Chargement…</p>}
+      {error && <p role="alert" className="text-red-400">{getApiErrorMessage(error)}</p>}
+      {data && (
+        <>
+          <p className="text-gray-300">
+            {data.sessions.length} session(s) ouverte(s){data.failedAttempts > 0 ? ` · ${data.failedAttempts} échec(s) récent(s)` : ''}
+            {data.lockedUntil && new Date(data.lockedUntil) > new Date() ? ` · verrouillé jusqu’au ${new Date(data.lockedUntil).toLocaleString('fr-FR')}` : ''}
+          </p>
+          {data.logins.length === 0
+            ? <p className="mt-1 text-gray-400">Aucune connexion enregistrée depuis la mise en place de l’historique.</p>
+            : (
+              <ul className="mt-2 max-h-48 space-y-1 overflow-y-auto text-xs">
+                {data.logins.map((l, i) => (
+                  <li key={i} className="flex flex-wrap gap-x-3">
+                    <span className={l.success ? 'text-green-400' : 'text-red-400'}>{l.success ? 'Réussie' : 'Échec'}</span>
+                    <span className="text-gray-300">{new Date(l.at).toLocaleString('fr-FR')}</span>
+                    {l.method && <span className="text-gray-400">{METHOD_LABELS[l.method] ?? l.method}</span>}
+                    {l.ip && <span className="text-gray-500">{l.ip}</span>}
+                  </li>
+                ))}
+              </ul>
+            )}
+        </>
+      )}
+    </section>
+  );
+}
 
 function UserPanel({ userId, onClose, onStatus }: { userId: string | null; onClose: () => void; onStatus: (a: StatusAction) => void }) {
   const qc = useQueryClient();
@@ -133,6 +181,7 @@ function UserPanel({ userId, onClose, onStatus }: { userId: string | null; onClo
             </div>
           )}
           {isStaff && <p className="text-gray-400">Compte de l’équipe : géré depuis la page « Équipe ».</p>}
+          <UserActivity userId={user.id} />
         </div>
       )}
 
@@ -196,7 +245,10 @@ export default function Users() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold text-white">Utilisateurs</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold text-white">Utilisateurs</h1>
+        <ExportButton dataset="users" params={{ search, status, role }} />
+      </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
         <div className="relative flex-1 sm:max-w-sm">
