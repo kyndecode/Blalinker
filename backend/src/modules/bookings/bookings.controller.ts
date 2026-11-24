@@ -8,6 +8,7 @@ import { publicPersonSelect, toPublicPerson } from '../../utils/serializers';
 import type { Prisma } from '@prisma/client';
 import { notifyStaff, notifyUser, type NotificationType } from '../notifications/notifications.service';
 import type { CreateBookingInput, DisputeBookingInput } from './bookings.schemas';
+import { moderationStatus } from '../reviews/reviews.controller';
 
 type BookingStatus = 'pending' | 'accepted' | 'rejected' | 'in_progress' | 'completed' | 'validated' | 'cancelled' | 'disputed';
 
@@ -531,11 +532,15 @@ export const bookingsController = {
           },
           service: { include: { category: { select: { id: true, name: true, slug: true } } } },
           transaction: { select: bookingTransactionSelect },
+          review: { select: { id: true, rating: true, isApproved: true, isFlagged: true } },
         },
       });
       if (!booking) return res.status(404).json({ error: 'Réservation introuvable' });
       return res.json({
         ...booking,
+        review: booking.review
+          ? { id: booking.review.id, rating: booking.review.rating, status: moderationStatus(booking.review) }
+          : null,
         client: toPublicPerson(booking.client),
         provider: { ...toPublicPerson(booking.provider), providerProfile: booking.provider.providerProfile },
         service: booking.service ? { ...booking.service, name: booking.service.title } : null,
