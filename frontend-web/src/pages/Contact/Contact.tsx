@@ -7,6 +7,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
 import api from '../../services/api';
+import { CONTACT_PHONE_DISPLAY, CONTACT_PHONE_TEL } from '../../config/site';
 import { useAuthStore } from '../../store/authStore';
 import {
   detectDefaultCountryCode,
@@ -324,8 +325,8 @@ export default function Contact() {
           <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-5">
             <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{t('contact.direct_title')}</p>
             <p className="mt-2 text-sm text-gray-700 dark:text-gray-200">{t('contact.direct_phone_label')}</p>
-            <a href="tel:+2250720333997" className="text-lg font-bold text-green-700 dark:text-green-400">
-              +225 07 20 33 39 97
+            <a href={`tel:${CONTACT_PHONE_TEL}`} className="text-lg font-bold text-green-700 dark:text-green-400">
+              {CONTACT_PHONE_DISPLAY}
             </a>
             <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">{t('contact.available_markets')}</p>
             <div className="mt-2 flex items-center gap-2 text-lg">

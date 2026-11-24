@@ -136,9 +136,10 @@
   },
   "offline": "Connexion perdue. Les données peuvent ne pas être à jour.",
   "home": {
-    "stats_providers": "Prestataires vérifiés",
-    "stats_clients": "Clients satisfaits",
-    "stats_satisfaction": "Taux de satisfaction",
+    "stats_aria": "Chiffres clés",
+    "stats_verified_providers": "Prestataires vérifiés",
+    "stats_completed_missions": "Missions réalisées",
+    "stats_average_rating": "Note moyenne ({{count}} avis)",
     "categories_title": "Nos services",
     "categories_sub": "Cliquez sur un service pour trouver des professionnels disponibles",
     "how_title": "Comment ça marche ?",
@@ -154,7 +155,7 @@
     "cta_btn": "Rejoindre BLA",
     "testimonials_title": "Ce que disent nos utilisateurs",
     "search_btn": "Chercher",
-    "available_countries": "Disponible en Cote d'Ivoire ? TOGO ? Mali ? Burkina Faso",
+    "available_countries": "Disponible en Côte d'Ivoire · Togo · Mali · Burkina Faso",
     "hero_subtitle": "Plombiers, électriciens, menuisiers: des prestataires vérifiés et notés, près de chez vous.",
     "search_placeholder": "Quel service recherchez-vous ?",
     "search_aria": "Rechercher un service",
@@ -215,12 +216,8 @@
       }
     },
     "testimonials": {
-      "client_dakar": "Cliente à Dakar",
-      "provider_abidjan": "Prestataire à Abidjan",
-      "client_bamako": "Cliente à Bamako",
-      "text1": "Plombier trouvé en 10 minutes. Travail impeccable, paiement via Wave. Je recommande vivement !",
-      "text2": "Depuis que j'ai rejoint BLA, mon agenda est plein. La plateforme est simple et les paiements arrivent vite.",
-      "text3": "Interface facile même avec une connexion lente. Le prestataire était vérifié et très professionnel."
+      "client": "Client",
+      "client_in": "Client · {{city}}"
     }
   },
   "footer": {
@@ -278,7 +275,7 @@
     "message_hint": "Maximum 1500 caracteres. Soyez precis pour une reponse plus rapide.",
     "submit": "Envoyer ma demande",
     "direct_title": "Assistance directe",
-    "direct_phone_label": "Disponible en Cote d'Ivoire ? TOGO ? Mali ? Burkina Faso",
+    "direct_phone_label": "Disponible en Côte d'Ivoire · Togo · Mali · Burkina Faso",
     "available_markets": "Disponible dans : TG ? CI ? ML ? BF",
     "quick_links": "Liens utiles",
     "link_find_provider": "Trouver un prestataire",
@@ -353,7 +350,7 @@
   "legal_notice": {
     "title": "Mentions legales",
     "editor_title": "Editeur du site",
-    "editor_text": "BLA Services. Responsable de publication: Jean Yves Kpangban, Data Engineer / Analytics. Contact: support@blalinker.com.",
+    "editor_text": "BLA Services. Responsable de publication: Jean Yves Kpangban, Data Engineer / Analytics. Contact: contact@blalinker.com.",
     "hosting_title": "Hebergement",
     "hosting_text": "Application hebergee sur une infrastructure cloud avec supervision continue, journalisation et mesures de securite appliquees.",
     "ip_title": "Propriete intellectuelle",

@@ -136,9 +136,10 @@
   },
   "offline": "Connection lost. Data may not be up to date.",
   "home": {
-    "stats_providers": "Verified Providers",
-    "stats_clients": "Happy Clients",
-    "stats_satisfaction": "Satisfaction Rate",
+    "stats_aria": "Key figures",
+    "stats_verified_providers": "Verified providers",
+    "stats_completed_missions": "Completed jobs",
+    "stats_average_rating": "Average rating ({{count}} reviews)",
     "categories_title": "Our Services",
     "categories_sub": "Click a category to find available professionals",
     "how_title": "How it works",
@@ -215,12 +216,8 @@
       }
     },
     "testimonials": {
-      "client_dakar": "Client in Dakar",
-      "provider_abidjan": "Provider in Abidjan",
-      "client_bamako": "Client in Bamako",
-      "text1": "Found a plumber in 10 minutes. Excellent work and easy Wave payment. Highly recommended!",
-      "text2": "Since joining BLA, my schedule is full. The platform is simple and payments are fast.",
-      "text3": "Easy interface even with low connectivity. The provider was verified and very professional."
+      "client": "Client",
+      "client_in": "Client · {{city}}"
     }
   },
   "footer": {
@@ -353,7 +350,7 @@
   "legal_notice": {
     "title": "Legal notice",
     "editor_title": "Website publisher",
-    "editor_text": "BLA Services. Publication manager: Jean Yves Kpangban, Data Engineer / Analytics. Contact: support@blalinker.com.",
+    "editor_text": "BLA Services. Publication manager: Jean Yves Kpangban, Data Engineer / Analytics. Contact: contact@blalinker.com.",
     "hosting_title": "Hosting",
     "hosting_text": "The application is hosted on cloud infrastructure with continuous monitoring, logging and security controls.",
     "ip_title": "Intellectual property",
