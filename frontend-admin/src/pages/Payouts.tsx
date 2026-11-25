@@ -57,6 +57,7 @@ export default function Payouts() {
       </div>
 
       <select
+        aria-label="Filtrer par statut"
         value={status}
         onChange={(e) => { setStatus(e.target.value); setPage(1); }}
         className="px-3 py-2 bg-[#1a2744] border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
@@ -68,7 +69,7 @@ export default function Payouts() {
         <option value="rejected">Rejetés</option>
       </select>
 
-      <div className="bg-[#1a2744] rounded-xl border border-white/10 overflow-x-auto">
+      <div role="region" aria-label="Tableau : Demandes de retrait" tabIndex={0} className="relative bg-[#1a2744] rounded-xl border border-white/10 overflow-x-auto focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500">
         <table className="w-full min-w-[640px] text-sm">
           <thead>
             <tr className="border-b border-white/10 text-gray-400">
@@ -121,9 +122,9 @@ export default function Payouts() {
         <div className="flex items-center justify-between text-sm text-gray-400">
           <span>{data.meta.total} retraits</span>
           <div className="flex items-center gap-2">
-            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="p-1 rounded hover:bg-white/10 disabled:opacity-40"><ChevronLeft className="w-4 h-4" /></button>
+            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} aria-label="Page précédente" className="p-1 rounded hover:bg-white/10 disabled:opacity-40"><ChevronLeft className="w-4 h-4" /></button>
             <span>Page {page} / {data.meta.totalPages}</span>
-            <button onClick={() => setPage((p) => p + 1)} disabled={page >= data.meta.totalPages} className="p-1 rounded hover:bg-white/10 disabled:opacity-40"><ChevronRight className="w-4 h-4" /></button>
+            <button onClick={() => setPage((p) => p + 1)} disabled={page >= data.meta.totalPages} aria-label="Page suivante" className="p-1 rounded hover:bg-white/10 disabled:opacity-40"><ChevronRight className="w-4 h-4" /></button>
           </div>
         </div>
       )}

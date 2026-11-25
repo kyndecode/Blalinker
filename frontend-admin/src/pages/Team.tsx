@@ -143,7 +143,7 @@ export default function Team() {
         </button>
       </div>
 
-      <div className="bg-[#1a2744] rounded-xl border border-white/10 overflow-x-auto">
+      <div role="region" aria-label="Tableau : Équipe" tabIndex={0} className="relative bg-[#1a2744] rounded-xl border border-white/10 overflow-x-auto focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500">
         <table className="w-full min-w-[640px] text-sm">
           <thead>
             <tr className="border-b border-white/10 text-gray-400">

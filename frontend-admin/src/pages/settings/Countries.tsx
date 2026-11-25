@@ -75,7 +75,7 @@ export default function Countries() {
         <button onClick={() => setEditing('new')} className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white"><Plus className="h-4 w-4" aria-hidden="true" /> Ajouter un pays</button>
       </div>
       {error && <p role="alert" className="text-sm text-red-400">{getApiErrorMessage(error)}</p>}
-      <div className="overflow-x-auto rounded-xl border border-white/10 bg-[#1a2744]">
+      <div role="region" aria-label="Tableau : Pays" tabIndex={0} className="relative overflow-x-auto rounded-xl border border-white/10 bg-[#1a2744] focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500">
         <table className="w-full min-w-[560px] text-sm">
           <thead><tr className="border-b border-white/10 text-gray-400">
             <th scope="col" className="px-4 py-3 text-left font-medium">Pays</th>
