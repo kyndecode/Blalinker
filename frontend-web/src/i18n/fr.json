@@ -42,7 +42,8 @@
     "phone_country": "Indicatif pays",
     "phone_country_placeholder": "Choisissez votre pays",
     "phone_local_placeholder": "77 000 00 00",
-    "phone_format_helper": "Le numero sera envoye au format international ({{dialCode}}...). Longueur attendue: {{min}} a {{max}} chiffres.",
+    "phone_format_helper": "Le numéro sera envoyé au format international ({{dialCode}}...). Longueur attendue : {{min}} à {{max}} chiffres.",
+    "phone_format_helper_exact": "Le numéro sera envoyé au format international ({{dialCode}}...). Longueur attendue : {{min}} chiffres.",
     "email_placeholder": "vous@exemple.com",
     "password_rules": "8 caractères minimum, une majuscule et un chiffre",
     "register_submit": "Créer mon compte",
@@ -61,7 +62,7 @@
     "google_continue": "Continuer avec Google",
     "google_loading": "Connexion Google...",
     "google_unavailable": "Connexion Google indisponible pour le moment.",
-    "otp_not_password_hint": "Vous recevrez un code OTP de verification. Votre mot de passe ne vous est jamais envoye par email."
+    "otp_not_password_hint": "Vous recevrez un code OTP de vérification. Votre mot de passe ne vous est jamais envoyé par e-mail."
   },
   "search": {
     "title": "Trouver un prestataire",
@@ -76,17 +77,17 @@
     "results_plural": "{{count}} prestataires trouvés",
     "no_results": "Aucun prestataire trouvé dans cette zone.",
     "loading": "Recherche en cours...",
-    "all_categories": "Toutes categories",
+    "all_categories": "Toutes catégories",
     "all": "Tous",
     "all_ratings": "Toutes les notes",
     "max_price": "Prix maximum (XOF/h)",
-    "category": "Categorie",
+    "category": "Catégorie",
     "locating": "Localisation en cours...",
-    "you_are_here": "Vous etes ici",
+    "you_are_here": "Vous êtes ici",
     "provider_distance": "{{km}} km",
     "smart_recommendations": "Recommandations intelligentes pour vous",
     "try_expand_radius": "Essayez d'augmenter le rayon de recherche.",
-    "prev": "Precedent",
+    "prev": "Précédent",
     "next": "Suivant"
   },
   "provider": {
@@ -246,7 +247,7 @@
     "nav_search": "Rechercher",
     "nav_faq": "FAQ",
     "brand_subtitle": "Votre plateforme de services à domicile",
-    "brand_description": "Connectez-vous aux meilleurs prestataires verifies en Cote d'Ivoire, au Togo, au Mali et au Burkina Faso.",
+    "brand_description": "Connectez-vous aux meilleurs prestataires vérifiés en Côte d'Ivoire, au Togo, au Mali et au Burkina Faso.",
     "follow_us": "Suivez-nous",
     "legal_notice": "Mentions légales",
     "payments": "Paiement en ligne sécurisé",
@@ -254,7 +255,7 @@
     "phone_label": "Téléphone :",
     "available_in": "Disponible dans :",
     "available_country_hint": "Disponible dans ce pays",
-    "made_for_africa": "Made with love for Africa"
+    "made_for_africa": "Conçu avec passion pour l'Afrique"
   },
   "theme": {
     "dark": "Mode sombre",
@@ -267,62 +268,63 @@
   },
   "contact": {
     "title": "Contact & Support",
-    "subtitle": "Une question sur votre compte, une reservation, un paiement ou un partenariat ? Ecrivez-nous et nous vous repondons rapidement.",
-    "prefill_loading": "Pre-remplissage de vos informations en cours...",
-    "success": "Demande enregistree avec succes. Reference: {{requestId}}.",
-    "phone_helper": "Format attendu: {{dialCode}}... ({{min}} a {{max}} chiffres).",
+    "subtitle": "Une question sur votre compte, une réservation, un paiement ou un partenariat ? Écrivez-nous et nous vous répondons rapidement.",
+    "prefill_loading": "Pré-remplissage de vos informations en cours...",
+    "success": "Demande enregistrée avec succès. Référence : {{requestId}}.",
+    "phone_helper": "Format attendu : {{dialCode}}... ({{min}} à {{max}} chiffres).",
+    "phone_helper_exact": "Format attendu : {{dialCode}}... ({{min}} chiffres).",
     "subject": "Objet de la demande",
     "message": "Message",
-    "message_placeholder": "Decrivez votre besoin en detail (maximum 1500 caracteres).",
-    "message_hint": "Maximum 1500 caracteres. Soyez precis pour une reponse plus rapide.",
+    "message_placeholder": "Décrivez votre besoin en détail (maximum 1500 caractères).",
+    "message_hint": "Maximum 1500 caractères. Soyez précis pour une réponse plus rapide.",
     "submit": "Envoyer ma demande",
     "direct_title": "Assistance directe",
     "direct_phone_label": "Disponible en Côte d'Ivoire · Togo · Mali · Burkina Faso",
-    "available_markets": "Disponible dans : TG ? CI ? ML ? BF",
+    "available_markets": "Disponible dans :",
     "quick_links": "Liens utiles",
     "link_find_provider": "Trouver un prestataire",
     "link_faq": "Consulter la FAQ",
-    "link_privacy": "Politique de confidentialite",
+    "link_privacy": "Politique de confidentialité",
     "subject_options": {
       "support_account": "Compte utilisateur",
-      "support_booking": "Reservation / Prestation",
+      "support_booking": "Réservation / Prestation",
       "support_payment": "Paiement",
       "provider_partnership": "Partenariat / Devenir prestataire",
-      "security_report": "Securite / Signalement",
+      "security_report": "Sécurité / Signalement",
       "other": "Autre demande"
     }
   },
   "about": {
-    "title": "A propos de BLA Services",
-    "intro": "BLA Services est une marketplace de services construite pour offrir une experience simple, fiable et securisee, meme sur connexion faible. Nous connectons les clients aux meilleurs prestataires verifies.",
+    "title": "À propos de BLA Services",
+    "intro": "BLA Services est une marketplace de services construite pour offrir une expérience simple, fiable et sécurisée, même sur connexion faible. Nous connectons les clients aux meilleurs prestataires vérifiés.",
     "founder": "Fondateur",
-    "education": "Parcours academique",
+    "education": "Parcours académique",
     "mission_title": "Notre mission",
-    "mission_text": "Digitaliser les services du quotidien en Afrique de l'Ouest avec une plateforme mobile-first, robuste et credible, qui protege les utilisateurs et valorise les prestataires serieux.",
+    "mission_text": "Digitaliser les services du quotidien en Afrique de l'Ouest avec une plateforme mobile-first, robuste et crédible, qui protège les utilisateurs et valorise les prestataires sérieux.",
     "values_title": "Nos engagements",
-    "values_1": "Experience utilisateur guidee, simple et rapide.",
-    "values_2": "Verification des profils et mecanismes anti-fraude.",
-    "values_3": "Transparence sur les prix, la qualite et les statuts.",
-    "values_4": "Amelioration continue grace aux donnees et a l'intelligence artificielle."
+    "values_1": "Expérience utilisateur guidée, simple et rapide.",
+    "values_2": "Vérification des profils et mécanismes anti-fraude.",
+    "values_3": "Transparence sur les prix, la qualité et les statuts.",
+    "values_4": "Amélioration continue grâce aux données et à l'intelligence artificielle."
   },
   "faq": {
-    "title": "FAQ - Questions frequentes",
-    "subtitle": "Les reponses essentielles pour clients et prestataires.",
+    "title": "FAQ - Questions fréquentes",
+    "subtitle": "Les réponses essentielles pour clients et prestataires.",
     "q1": {
-      "question": "Comment creer un compte sur BLA Services ?",
-      "answer": "Cliquez sur \"Creer un compte\", choisissez votre role, renseignez nom, prenom, email et telephone, puis validez le code OTP recu."
+      "question": "Comment créer un compte sur BLA Services ?",
+      "answer": "Cliquez sur « Créer un compte », choisissez votre rôle, renseignez nom, prénom, e-mail et téléphone, puis validez le code OTP reçu."
     },
     "q2": {
-      "question": "Le telephone et l'email sont-ils obligatoires ?",
-      "answer": "Oui. Les deux sont requis pour renforcer la securite, la recuperation de compte et la fiabilite des echanges."
+      "question": "Le téléphone et l'e-mail sont-ils obligatoires ?",
+      "answer": "Oui. Les deux sont requis pour renforcer la sécurité, la récupération de compte et la fiabilité des échanges."
     },
     "q3": {
       "question": "Comment trouver un prestataire proche de moi ?",
-      "answer": "Utilisez la page Services, activez votre position et filtrez par note, prix, disponibilite et categorie."
+      "answer": "Utilisez la page Services, activez votre position et filtrez par note, prix, disponibilité et catégorie."
     },
     "q4": {
-      "question": "Comment contacter un prestataire avant reservation ?",
-      "answer": "Depuis le profil prestataire, vous pouvez consulter les informations, les avis et lancer une demande de reservation detaillee."
+      "question": "Comment contacter un prestataire avant réservation ?",
+      "answer": "Depuis le profil prestataire, vous pouvez consulter les informations, les avis et lancer une demande de réservation détaillée."
     },
     "q5": {
       "question": "Quels moyens de paiement sont disponibles ?",
@@ -330,109 +332,109 @@
     },
     "q6": {
       "question": "Que faire en cas de litige ?",
-      "answer": "Signalez le probleme depuis votre espace. L'equipe admin suit le dossier avec historique et preuves pour une resolution rapide."
+      "answer": "Signalez le problème depuis votre espace. L'équipe d'administration suit le dossier avec historique et preuves pour une résolution rapide."
     },
     "q7": {
       "question": "Comment devenir prestataire ?",
-      "answer": "Inscrivez-vous en mode prestataire, completez votre profil, ajoutez vos services puis passez la verification identite."
+      "answer": "Inscrivez-vous en mode prestataire, complétez votre profil, ajoutez vos services puis passez la vérification d'identité."
     },
     "q8": {
-      "question": "Comment sont gerees les donnees personnelles ?",
-      "answer": "Les donnees sont protegees, journalisees et traitees selon des regles strictes de confidentialite et de securite."
+      "question": "Comment sont gérées les données personnelles ?",
+      "answer": "Les données sont protégées, journalisées et traitées selon des règles strictes de confidentialité et de sécurité."
     },
     "q9": {
       "question": "Le site fonctionne-t-il en connexion faible ?",
-      "answer": "Oui, l'interface est optimisee mobile-first avec chargement progressif et feedback reseau pour usage en environnement contraint."
+      "answer": "Oui, l'interface est optimisée mobile-first avec chargement progressif et indication de l'état du réseau, pour un usage en environnement contraint."
     },
     "q10": {
       "question": "Comment contacter le support ?",
-      "answer": "Utilisez le formulaire Contact. Vous recevez un email automatique, puis un suivi admin avec statuts jusqu'a cloture."
+      "answer": "Utilisez le formulaire Contact. Vous recevez un e-mail automatique, puis un suivi par l'équipe avec statuts jusqu'à la clôture."
     }
   },
   "legal_notice": {
-    "title": "Mentions legales",
-    "editor_title": "Editeur du site",
-    "editor_text": "BLA Services. Responsable de publication: Jean Yves Kpangban, Data Engineer / Analytics. Contact: contact@blalinker.com.",
-    "hosting_title": "Hebergement",
-    "hosting_text": "Application hebergee sur une infrastructure cloud avec supervision continue, journalisation et mesures de securite appliquees.",
-    "ip_title": "Propriete intellectuelle",
-    "ip_text": "Les contenus, marques, visuels et textes de la plateforme sont proteges. Toute reproduction non autorisee est interdite.",
-    "liability_title": "Responsabilite",
-    "liability_text": "BLA Services met en oeuvre tous les moyens raisonnables pour assurer la disponibilite, la fiabilite et la securite du service."
+    "title": "Mentions légales",
+    "editor_title": "Éditeur du site",
+    "editor_text": "BLA Services. Responsable de publication : Jean Yves Kpangban, Data Engineer / Analytics. Contact : contact@blalinker.com.",
+    "hosting_title": "Hébergement",
+    "hosting_text": "Application hébergée sur une infrastructure cloud avec supervision continue, journalisation et mesures de sécurité appliquées.",
+    "ip_title": "Propriété intellectuelle",
+    "ip_text": "Les contenus, marques, visuels et textes de la plateforme sont protégés. Toute reproduction non autorisée est interdite.",
+    "liability_title": "Responsabilité",
+    "liability_text": "BLA Services met en œuvre tous les moyens raisonnables pour assurer la disponibilité, la fiabilité et la sécurité du service."
   },
   "privacy": {
-    "title": "Politique de confidentialite",
-    "updated_at": "Derniere mise a jour: 29 mars 2026",
+    "title": "Politique de confidentialité",
+    "updated_at": "Dernière mise à jour : 29 mars 2026",
     "sections": {
       "collect": {
-        "title": "1. Donnees collectees",
-        "text": "Nous collectons les informations necessaires au fonctionnement du service: identite, contact, historique d'activite, paiements et interactions support."
+        "title": "1. Données collectées",
+        "text": "Nous collectons les informations nécessaires au fonctionnement du service : identité, contact, historique d'activité, paiements et interactions support."
       },
       "usage": {
-        "title": "2. Finalites",
-        "text": "Les donnees servent a securiser les comptes, matcher clients et prestataires, traiter les reservations, ameliorer la qualite et prevenir la fraude."
+        "title": "2. Finalités",
+        "text": "Les données servent à sécuriser les comptes, matcher clients et prestataires, traiter les réservations, améliorer la qualité et prévenir la fraude."
       },
       "legal_basis": {
-        "title": "3. Base legale",
-        "text": "Les traitements reposent sur l'execution du service, le respect d'obligations legales et l'interet legitime de securite et d'amelioration produit."
+        "title": "3. Base légale",
+        "text": "Les traitements reposent sur l'exécution du service, le respect d'obligations légales et l'intérêt légitime de sécurité et d'amélioration produit."
       },
       "retention": {
-        "title": "4. Duree de conservation",
-        "text": "Les donnees sont conservees pendant la duree utile au service, puis archivees ou supprimees selon les obligations reglementaires."
+        "title": "4. Durée de conservation",
+        "text": "Les données sont conservées pendant la durée utile au service, puis archivées ou supprimées selon les obligations réglementaires."
       },
       "sharing": {
-        "title": "5. Partage des donnees",
-        "text": "Les donnees sont partagees uniquement avec des prestataires techniques necessaires (hebergement, paiement, notification), sous controles contractuels stricts."
+        "title": "5. Partage des données",
+        "text": "Les données sont partagées uniquement avec des prestataires techniques nécessaires (hébergement, paiement, notification), sous contrôles contractuels stricts."
       },
       "security": {
-        "title": "6. Securite",
-        "text": "Nous appliquons chiffrement, controle d'acces, journalisation et mecanismes anti-abus pour proteger les utilisateurs."
+        "title": "6. Sécurité",
+        "text": "Nous appliquons chiffrement, contrôle d'accès, journalisation et mécanismes anti-abus pour protéger les utilisateurs."
       },
       "rights": {
         "title": "7. Vos droits",
-        "text": "Vous pouvez demander acces, rectification, opposition ou suppression de vos donnees, selon la reglementation applicable."
+        "text": "Vous pouvez demander accès, rectification, opposition ou suppression de vos données, selon la réglementation applicable."
       },
       "contact": {
         "title": "8. Contact RGPD / Privacy",
-        "text": "Pour toute demande relative a vos donnees personnelles, utilisez le formulaire Contact de la plateforme."
+        "text": "Pour toute demande relative à vos données personnelles, utilisez le formulaire Contact de la plateforme."
       }
     }
   },
   "terms": {
-    "title": "Conditions generales",
-    "updated_at": "Derniere mise a jour: 29 mars 2026",
+    "title": "Conditions générales",
+    "updated_at": "Dernière mise à jour : 29 mars 2026",
     "sections": {
       "scope": {
         "title": "1. Objet",
-        "text": "Ces conditions regissent l'acces et l'utilisation de la plateforme BLA Services pour les clients et les prestataires."
+        "text": "Ces conditions régissent l'accès et l'utilisation de la plateforme BLA Services pour les clients et les prestataires."
       },
       "account": {
         "title": "2. Compte utilisateur",
-        "text": "Chaque utilisateur est responsable des informations fournies et de la confidentialite de ses identifiants."
+        "text": "Chaque utilisateur est responsable des informations fournies et de la confidentialité de ses identifiants."
       },
       "booking": {
-        "title": "3. Reservations",
-        "text": "Les reservations sont engageantes une fois confirmees. Les statuts de suivi sont accessibles en temps reel selon le flux du service."
+        "title": "3. Réservations",
+        "text": "Les réservations sont engageantes une fois confirmées. Les statuts de suivi sont accessibles en temps réel selon le flux du service."
       },
       "payment": {
         "title": "4. Paiements",
-        "text": "Les paiements sont traites via des canaux securises. Des frais peuvent s'appliquer selon le mode de paiement et la zone geographique."
+        "text": "Les paiements sont traités via des canaux sécurisés. Des frais peuvent s'appliquer selon le mode de paiement et la zone géographique."
       },
       "ratings": {
         "title": "5. Avis et notation",
-        "text": "Les avis doivent rester honnetes, respectueux et conformes a la realite de la prestation. Les contenus abusifs peuvent etre moderes."
+        "text": "Les avis doivent rester honnêtes, respectueux et conformes à la réalité de la prestation. Les contenus abusifs peuvent être modérés."
       },
       "liability": {
-        "title": "6. Responsabilite",
-        "text": "BLA Services agit comme intermediaire technologique et met en place des mecanismes de securite, verification et resolution de litiges."
+        "title": "6. Responsabilité",
+        "text": "BLA Services agit comme intermédiaire technologique et met en place des mécanismes de sécurité, vérification et résolution de litiges."
       },
       "termination": {
-        "title": "7. Suspension / cloture de compte",
-        "text": "En cas de fraude, abus ou non-respect des regles, la plateforme peut suspendre ou fermer un compte."
+        "title": "7. Suspension / clôture de compte",
+        "text": "En cas de fraude, abus ou non-respect des règles, la plateforme peut suspendre ou fermer un compte."
       },
       "law": {
         "title": "8. Droit applicable",
-        "text": "Les presentes conditions sont soumises au droit applicable dans le pays d'exploitation du service, sous reserve des regles locales en vigueur."
+        "text": "Les présentes conditions sont soumises au droit applicable dans le pays d'exploitation du service, sous réserve des règles locales en vigueur."
       }
     }
   }

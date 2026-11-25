@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
 import Logo from '../../components/common/Logo';
+import PhoneCountrySelect from '../../components/common/PhoneCountrySelect';
 import api from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { requestGoogleIdToken } from '../../services/googleAuth';
@@ -290,20 +291,16 @@ export default function Register() {
               <span className="text-red-500 ml-1" aria-hidden="true">*</span>
             </label>
 
-            <div className="grid grid-cols-[minmax(150px,40%)_1fr] gap-2">
-              <select
+            <div className="grid grid-cols-1 sm:grid-cols-[minmax(150px,40%)_1fr] gap-2">
+              <PhoneCountrySelect
                 id="countryCode"
                 aria-label={t('auth.phone_country')}
-                className={`input ${errors.countryCode?.message ? 'input-error' : ''}`}
+                countries={countries}
+                selectedCode={selectedCountryCode}
+                placeholder={t('auth.phone_country_placeholder')}
+                hasError={Boolean(errors.countryCode?.message)}
                 {...register('countryCode')}
-              >
-                <option value="" disabled>{t('auth.phone_country_placeholder')}</option>
-                {countries.map((country) => (
-                  <option key={country.code} value={country.code}>
-                    {country.flag} +{country.dialCode} {country.name}
-                  </option>
-                ))}
-              </select>
+              />
 
               <input
                 id="phoneLocal"
@@ -323,7 +320,7 @@ export default function Register() {
               </p>
             ) : (
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                {t('auth.phone_format_helper', {
+                {t(selectedPhoneRule.min === selectedPhoneRule.max ? 'auth.phone_format_helper_exact' : 'auth.phone_format_helper', {
                   dialCode: selectedCountry?.dialCode ? `+${selectedCountry.dialCode}` : '+',
                   min: selectedPhoneRule.min,
                   max: selectedPhoneRule.max,

@@ -1,6 +1,7 @@
 ﻿import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import Logo from '../common/Logo';
+import ServedCountries from '../common/ServedCountries';
 import { useContactInfo } from '../../hooks/useContactInfo';
 import { useSiteConfig } from '../../hooks/useSiteConfig';
 
@@ -74,7 +75,7 @@ export default function Footer() {
           <div className="space-y-4">
             <Logo size="sm" variant="white" />
             <p className="text-sm text-white/50 font-medium">{t('footer.brand_subtitle')}</p>
-            <p className="text-sm text-white/40 leading-relaxed">{t('footer.brand_description')}</p>
+            <p className="text-sm text-white/60 leading-relaxed">{t('footer.brand_description')}</p>
             {socials.length > 0 && (
             <div>
               <p className="text-xs font-semibold text-white/60 uppercase tracking-widest mb-3">
@@ -146,26 +147,20 @@ export default function Footer() {
             </h4>
             <ul className="space-y-4">
               <li>
-                <p className="text-xs text-white/40 mb-0.5">{t('footer.email_label')}</p>
+                <p className="text-xs text-white/60 mb-0.5">{t('footer.email_label')}</p>
                 <a href={`mailto:${contact.email}`} className="text-sm text-white/70 hover:text-white transition-colors">
                   {contact.email}
                 </a>
               </li>
               <li>
-                <p className="text-xs text-white/40 mb-0.5">{t('footer.phone_label')}</p>
+                <p className="text-xs text-white/60 mb-0.5">{t('footer.phone_label')}</p>
                 <a href={`tel:${contact.phoneTel}`} className="text-sm text-white/70 hover:text-white transition-colors">
                   {contact.phoneDisplay}
                 </a>
               </li>
               <li>
-                <p className="text-xs text-white/40 mb-0.5">{t('footer.available_in')}</p>
-                <div className="flex items-center gap-1.5 mt-1">
-                  {['🇹🇬', '🇨🇮', '🇲🇱', '🇧🇫'].map((flag) => (
-                    <span key={flag} className="text-lg" title={t('footer.available_country_hint')}>
-                      {flag}
-                    </span>
-                  ))}
-                </div>
+                <p className="text-xs text-white/60 mb-0.5">{t('footer.available_in')}</p>
+                <ServedCountries tone="onDark" className="mt-1.5" />
               </li>
             </ul>
           </div>
@@ -174,10 +169,10 @@ export default function Footer() {
 
       <div className="border-t border-white/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <p className="text-xs text-white/30">
+          <p className="text-xs text-white/55">
             © {new Date().getFullYear()} BLA Services - {t('footer.copyright')}
           </p>
-          <p className="text-xs text-white/30">{t('footer.made_for_africa')}</p>
+          <p className="text-xs text-white/55">{t('footer.made_for_africa')}</p>
         </div>
       </div>
     </footer>

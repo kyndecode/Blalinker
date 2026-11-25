@@ -19,6 +19,7 @@
     "@tanstack/react-query-devtools": "^5.25.0",
     "axios": "^1.6.7",
     "date-fns": "^3.3.1",
+    "flag-icons": "7.6.0",
     "i18next": "26.7.2",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.395.0",

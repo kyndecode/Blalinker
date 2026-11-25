@@ -6,6 +6,8 @@ import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
+import PhoneCountrySelect from '../../components/common/PhoneCountrySelect';
+import ServedCountries from '../../components/common/ServedCountries';
 import api from '../../services/api';
 import { useContactInfo } from '../../hooks/useContactInfo';
 import { useAuthStore } from '../../store/authStore';
@@ -248,20 +250,16 @@ export default function Contact() {
                 <span className="text-red-500 ml-1" aria-hidden="true">*</span>
               </label>
 
-              <div className="grid grid-cols-[minmax(150px,40%)_1fr] gap-2">
-                <select
+              <div className="grid grid-cols-1 sm:grid-cols-[minmax(150px,40%)_1fr] gap-2">
+                <PhoneCountrySelect
                   id="contact-country-code"
                   aria-label={t('auth.phone_country')}
-                  className={`input ${errors.countryCode ? 'input-error' : ''}`}
+                  countries={countries}
+                  selectedCode={selectedCountryCode}
+                  placeholder={t('auth.phone_country_placeholder')}
+                  hasError={Boolean(errors.countryCode)}
                   {...register('countryCode')}
-                >
-                  <option value="" disabled>{t('auth.phone_country_placeholder')}</option>
-                  {countries.map((country) => (
-                    <option key={country.code} value={country.code}>
-                      {country.flag} +{country.dialCode} {country.name}
-                    </option>
-                  ))}
-                </select>
+                />
 
                 <input
                   id="contact-phone-local"
@@ -281,7 +279,7 @@ export default function Contact() {
                 </p>
               ) : (
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {t('contact.phone_helper', {
+                  {t(selectedPhoneRule.min === selectedPhoneRule.max ? 'contact.phone_helper_exact' : 'contact.phone_helper', {
                     dialCode: selectedCountry?.dialCode ? `+${selectedCountry.dialCode}` : '+',
                     min: selectedPhoneRule.min,
                     max: selectedPhoneRule.max,
@@ -338,12 +336,7 @@ export default function Contact() {
               {contact.phoneDisplay}
             </a>
             <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">{t('contact.available_markets')}</p>
-            <div className="mt-2 flex items-center gap-2 text-lg">
-              <span title="Togo">🇹🇬</span>
-              <span title="Côte d'Ivoire">🇨🇮</span>
-              <span title="Mali">🇲🇱</span>
-              <span title="Burkina Faso">🇧🇫</span>
-            </div>
+            <ServedCountries className="mt-2" />
           </div>
 
           <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-5">
