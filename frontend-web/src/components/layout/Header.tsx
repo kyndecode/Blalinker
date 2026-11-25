@@ -8,7 +8,7 @@ import Logo from '../common/Logo';
 import NotificationBell from '../notifications/NotificationBell';
 
 const LANGUAGES = [
-  { code: 'fr', shortLabel: 'FR', label: 'Francais' },
+  { code: 'fr', shortLabel: 'FR', label: 'Français' },
   { code: 'en', shortLabel: 'EN', label: 'English' },
 ];
 
@@ -86,13 +86,13 @@ export default function Header() {
             <Logo size="sm" variant="white" />
           </Link>
 
-          {/* Navigation â€” Desktop */}
+          {/* Navigation — Desktop */}
           <nav className="hidden lg:flex items-center gap-1 flex-1 justify-center">
             {navLinks.map((link) => (
               <Link
                 key={link.to}
                 to={link.to}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                className={`px-3 xl:px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
                   isActive(link.to)
                     ? 'bg-white/15 text-white'
                     : 'text-white/70 hover:text-white hover:bg-white/10'
@@ -103,7 +103,7 @@ export default function Header() {
             ))}
           </nav>
 
-          {/* Actions â€” Desktop */}
+          {/* Actions — Desktop */}
           <div className="hidden lg:flex items-center gap-2">
 
             {/* Recherche rapide */}
@@ -150,9 +150,10 @@ export default function Header() {
               className="text-xs border border-white/20 rounded-lg bg-white/10 text-white/80 px-2 py-1.5 cursor-pointer focus:outline-none"
               aria-label={t('common.language')}
             >
+              {/* Libellé court dans l'en-tête (place limitée entre 1024 et 1280 px) ; nom complet au survol. */}
               {LANGUAGES.map((l) => (
-                <option key={l.code} value={l.code} className="text-gray-900 bg-white">
-                  {l.shortLabel} - {l.label}
+                <option key={l.code} value={l.code} title={l.label} className="text-gray-900 bg-white">
+                  {l.shortLabel}
                 </option>
               ))}
             </select>
@@ -165,7 +166,9 @@ export default function Header() {
                 <div className="relative" ref={userMenuRef}>
                   <button
                     onClick={() => setUserMenu(!userMenu)}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl hover:bg-white/10 transition-colors"
+                    aria-haspopup="menu"
+                    aria-expanded={userMenu}
+                    className="flex items-center gap-2 px-2 xl:px-3 py-1.5 rounded-xl hover:bg-white/10 transition-colors"
                   >
                     <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center text-white text-sm font-bold shrink-0">
                       {initial}
@@ -200,10 +203,11 @@ export default function Header() {
                   )}
                 </div>
 
-                {/* Bouton DÃ©connexion visible */}
+                {/* Déconnexion visible sur grand écran ; entre 1024 et 1280 px, elle reste dans le menu du compte
+                    (sinon l'en-tête déborde de l'écran). */}
                 <button
                   onClick={handleLogout}
-                  className="px-4 py-1.5 rounded-lg border border-white/30 text-sm font-medium text-white/80 hover:bg-white/10 hover:text-white transition-colors"
+                  className="hidden xl:inline-flex px-4 py-1.5 rounded-lg border border-white/30 text-sm font-medium text-white/80 hover:bg-white/10 hover:text-white whitespace-nowrap transition-colors"
                 >
                   {t('nav.logout')}
                 </button>
@@ -220,7 +224,7 @@ export default function Header() {
             )}
           </div>
 
-          {/* Mobile â€” droite */}
+          {/* Mobile — droite */}
           <div className="flex lg:hidden items-center gap-2">
             {isAuthenticated && <NotificationBell variant="mobile" />}
             {isAuthenticated && (
@@ -231,6 +235,7 @@ export default function Header() {
             <button
               onClick={toggleTheme}
               className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10"
+              aria-label={isDark ? t('theme.light') : t('theme.dark')}
             >
               {isDark
                 ? <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>

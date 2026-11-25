@@ -212,7 +212,7 @@ export default function BookingDetail() {
             <p className="text-sm text-gray-600 dark:text-gray-300 mt-0.5">
               {isClient ? 'Prestataire' : 'Client'} : <span className="font-medium text-gray-800 dark:text-gray-100">{counterpartName}</span>
               {isClient && (
-                <> · <Link to={`/provider/${booking.providerId}`} className="text-green-700 dark:text-green-400 hover:underline">voir le profil</Link></>
+                <> · <Link to={`/provider/${booking.providerId}`} className="text-green-700 dark:text-green-400 underline underline-offset-2 hover:no-underline">voir le profil</Link></>
               )}
             </p>
           </div>
@@ -257,33 +257,30 @@ export default function BookingDetail() {
 
         <dl className="space-y-3">
           {scheduledAt && (
-            <div className="flex items-start gap-3">
-              <Calendar className="w-4 h-4 text-green-600 dark:text-green-400 mt-0.5 shrink-0" aria-hidden="true" />
-              <div><dt className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Date</dt><dd className="text-sm text-gray-800 dark:text-gray-200 capitalize">{scheduledAt}</dd></div>
+            <div>
+              <dt className="flex items-center gap-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide"><Calendar className="w-4 h-4 text-green-600 dark:text-green-400 shrink-0" aria-hidden="true" />Date</dt>
+              <dd className="pl-7 text-sm text-gray-800 dark:text-gray-200 capitalize">{scheduledAt}</dd>
             </div>
           )}
           {booking.clientAddress && (
-            <div className="flex items-start gap-3">
-              <MapPin className="w-4 h-4 text-green-600 dark:text-green-400 mt-0.5 shrink-0" aria-hidden="true" />
-              <div><dt className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Lieu de la mission</dt><dd className="text-sm text-gray-800 dark:text-gray-200">{booking.clientAddress}</dd></div>
+            <div>
+              <dt className="flex items-center gap-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide"><MapPin className="w-4 h-4 text-green-600 dark:text-green-400 shrink-0" aria-hidden="true" />Lieu de la mission</dt>
+              <dd className="pl-7 text-sm text-gray-800 dark:text-gray-200">{booking.clientAddress}</dd>
             </div>
           )}
           {booking.description && (
-            <div className="flex items-start gap-3">
-              <FileText className="w-4 h-4 text-green-600 dark:text-green-400 mt-0.5 shrink-0" aria-hidden="true" />
-              <div><dt className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Description</dt><dd className="text-sm text-gray-800 dark:text-gray-200 leading-relaxed">{booking.description}</dd></div>
+            <div>
+              <dt className="flex items-center gap-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide"><FileText className="w-4 h-4 text-green-600 dark:text-green-400 shrink-0" aria-hidden="true" />Description</dt>
+              <dd className="pl-7 text-sm text-gray-800 dark:text-gray-200 leading-relaxed">{booking.description}</dd>
             </div>
           )}
           {booking.amount != null && (
-            <div className="flex items-start gap-3">
-              <Wallet className="w-4 h-4 text-green-600 dark:text-green-400 mt-0.5 shrink-0" aria-hidden="true" />
-              <div>
-                <dt className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Montant</dt>
-                <dd className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+            <div>
+              <dt className="flex items-center gap-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide"><Wallet className="w-4 h-4 text-green-600 dark:text-green-400 shrink-0" aria-hidden="true" />Montant</dt>
+              <dd className="pl-7 text-sm font-semibold text-gray-800 dark:text-gray-200">
                   {Number(booking.amount).toLocaleString('fr-FR')} {booking.currency || 'XOF'}
                   {paymentStatus && <span className="ml-2 font-normal text-gray-600 dark:text-gray-300">· {PAYMENT_LABELS[paymentStatus] ?? paymentStatus}</span>}
                 </dd>
-              </div>
             </div>
           )}
         </dl>

@@ -133,11 +133,12 @@ export default function BookingNew() {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
           {/* Service */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            <label htmlFor="booking-service" className="text-sm font-medium text-gray-700 dark:text-gray-300">
               Service
               <span className="text-red-500 ml-0.5" aria-hidden="true">*</span>
             </label>
             <select
+              id="booking-service"
               className={`input ${errors.serviceId ? 'input-error' : ''}`}
               {...register('serviceId', { required: 'Le service est obligatoire' })}
             >

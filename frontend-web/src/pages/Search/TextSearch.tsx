@@ -168,14 +168,14 @@ export default function TextSearch() {
       </form>
 
       <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
-        <label className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+        <label className="flex items-center gap-2 whitespace-nowrap text-gray-700 dark:text-gray-300">
           Catégorie
           <select value={category} onChange={(e) => update({ category: e.target.value || null })} className="input py-1.5">
             <option value="">Toutes</option>
             {categories.map((c) => <option key={c.id} value={c.slug}>{c.name}</option>)}
           </select>
         </label>
-        <label className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+        <label className="flex items-center gap-2 whitespace-nowrap text-gray-700 dark:text-gray-300">
           Trier par
           <select value={sort} onChange={(e) => update({ sort: e.target.value })} className="input py-1.5">
             {SORTS.filter((o) => o.value !== 'distance' || (lat && lng)).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
