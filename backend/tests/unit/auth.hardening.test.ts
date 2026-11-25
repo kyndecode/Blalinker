@@ -21,7 +21,7 @@ jest.mock('../../src/config/database', () => ({
   prisma: {
     user: { findFirst: jest.fn(), findUnique: jest.fn(), create: jest.fn(), update: jest.fn() },
     userSession: { create: jest.fn(), deleteMany: jest.fn(), findMany: jest.fn().mockResolvedValue([]) },
-    otpCode: { create: jest.fn(), findFirst: jest.fn(), update: jest.fn(), deleteMany: jest.fn() },
+    otpCode: { updateMany: jest.fn().mockResolvedValue({ count: 0 }), create: jest.fn(), findFirst: jest.fn(), update: jest.fn(), deleteMany: jest.fn() },
     profile: { upsert: jest.fn() },
     providerProfile: { upsert: jest.fn() },
   },

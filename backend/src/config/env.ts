@@ -43,6 +43,8 @@ const envSchema = z.object({
   // Application
   NODE_ENV:     z.enum(['development', 'staging', 'production', 'test']).default('development'),
   PORT:         z.coerce.number().default(3000),
+  // Relais (proxys) placés devant l'API : détermine l'IP réelle du client (limites, journal).
+  TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(5).default(1),
   APP_URL:      z.preprocess((v) => normalizeUrl(v, 'http://localhost:3000'), z.string().url()),
   CORS_ORIGIN:  z.string().default('http://localhost:5173'),
 

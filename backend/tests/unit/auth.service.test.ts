@@ -30,7 +30,7 @@ jest.mock('../../src/config/database', () => ({
       findFirst: jest.fn(),
       findMany: jest.fn().mockResolvedValue([]),
     },
-    otpCode: { create: jest.fn(), findFirst: jest.fn(), update: jest.fn(), deleteMany: jest.fn() },
+    otpCode: { updateMany: jest.fn().mockResolvedValue({ count: 0 }), create: jest.fn(), findFirst: jest.fn(), update: jest.fn(), deleteMany: jest.fn() },
     profile: { upsert: jest.fn() },
     providerProfile: { upsert: jest.fn() },
   },

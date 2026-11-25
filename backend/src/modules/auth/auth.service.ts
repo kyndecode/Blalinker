@@ -13,6 +13,7 @@ import {
   signAccessToken,
   signRefreshToken,
   verifyRefreshToken,
+  verifyAccessToken,
   revokeToken,
   generateTokenFamily,
 } from '../../utils/jwt.util';
@@ -42,6 +43,9 @@ function isTotpUser(user: { role: string; mfaTotpEnabledAt: Date | null; mfaSecr
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCK_DURATION_MIN  = 30;
 type OtpFlowPurpose = 'registration' | 'login' | 'password_reset' | 'payment_confirm';
+
+/** Délai minimal entre deux envois de code au même compte pour le même usage. */
+export const OTP_RESEND_COOLDOWN_SEC = 45;
 
 export class AuthService {
   /** Inscription — crée le compte et envoie l'OTP */
@@ -548,7 +552,18 @@ export class AuthService {
     });
 
     if (!session) {
-      // Possible vol de token — révoquer toute la famille
+      // Session renouvelée il y a moins d'une minute par une requête concurrente (deux onglets,
+      // démarrage de page) : simple course, pas un vol → refus sans fermer les autres sessions.
+      let recentlyRotated = false;
+      try {
+        recentlyRotated = Boolean(await redis.get(`refresh:rotated:${payload.sessionId}`));
+      } catch {
+        // Redis indisponible : on applique la règle de sécurité ci-dessous.
+      }
+      if (recentlyRotated) {
+        throw Object.assign(new Error('Session déjà renouvelée par une autre requête.'), { status: 409, code: 'REFRESH_RACE' });
+      }
+      // Jeton déjà utilisé hors de cette fenêtre : possible vol — révoquer toute la famille.
       await prisma.userSession.deleteMany({ where: { userId: payload.userId } });
       throw Object.assign(new Error('Session invalide. Reconnectez-vous.'), { status: 401 });
     }
@@ -561,17 +576,29 @@ export class AuthService {
       throw Object.assign(new Error('Accès refusé'), { status: 403 });
     }
 
-    // Renouveler les tokens
+    // Renouveler les tokens (la session remplacée reste reconnue 60 s comme « déjà renouvelée »)
     await prisma.userSession.delete({ where: { id: session.id } });
+    try {
+      await redis.setex(`refresh:rotated:${session.id}`, 60, '1');
+    } catch {
+      // Redis indisponible : une course éventuelle sera traitée comme une réutilisation.
+    }
     return this._generateTokens(user.id, user.role, { method: 'refresh', ip: session.ipAddress ?? undefined, silent: true });
   }
 
   /** Déconnexion — révoque le token */
   async logout(userId: string, accessToken: string) {
+    let sessionId: string | undefined;
+    try {
+      sessionId = verifyAccessToken(accessToken).sessionId;
+    } catch {
+      // jeton déjà expiré : rien à rattacher
+    }
     await revokeToken(accessToken);
-    // Supprimer toutes les sessions de cet utilisateur sur cet appareil
-    // (on pourrait aussi ne révoquer que la session courante)
-    logger.info(`Déconnexion: ${userId}`);
+    // Ferme la session de cet appareil : son jeton de renouvellement devient inutilisable
+    // (auparavant il restait valable 30 jours après la déconnexion).
+    if (sessionId) await prisma.userSession.deleteMany({ where: { id: sessionId, userId } });
+    logger.info('Déconnexion', { userId, sessionClosed: Boolean(sessionId) });
   }
 
   /** Mot de passe oublié — envoie un OTP de réinitialisation (réponse générique anti-énumération) */
@@ -721,10 +748,26 @@ export class AuthService {
     purpose: OtpFlowPurpose,
     ip: string
   ) {
+    // Un code envoyé il y a moins de OTP_RESEND_COOLDOWN_SEC secondes reste valable : on n'en
+    // crée pas d'autre (évite les rafales de codes quand l'utilisateur clique plusieurs fois
+    // ou qu'une requête est rejouée, et le refus du code reçu au profit d'un code plus récent).
+    const cooldownKey = `otp:cooldown:${userId}:${purpose}`;
+    try {
+      const remaining = await redis.ttl(cooldownKey);
+      if (typeof remaining === 'number' && remaining > 0) {
+        logger.info('OTP non renvoyé : un code récent est encore valable', { userId, purpose, retryAfterSec: remaining });
+        return { reused: true, retryAfterSec: remaining };
+      }
+    } catch {
+      // Redis indisponible : envoi normal (le délai minimal ne s'applique pas).
+    }
+
+    const startedAt = Date.now();
     const code     = generateOTP();
     const codeHash = await hashOTP(code);
 
-    await prisma.otpCode.create({
+    const otpRow = await prisma.otpCode.create({
+      select: { id: true },
       data: {
         userId,
         phone,
@@ -782,13 +825,37 @@ export class AuthService {
     }
 
     if (!delivered) {
+      // Code jamais reçu : invalidé tout de suite, pour qu'un code reçu plus tôt reste utilisable.
+      try {
+        if (otpRow?.id) await prisma.otpCode.update({ where: { id: otpRow.id }, data: { expiresAt: new Date() } });
+      } catch {
+        // sans effet sur la réponse : le code expirera de lui-même
+      }
       // La cause précise (ex. IP refusée par Brevo) est journalisée par le service e-mail.
-      logger.error('OTP non délivré : aucun canal disponible', { userId, purpose, email: emailOutcome, sms: smsOutcome });
+      logger.error('OTP non délivré : aucun canal disponible', {
+        userId, purpose, email: emailOutcome, sms: smsOutcome, durationMs: Date.now() - startedAt,
+      });
       throw Object.assign(
         new Error('Aucun canal OTP disponible. Utilisez un email valide ou contactez le support.'),
         { status: 503, code: 'OTP_DELIVERY_FAILED' }
       );
     }
+
+    // Le nouveau code remplace les précédents encore valides (un seul code utilisable à la fois).
+    try {
+      await prisma.otpCode.updateMany({
+        where: { userId, purpose, usedAt: null, ...(otpRow?.id ? { id: { not: otpRow.id } } : {}), expiresAt: { gt: new Date() } },
+        data: { expiresAt: new Date() },
+      });
+    } catch {
+      // sans effet sur la réponse : seul le code le plus récent est vérifié
+    }
+    try {
+      await redis.setex(cooldownKey, OTP_RESEND_COOLDOWN_SEC, '1');
+    } catch {
+      // Redis indisponible : pas de délai minimal.
+    }
+    logger.info('OTP envoyé', { userId, purpose, email: emailOutcome, sms: smsOutcome, durationMs: Date.now() - startedAt });
 
     // Hors production uniquement : afficher l'OTP dans les logs pour le développement.
     if (process.env.NODE_ENV !== 'production') {

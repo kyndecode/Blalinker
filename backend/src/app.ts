@@ -53,7 +53,9 @@ metricsRegistry.setDefaultLabels({ app: 'bla-backend' });
 client.collectDefaultMetrics({ register: metricsRegistry });
 
 // ─── Middlewares de base ──────────────────────────────────────
-app.set('trust proxy', 1); // Nécessaire derrière Nginx
+// Nombre de relais de confiance devant l'API (Render). Si l'historique des connexions
+// n'affiche que des IP internes (10.x), augmenter TRUST_PROXY_HOPS d'une unité.
+app.set('trust proxy', env.TRUST_PROXY_HOPS);
 const corsOrigins = getCorsOrigins();
 
 app.use(cors({

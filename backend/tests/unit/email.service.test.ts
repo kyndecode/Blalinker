@@ -60,7 +60,7 @@ describe('sendEmail', () => {
     expect(body.sender).toEqual({ email: 'contact@blalinker.com', name: 'BLA Services' });
     expect(config.timeout).toBe(BREVO_TIMEOUT_MS);
     expect(BREVO_TIMEOUT_MS).toBe(10_000);
-    expect(logger.info).toHaveBeenCalledWith('Email envoyé', { to: 'je***@gmail.com', subject: 'Code de connexion' });
+    expect(logger.info).toHaveBeenCalledWith('Email envoyé', expect.objectContaining({ to: 'je***@gmail.com', subject: 'Code de connexion', durationMs: expect.any(Number) }));
   });
 
   it('IP refusée par Brevo : false, cause et action journalisées, sans clé ni adresse ni contenu', async () => {

@@ -6,7 +6,8 @@ import { z } from 'zod';
  * (affichées sur le site) : n'ajoutez JAMAIS ici une valeur secrète.
  */
 
-export const SUPPORTED_LOCALES = ['fr', 'en', 'wo'] as const;
+/** Langues du site : français et anglais uniquement (wolof retiré à la demande du propriétaire, 2026-11-25). */
+export const SUPPORTED_LOCALES = ['fr', 'en'] as const;
 export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
 
 const httpsUrl = z.string().trim().max(500).url('URL invalide').refine((v) => v.startsWith('https://'), 'URL https:// obligatoire');

@@ -1,10 +1,19 @@
 import winston from 'winston';
 import { env } from './env';
+import { currentRequestId } from '../utils/requestContext';
+
+/** Ajoute l'identifiant de corrélation de la requête en cours à chaque entrée de journal. */
+const withRequestId = winston.format((info) => {
+  const requestId = currentRequestId();
+  if (requestId && !info.requestId) info.requestId = requestId;
+  return info;
+});
 
 const format =
   env.NODE_ENV === 'production'
-    ? winston.format.combine(winston.format.timestamp(), winston.format.json())
+    ? winston.format.combine(withRequestId(), winston.format.timestamp(), winston.format.json())
     : winston.format.combine(
+        withRequestId(),
         winston.format.colorize(),
         winston.format.timestamp({ format: 'HH:mm:ss' }),
         winston.format.printf(({ level, message, timestamp, ...meta }) => {

@@ -19,7 +19,7 @@ jest.mock('../../src/config/database', () => ({
   prisma: {
     user: { findFirst: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
     userSession: { create: jest.fn(), findMany: jest.fn().mockResolvedValue([]) },
-    otpCode: { create: jest.fn(), findFirst: jest.fn(), update: jest.fn(), deleteMany: jest.fn() },
+    otpCode: { updateMany: jest.fn().mockResolvedValue({ count: 0 }), create: jest.fn(), findFirst: jest.fn(), update: jest.fn(), deleteMany: jest.fn() },
     mfaRecoveryCode: { count: jest.fn().mockResolvedValue(9) },
   },
 }));
@@ -284,6 +284,7 @@ describe('requestMfaEmailFallback() — secours « pas accès à mon application
   });
 
   it('échec Brevo : 503, et le délai de 60 s est levé pour permettre un nouvel essai', async () => {
+    r.ttl.mockResolvedValue(-2); // aucun délai en cours (isolation du test précédent)
     (sendEmail as jest.Mock).mockResolvedValue(false);
 
     await expect(auth.requestMfaEmailFallback('temp-token', '1.2.3.4')).rejects.toMatchObject({ status: 503 });

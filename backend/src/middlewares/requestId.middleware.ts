@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { randomUUID } from 'crypto';
+import { runWithRequestContext } from '../utils/requestContext';
 
 // Identifiant de corrélation attaché à chaque requête (logs, erreurs, réponses).
 declare global {
@@ -19,5 +20,6 @@ export function requestId(req: Request, res: Response, next: NextFunction) {
     : randomUUID();
   req.id = id;
   res.setHeader('X-Request-Id', id);
-  next();
+  // Toute la suite du traitement (y compris l'asynchrone) partage cet identifiant.
+  runWithRequestContext({ requestId: id }, next);
 }

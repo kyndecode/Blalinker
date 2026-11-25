@@ -19,7 +19,8 @@
     "db:studio": "prisma studio",
     "db:reset": "prisma migrate reset --force",
     "admin:reset-mfa": "tsx scripts/reset-admin-mfa.ts",
-    "kyc:protect-documents": "tsx scripts/kyc-protect-documents.ts"
+    "kyc:protect-documents": "tsx scripts/kyc-protect-documents.ts",
+    "db:diagnostic": "tsx scripts/diagnostic-dataset.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.10.0",

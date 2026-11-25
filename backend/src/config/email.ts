@@ -99,6 +99,7 @@ export async function sendEmail(payload: EmailPayload): Promise<boolean> {
     return true;
   }
 
+  const startedAt = Date.now();
   try {
     await axios.post(
       BREVO_API_URL,
@@ -118,7 +119,7 @@ export async function sendEmail(payload: EmailPayload): Promise<boolean> {
         },
       }
     );
-    logger.info('Email envoyé', { to: maskEmail(payload.to), subject: payload.subject });
+    logger.info('Email envoyé', { to: maskEmail(payload.to), subject: payload.subject, durationMs: Date.now() - startedAt });
     return true;
   } catch (err: unknown) {
     const failure = classifyBrevoError(err);
@@ -131,6 +132,7 @@ export async function sendEmail(payload: EmailPayload): Promise<boolean> {
       detail: failure.detail,
       to: maskEmail(payload.to),
       subject: payload.subject,
+      durationMs: Date.now() - startedAt,
     });
     return false;
   }
