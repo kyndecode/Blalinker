@@ -5,7 +5,7 @@ import { logger } from '../../config/logger';
 import { getPaginationParams, getSkip, paginate } from '../../utils/pagination.util';
 import { escapeHtml } from '../../utils/html.util';
 import { publicPersonSelect, toPublicPerson } from '../../utils/serializers';
-import type { Prisma } from '@prisma/client';
+import type { Booking, Prisma } from '@prisma/client';
 import { notifyStaff, notifyUser, type NotificationType } from '../notifications/notifications.service';
 import type { CreateBookingInput, DisputeBookingInput } from './bookings.schemas';
 import { moderationStatus } from '../reviews/reviews.controller';
@@ -298,6 +298,89 @@ const NOT_PAID = {
  */
 type TransitionHook = (tx: Prisma.TransactionClient, booking: { id: string; clientId: string; providerId: string }) => Promise<void>;
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export type BookingTransitionOutcome =
+  | { ok: true; booking: Booking }
+  | { ok: false; httpStatus: 403 | 404 | 409; body: Record<string, unknown> };
+
+/**
+ * Cœur de la machine d'états, partagé par l'API HTTP et le temps réel (WebSocket) :
+ * mêmes règles d'acteur, de propriété, d'état de départ, de séquestre et de notifications.
+ * Lève une exception uniquement en cas d'erreur technique (base indisponible…).
+ */
+export async function runBookingTransition(
+  actor: { id: string; role: string },
+  id: string,
+  rule: TransitionRule,
+  extraData: Record<string, unknown> = {},
+  inTransaction?: TransitionHook,
+): Promise<BookingTransitionOutcome> {
+  const userId = actor.id;
+  if (rule.role && actor.role !== rule.role) {
+    return { ok: false, httpStatus: 403, body: { error: 'Action non autorisée' } };
+  }
+  if (typeof id !== 'string' || !UUID_RE.test(id)) {
+    return { ok: false, httpStatus: 404, body: { error: 'Réservation introuvable' } };
+  }
+
+  const owner = ownership(rule.actor, userId);
+  const guard = rule.to === 'cancelled' ? [owner, NOT_PAID] : [owner];
+  const now = new Date();
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const { count } = await tx.booking.updateMany({
+      where: { id, status: { in: rule.from }, AND: guard },
+      data: { status: rule.to, ...(rule.stamp ? { [rule.stamp]: now } : {}), ...extraData },
+    });
+    if (count === 0) return null;
+    if (rule.to === 'validated') {
+      // Escrow : la validation client libère les fonds vers le solde du prestataire.
+      await tx.transaction.updateMany({
+        where: { bookingId: id, status: 'completed', releasedAt: null },
+        data: { releasedAt: now },
+      });
+    }
+    const booking = await tx.booking.findUniqueOrThrow({ where: { id } });
+    if (inTransaction) await inTransaction(tx, booking);
+    return booking;
+  });
+
+  if (!updated) {
+    const current = await prisma.booking.findFirst({
+      where: { id, ...owner },
+      select: { status: true, transaction: { select: { status: true } } },
+    });
+    if (!current) return { ok: false, httpStatus: 404, body: { error: 'Réservation introuvable' } };
+    const paid = PAID_STATUSES.includes(current.transaction?.status as 'completed' | 'processing');
+    if (rule.to === 'cancelled' && rule.from.includes(current.status as BookingStatus) && paid) {
+      return {
+        ok: false,
+        httpStatus: 409,
+        body: {
+          error: 'Cette réservation est déjà payée : contactez le support pour une annulation avec remboursement.',
+          code: 'BOOKING_ALREADY_PAID',
+        },
+      };
+    }
+    return {
+      ok: false,
+      httpStatus: 409,
+      body: {
+        error: "Action impossible dans l'état actuel de la réservation.",
+        code: 'BOOKING_STATUS_CONFLICT',
+        status: current.status,
+      },
+    };
+  }
+
+  void notifyBookingStatusChanged(updated.id, rule.to).catch((error) => {
+    logger.error(`Erreur notifications reservation ${rule.to} (${updated.id})`, error);
+  });
+  void notifyBookingInApp(updated, rule.to, userId);
+  return { ok: true, booking: updated };
+}
+
 async function applyTransition(
   req: Request,
   res: Response,
@@ -306,59 +389,10 @@ async function applyTransition(
   inTransaction?: TransitionHook,
 ) {
   const { id } = req.params;
-  const userId = req.user!.id;
-  if (rule.role && req.user!.role !== rule.role) {
-    return res.status(403).json({ error: 'Action non autorisée' });
-  }
-
-  const owner = ownership(rule.actor, userId);
-  const guard = rule.to === 'cancelled' ? [owner, NOT_PAID] : [owner];
-  const now = new Date();
-
   try {
-    const updated = await prisma.$transaction(async (tx) => {
-      const { count } = await tx.booking.updateMany({
-        where: { id, status: { in: rule.from }, AND: guard },
-        data: { status: rule.to, ...(rule.stamp ? { [rule.stamp]: now } : {}), ...extraData },
-      });
-      if (count === 0) return null;
-      if (rule.to === 'validated') {
-        // Escrow : la validation client libère les fonds vers le solde du prestataire.
-        await tx.transaction.updateMany({
-          where: { bookingId: id, status: 'completed', releasedAt: null },
-          data: { releasedAt: now },
-        });
-      }
-      const booking = await tx.booking.findUniqueOrThrow({ where: { id } });
-      if (inTransaction) await inTransaction(tx, booking);
-      return booking;
-    });
-
-    if (!updated) {
-      const current = await prisma.booking.findFirst({
-        where: { id, ...owner },
-        select: { status: true, transaction: { select: { status: true } } },
-      });
-      if (!current) return res.status(404).json({ error: 'Réservation introuvable' });
-      const paid = PAID_STATUSES.includes(current.transaction?.status as 'completed' | 'processing');
-      if (rule.to === 'cancelled' && rule.from.includes(current.status as BookingStatus) && paid) {
-        return res.status(409).json({
-          error: 'Cette réservation est déjà payée : contactez le support pour une annulation avec remboursement.',
-          code: 'BOOKING_ALREADY_PAID',
-        });
-      }
-      return res.status(409).json({
-        error: "Action impossible dans l'état actuel de la réservation.",
-        code: 'BOOKING_STATUS_CONFLICT',
-        status: current.status,
-      });
-    }
-
-    void notifyBookingStatusChanged(updated.id, rule.to).catch((error) => {
-      logger.error(`Erreur notifications reservation ${rule.to} (${updated.id})`, error);
-    });
-    void notifyBookingInApp(updated, rule.to, userId);
-    return res.json(updated);
+    const outcome = await runBookingTransition(req.user!, id, rule, extraData, inTransaction);
+    if (!outcome.ok) return res.status(outcome.httpStatus).json(outcome.body);
+    return res.json(outcome.booking);
   } catch (err) {
     logger.error('Erreur transition réservation', { bookingId: id, to: rule.to, error: err instanceof Error ? err.message : String(err) });
     return res.status(500).json({ error: 'Erreur serveur' });

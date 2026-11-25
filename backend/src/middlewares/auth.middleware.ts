@@ -40,9 +40,15 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
 
   const token = authHeader.split(' ')[1];
 
-  // Vérifier si le token a été révoqué
-  if (await isTokenRevoked(token)) {
-    return res.status(401).json({ error: 'Session expirée. Veuillez vous reconnecter.' });
+  // Vérifier si le token a été révoqué. Redis indisponible → refus explicite (503),
+  // jamais d'accès accordé sans cette vérification, ni de requête laissée sans réponse.
+  try {
+    if (await isTokenRevoked(token)) {
+      return res.status(401).json({ error: 'Session expirée. Veuillez vous reconnecter.' });
+    }
+  } catch (err) {
+    logger.error('Vérification de révocation impossible (Redis)', { error: err instanceof Error ? err.message : String(err) });
+    return res.status(503).json({ error: 'Service momentanément indisponible. Réessayez dans un instant.', code: 'SERVICE_UNAVAILABLE' });
   }
 
   try {

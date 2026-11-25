@@ -185,6 +185,17 @@ describeDb('PostgreSQL réel — parcours métier (lot 1)', () => {
       expect(await prisma.notification.count({ where: { userId: ids.provider, type: 'booking.validated', data: { path: ['bookingId'], equals: id } } })).toBe(1);
       // L'auteur d'une action n'est jamais notifié de sa propre action.
       expect(await prisma.notification.count({ where: { userId: ids.provider, type: 'booking.accepted' } })).toBe(0);
+
+      // Machine d'états partagée avec le temps réel (WebSocket) : aucun retour en arrière
+      // possible (avant l'audit, « validée » → « terminée » passait par booking_status_update).
+      const { runBookingTransition, BOOKING_TRANSITIONS } = await import('../../src/modules/bookings/bookings.controller');
+      const back = await runBookingTransition({ id: ids.provider, role: 'provider' }, id, BOOKING_TRANSITIONS.complete);
+      expect(back).toMatchObject({ ok: false, httpStatus: 409, body: { code: 'BOOKING_STATUS_CONFLICT', status: 'validated' } });
+      const other = await runBookingTransition({ id: ids.provider2, role: 'provider' }, id, BOOKING_TRANSITIONS.complete);
+      expect(other).toMatchObject({ ok: false, httpStatus: 404 }); // réservation d'un autre prestataire
+      const malformed = await runBookingTransition({ id: ids.provider, role: 'provider' }, 'pas-un-uuid', BOOKING_TRANSITIONS.complete);
+      expect(malformed).toMatchObject({ ok: false, httpStatus: 404 }); // plus d'erreur 500 sur identifiant invalide
+      expect((await prisma.booking.findUniqueOrThrow({ where: { id } })).status).toBe('validated');
     });
 
     it('refus par le prestataire ; annulation par le client avec motif', async () => {
