@@ -1,15 +1,61 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
+import { create } from 'zustand';
 import { useAuthStore } from '../store/authStore';
 
 type RetryableRequestConfig = InternalAxiosRequestConfig & {
   _retry?: boolean;
   _networkRetryCount?: number;
   _fallbackRetryCount?: number;
+  _slowTimer?: ReturnType<typeof setTimeout>;
+  _slowFlagged?: boolean;
 };
+
+/**
+ * Délais : le serveur (offre gratuite Render) peut mettre 30 à 60 s à se réveiller.
+ * - Lectures : 15 s, rejouées jusqu'à 2 fois (sans effet de bord).
+ * - Écritures (connexion, envoi de code, réservation…) : 75 s, JAMAIS rejouées
+ *   automatiquement — une connexion rejouée créait plusieurs codes OTP d'affilée.
+ */
+export const READ_TIMEOUT_MS = 15_000;
+export const WRITE_TIMEOUT_MS = 75_000;
+/** Au-delà de ce délai, l'interface indique que le serveur démarre. */
+export const SLOW_REQUEST_NOTICE_MS = 6_000;
 
 const NETWORK_RETRY_LIMIT = 2;
 const NETWORK_RETRY_BASE_DELAY_MS = 800;
 const ONLINE_WAIT_TIMEOUT_MS = 15_000;
+
+/** Requête sans effet de bord : peut être rejouée sans risque. */
+export function isIdempotentRequest(method: string | undefined): boolean {
+  return ['get', 'head', 'options'].includes((method ?? 'get').toLowerCase());
+}
+
+/**
+ * Faut-il fermer la session après l'échec du renouvellement ? Seulement si le serveur
+ * a REFUSÉ la session (401/403). Une panne réseau, un délai dépassé ou une erreur 5xx
+ * (serveur en réveil) ne déconnectent pas : l'utilisateur garde sa session.
+ */
+export function shouldLogoutAfterRefreshError(error: unknown): boolean {
+  const status = (error as { response?: { status?: number } } | null)?.response?.status;
+  return status === 401 || status === 403;
+}
+
+/** Requêtes lentes en cours (affiche « le serveur démarre… »). */
+export const useServerStatus = create<{ slowRequests: number; add: () => void; remove: () => void }>((set) => ({
+  slowRequests: 0,
+  add: () => set((s) => ({ slowRequests: s.slowRequests + 1 })),
+  remove: () => set((s) => ({ slowRequests: Math.max(0, s.slowRequests - 1) })),
+}));
+
+function clearSlowTracking(config: RetryableRequestConfig | undefined) {
+  if (!config) return;
+  if (config._slowTimer) clearTimeout(config._slowTimer);
+  config._slowTimer = undefined;
+  if (config._slowFlagged) {
+    config._slowFlagged = false;
+    useServerStatus.getState().remove();
+  }
+}
 
 function normalizeApiBaseUrl(rawBaseUrl: string | undefined): string {
   if (!rawBaseUrl) return '/api/v1';
@@ -98,7 +144,7 @@ function isTransientNetworkError(error: AxiosError): boolean {
 
 export const api = axios.create({
   baseURL: getActiveApiBaseUrl(),
-  timeout: 8_000,
+  timeout: READ_TIMEOUT_MS,
   withCredentials: true, // envoie/reçoit le cookie HttpOnly du refresh token
   headers: {
     'Content-Type': 'application/json',
@@ -110,6 +156,14 @@ api.interceptors.request.use((config: RetryableRequestConfig) => {
   const token = useAuthStore.getState().accessToken;
   if (token) config.headers.Authorization = `Bearer ${token}`;
   config.baseURL = getActiveApiBaseUrl();
+  if (!isIdempotentRequest(config.method) && config.timeout === READ_TIMEOUT_MS) {
+    config.timeout = WRITE_TIMEOUT_MS;
+  }
+  clearSlowTracking(config);
+  config._slowTimer = setTimeout(() => {
+    config._slowFlagged = true;
+    useServerStatus.getState().add();
+  }, SLOW_REQUEST_NOTICE_MS);
   return config;
 });
 
@@ -128,9 +182,13 @@ function processQueue(error: Error | null, token: string | null) {
 }
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    clearSlowTracking(response.config as RetryableRequestConfig);
+    return response;
+  },
   async (error: AxiosError) => {
     const originalRequest = (error.config ?? {}) as RetryableRequestConfig;
+    clearSlowTracking(originalRequest);
     const requestUrl = originalRequest.url ?? '';
     const isRefreshRequest = requestUrl.includes('/auth/refresh-token');
 
@@ -156,7 +214,7 @@ api.interceptors.response.use(
         const { data } = await axios.post(
           `${getActiveApiBaseUrl()}/auth/refresh-token`,
           {},
-          { withCredentials: true, headers: { 'X-Auth-Mode': 'cookie' } }
+          { withCredentials: true, timeout: WRITE_TIMEOUT_MS, headers: { 'X-Auth-Mode': 'cookie' } }
         );
 
         if (!data?.accessToken) {
@@ -171,14 +229,16 @@ api.interceptors.response.use(
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError as Error, null);
-        useAuthStore.getState().logout();
+        // Session refusée par le serveur → déconnexion ; panne passagère → session conservée.
+        if (shouldLogoutAfterRefreshError(refreshError)) useAuthStore.getState().logout();
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
       }
     }
 
-    if (!isTransientNetworkError(error) || isRefreshRequest) {
+    // Une écriture n'est jamais rejouée automatiquement (risque de doublon : codes, réservations…).
+    if (!isTransientNetworkError(error) || isRefreshRequest || !isIdempotentRequest(originalRequest.method)) {
       return Promise.reject(error);
     }
 

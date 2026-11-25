@@ -2,12 +2,13 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../services/api';
 
-export type ContentLocale = 'fr' | 'en' | 'wo';
+/** Langues du site : français et anglais uniquement. */
+export type ContentLocale = 'fr' | 'en';
 
 /** Langue de contenu demandée à l'API (fr par défaut). */
 export function contentLocale(language: string | undefined): ContentLocale {
   const short = (language ?? 'fr').slice(0, 2).toLowerCase();
-  return short === 'en' || short === 'wo' ? short : 'fr';
+  return short === 'en' ? 'en' : 'fr';
 }
 
 export function useContentLocale(): ContentLocale {
@@ -27,7 +28,7 @@ export function useSiteSettings() {
   });
 }
 
-/** Texte d'un paramètre : chaîne simple ou texte par langue ({ fr, en, wo }). */
+/** Texte d'un paramètre : chaîne simple ou texte par langue ({ fr, en }). */
 export function settingText(values: SiteSettingValues | undefined, key: string, locale: ContentLocale): string | undefined {
   const v = values?.[key];
   if (typeof v === 'string' && v.trim()) return v;

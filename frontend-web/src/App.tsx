@@ -3,7 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './store/authStore';
 import { useNetworkStatus } from './hooks/useNetworkStatus';
 import { useTranslation } from 'react-i18next';
-import api from './services/api';
+import api, { shouldLogoutAfterRefreshError, useServerStatus } from './services/api';
 
 // Layout (chargé immédiatement — présent sur toutes les pages)
 import Header from './components/layout/Header';
@@ -56,6 +56,7 @@ export default function App() {
   const setUser = useAuthStore((state) => state.setUser);
   const logout = useAuthStore((state) => state.logout);
   const [authReady, setAuthReady] = useState(false);
+  const serverSlow = useServerStatus((s) => s.slowRequests > 0);
 
   useEffect(() => {
     let cancelled = false;
@@ -80,8 +81,10 @@ export default function App() {
           email: me.data.email || undefined,
           phone: me.data.phone || undefined,
         });
-      } catch {
-        logout();
+      } catch (error) {
+        // Session refusée (401/403) → déconnexion. Serveur en réveil ou réseau coupé :
+        // la session est conservée et sera renouvelée à la prochaine requête.
+        if (shouldLogoutAfterRefreshError(error)) logout();
       } finally {
         if (!cancelled) setAuthReady(true);
       }
@@ -112,6 +115,11 @@ export default function App() {
 
       <AnnouncementBar />
       <Header />
+      {serverSlow && (
+        <div role="status" aria-live="polite" className="bg-amber-100 px-4 py-2 text-center text-sm text-amber-900 dark:bg-amber-900/40 dark:text-amber-100">
+          Le serveur démarre, la réponse peut prendre jusqu’à une minute. Merci de ne pas recliquer.
+        </div>
+      )}
 
       <main className={`flex-1 ${!isOnline ? 'mt-10' : ''}`}>
         <Suspense fallback={<PageFallback />}>
