@@ -86,5 +86,4 @@ export const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
 export const LOCALES = [
   { value: 'fr', label: 'Français' },
   { value: 'en', label: 'Anglais' },
-  { value: 'wo', label: 'Wolof' },
 ] as const;

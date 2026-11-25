@@ -7,7 +7,7 @@ type RetryableRequestConfig = InternalAxiosRequestConfig & {
   _retry?: boolean;
 };
 
-let isRefreshing = false;
+let refreshPromise: Promise<string> | null = null;
 
 const NETWORK_RETRY_LIMIT = 2;
 const NETWORK_RETRY_BASE_DELAY_MS = 800;
@@ -26,6 +26,12 @@ export const WRITE_TIMEOUT_MS = 75_000;
 const IDEMPOTENT_METHODS = new Set(['get', 'head', 'options']);
 
 /** Seules les requêtes sans effet de bord peuvent être rejouées sans risque. */
+/** Déconnexion uniquement si le serveur refuse la session (401/403), jamais sur une panne passagère. */
+export function shouldLogoutAfterRefreshError(error: unknown): boolean {
+  const status = (error as { response?: { status?: number } } | null)?.response?.status;
+  return status === 401 || status === 403;
+}
+
 export function isIdempotentRequest(method: string | undefined): boolean {
   return IDEMPOTENT_METHODS.has((method ?? 'get').toLowerCase());
 }
@@ -174,31 +180,37 @@ api.interceptors.response.use(
         }
       };
 
-      if (!refreshToken || !user || isRefreshing) {
+      if (!refreshToken || !user) {
         forceLogout();
         return Promise.reject(error);
       }
 
-      isRefreshing = true;
-      try {
-        const { data } = await axios.post(
+      // Plusieurs requêtes expirées en même temps (ex. tableau de bord) : un seul
+      // renouvellement, partagé ; les autres l'attendent au lieu de déconnecter.
+      if (!refreshPromise) {
+        refreshPromise = axios.post(
           `${getActiveApiBaseUrl()}/auth/refresh-token`,
           { refreshToken },
-          { headers: { 'X-Admin-Request': '1' } },
-        );
-        if (!data?.accessToken || !data?.refreshToken) {
-          forceLogout();
-          return Promise.reject(error);
-        }
-        setTokens(data.accessToken, data.refreshToken, user);
-        originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
+          { headers: { 'X-Admin-Request': '1' }, timeout: WRITE_TIMEOUT_MS },
+        ).then(({ data }) => {
+          if (!data?.accessToken || !data?.refreshToken) {
+            throw Object.assign(new Error('Session expirée'), { response: { status: 401 } });
+          }
+          setTokens(data.accessToken, data.refreshToken, user);
+          return data.accessToken as string;
+        }).finally(() => {
+          refreshPromise = null;
+        });
+      }
+      try {
+        const accessToken = await refreshPromise;
+        originalRequest.headers.Authorization = `Bearer ${accessToken}`;
         originalRequest.baseURL = getActiveApiBaseUrl();
         return api(originalRequest);
       } catch (refreshError) {
-        forceLogout();
+        // Session refusée (401/403) → déconnexion ; serveur en réveil ou réseau coupé → session conservée.
+        if (shouldLogoutAfterRefreshError(refreshError)) forceLogout();
         return Promise.reject(refreshError);
-      } finally {
-        isRefreshing = false;
       }
     }
 

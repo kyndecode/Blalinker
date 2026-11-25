@@ -11,7 +11,7 @@ interface CatalogEntry { key: string; label: string; group: string; kind: Kind }
 interface SettingRow { id: string; key: string; scope: string; value: unknown; updatedAt: string }
 interface Country { code: string; name: string; isActive: boolean }
 
-type LocalizedValue = Partial<Record<'fr' | 'en' | 'wo', string>>;
+type LocalizedValue = Partial<Record<'fr' | 'en', string>>;
 
 function SettingEditor({ entry, scope, row }: { entry: CatalogEntry; scope: string; row?: SettingRow }) {
   const qc = useQueryClient();
