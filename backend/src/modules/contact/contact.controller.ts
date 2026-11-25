@@ -1,5 +1,7 @@
 import { Request, Response } from 'express';
+import { createHash } from 'crypto';
 import { prisma } from '../../config/database';
+import { redis } from '../../config/redis';
 import { logger } from '../../config/logger';
 import { env } from '../../config/env';
 import { sendEmail } from '../../config/email';
@@ -47,6 +49,24 @@ const SUBJECT_LABELS: Record<string, string> = {
 
 function getSubjectLabel(subject: string): string {
   return SUBJECT_LABELS[subject] ?? subject;
+}
+
+/**
+ * Un seul accusé de réception par adresse et par heure : le formulaire (public, sans
+ * compte) ne doit pas pouvoir servir à envoyer des e-mails en série à une boîte tierce
+ * depuis contact@blalinker.com. La demande est toujours enregistrée et l'équipe toujours
+ * notifiée. Redis indisponible : comportement inchangé (accusé envoyé).
+ */
+export const CONTACT_ACK_COOLDOWN_SECONDS = 3600;
+
+export async function shouldAcknowledge(email: string): Promise<boolean> {
+  try {
+    const key = `contact_ack:${createHash('sha256').update(email.trim().toLowerCase()).digest('hex')}`;
+    return (await redis.set(key, '1', 'EX', CONTACT_ACK_COOLDOWN_SECONDS, 'NX')) === 'OK';
+  } catch (err) {
+    logger.warn('Délai entre accusés de réception indisponible (Redis)', { error: err instanceof Error ? err.message : String(err) });
+    return true;
+  }
 }
 
 async function sendRequesterAcknowledgement(payload: CreateContactInput, requestId: string): Promise<void> {
@@ -125,8 +145,9 @@ async function createContactRequest(payload: CreateContactInput, userId?: string
     select: { id: true },
   });
 
+  const acknowledge = await shouldAcknowledge(payload.email);
   await Promise.all([
-    sendRequesterAcknowledgement(payload, created.id),
+    acknowledge ? sendRequesterAcknowledgement(payload, created.id) : Promise.resolve(),
     notifyAdmins(payload, created.id),
   ]);
 
