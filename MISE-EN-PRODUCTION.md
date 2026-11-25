@@ -49,6 +49,9 @@ Le dépôt local est configuré pour s'identifier en `kyndecode` (configuration 
 | Commande de démarrage | doit contenir `prisma migrate deploy` (jamais `db push`) | applique les migrations additives |
 | `TRUST_PROXY_HOPS` | ne pas définir au départ (défaut 1) ; si l'historique des connexions n'affiche que des IP en 10.x, mettre 2 | IP réelle des clients (limites de fréquence, journal) |
 | Offre (*Settings → Instance Type*) | offre payante recommandée (au moins *Starter*) | l'offre gratuite s'endort après 15 min : réveil mesuré à 32 s le 2026-11-25, d'où les écrans qui « moulinent » |
+| `MFA_ENABLED` | ne pas définir (défaut : actif) ; jamais `false` durablement | interrupteur de secours pour une panne d'e-mail. Depuis le nouveau code, un administrateur ayant configuré son application d'authentification doit **toujours** saisir son code, même avec `false` |
+| `METRICS_TOKEN` | facultatif | `/metrics` est fermé en production (404) ; ne définir ce jeton que si un outil de supervision doit lire les métriques (`Authorization: Bearer …`) |
+| `CORS_ORIGIN` | `https://www.blalinker.com,https://blalinker.com,https://admin.blalinker.com` | les origines `localhost` ne sont plus acceptées par défaut en production ; ajouter ici une adresse de prévisualisation si nécessaire |
 
 Noter aussi **la branche** qui déclenche le déploiement automatique.
 
@@ -56,7 +59,7 @@ Noter aussi **la branche** qui déclenche le déploiement automatique.
 
 | Où | Quoi |
 |---|---|
-| Vercel → projet `blalinker` → *Settings → Environment Variables* | `VITE_GOOGLE_CLIENT_ID` = **même valeur** que `GOOGLE_CLIENT_ID` sur Render (Production et Preview), puis *Deployments → Redeploy* : Vite intègre la valeur à la compilation. Constat du 2026-11-25 : absente du site en ligne. |
+| Vercel → projet `blalinker` → *Settings → Environment Variables* | `VITE_GOOGLE_CLIENT_ID` = **même valeur** que `GOOGLE_CLIENT_ID` sur Render (Production et Preview), puis *Deployments → Redeploy* : Vite intègre la valeur à la compilation. Fait le 2026-11-25 (connexion Google vérifiée en ligne). |
 | Vercel → projet `blalinker` | `VITE_API_URL` = `https://api.blalinker.com/api/v1` (constaté correct en ligne) |
 | Vercel → projet `blalinker-admin` | `VITE_API_URL` identique ; pas d'identifiant Google (connexion Google refusée aux comptes d'administration) |
 | Google Cloud Console → *APIs & Services → Credentials* → client OAuth « Web » de BLALINKER | *Authorized JavaScript origins* : `https://www.blalinker.com` et `https://blalinker.com`. Aucune URI de redirection n'est nécessaire (Google Identity Services). |
@@ -64,6 +67,29 @@ Noter aussi **la branche** qui déclenche le déploiement automatique.
 Un client OAuth distinct par projet (BLALINKER, WeLe, E-SCOLAR) : le serveur BLALINKER accepte
 tout jeton émis pour son identifiant ; un identifiant partagé ferait accepter ici des jetons
 obtenus sur un autre site.
+
+## 2 ter. Supabase — accès à la base hors API
+
+Le site et l'administration n'utilisent jamais Supabase directement : seul le backend (Prisma)
+accède à la base. Les tables du schéma `public` ne doivent donc pas être lisibles par l'API
+automatique de Supabase (clé `anon`).
+
+1. Supabase → *Advisors → Security Advisor* : noter les alertes « RLS disabled in public ».
+2. Vérification en lecture seule (*SQL Editor*) :
+
+   ```sql
+   SELECT c.relname AS table_name, c.relrowsecurity AS rls_active
+   FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+   WHERE n.nspname = 'public' AND c.relkind = 'r' ORDER BY 1;
+   ```
+
+3. Si des tables ont `rls_active = false` : **après la sauvegarde du point 1**, activer la sécurité
+   par ligne sur chacune, sans aucune règle d'accès (refus pour `anon` et `authenticated`).
+   Le backend n'est pas affecté : il se connecte avec le rôle propriétaire des tables, qui
+   n'est pas soumis à ces règles. Exemple pour une table : `ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;`
+   Variante plus simple si l'API automatique ne sert à rien : *Settings → API → Exposed schemas*,
+   retirer `public`.
+4. Vérifier ensuite `GET https://api.blalinker.com/health` → `200` (le backend lit toujours la base).
 
 ## 3. Brevo
 
@@ -83,7 +109,9 @@ colonnes supplémentaires ignorées).
 
 ## 5. Déploiement progressif
 
-1. Pousser la branche, attendre la CI (lint, tests, tests sur base réelle, audit de sécurité).
+1. Pousser la branche puis **ouvrir une Pull Request vers `main`** : la CI ne se lance que sur
+   les Pull Requests vers `main` et les pushs sur `main`/`develop`. Attendre qu'elle soit verte
+   (lint, tests, tests sur base réelle, audit de sécurité, builds).
 2. Vérifier les prévisualisations Vercel du site et de l'administration.
 3. Fusionner vers la branche de déploiement **juste avant** de déployer.
 4. Backend Render : suivre les journaux (migrations « applied », démarrage sans erreur).
@@ -115,6 +143,15 @@ Ne jamais insérer de données de test en production : le jeu de diagnostic
 - `GET /api/v1/search?q=plomberie` → `200`.
 - Connexion à l'administration (code e-mail ou application), puis menu, tableau de bord.
 - Site : accueil, recherche, fiche prestataire, réservation de test sur un compte de test.
+
+## 6 bis. GitHub (une fois, propriétaire du dépôt)
+
+- *Settings → Branches* : protéger `main` (Pull Request obligatoire, CI verte exigée : jobs
+  « Tests Backend », « Tests Frontend Web », « Tests Frontend Admin », « Audit sécurité »).
+  Aujourd'hui `main` n'est pas protégée : un push direct déclenche le déploiement Render
+  sans passer par la CI.
+- *Actions → Security Scan* : réactiver le workflow (désactivé automatiquement par GitHub après
+  60 jours sans activité sur le dépôt).
 
 ## 7. Après la mise en ligne
 
