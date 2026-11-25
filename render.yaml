@@ -111,9 +111,14 @@ services:
       - key: STRIPE_PUBLIC_KEY
         sync: false
 
-      # MFA/OTP à la connexion (défaut true ; mettre false dans le dashboard
-      # pour se connecter sans OTP en cas de souci de délivrabilité e-mail)
+      # MFA/OTP à la connexion (défaut true). false = secours ponctuel en cas de panne
+      # d'e-mail pour les clients et prestataires ; un administrateur ayant configuré son
+      # application d'authentification doit TOUJOURS saisir son code, même avec false.
       - key: MFA_ENABLED
+        sync: false
+
+      # Lecture de /metrics en production (Authorization: Bearer …). Absent → /metrics fermé.
+      - key: METRICS_TOKEN
         sync: false
 
       # Auth sociale

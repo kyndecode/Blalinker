@@ -139,6 +139,33 @@ describe('login() — réponses', () => {
     expect(sendEmail).toHaveBeenCalledTimes(1);
   });
 
+  it('admin avec application : code TOTP exigé même si MFA_ENABLED=false ou MFA du compte désactivée', async () => {
+    const { env } = jest.requireMock('../../src/config/env') as { env: { MFA_ENABLED: boolean } };
+    env.MFA_ENABLED = false;
+    try {
+      userMock.findFirst.mockResolvedValue({ ...adminTotp, mfaEnabled: false });
+      const res = await auth.login({ email: adminTotp.email, password: 'x' }, '1.2.3.4');
+      expect(res).toMatchObject({ mfaRequired: true, mfaMethod: 'totp' });
+      expect(res).not.toHaveProperty('accessToken');
+      expect(prisma.userSession.create).not.toHaveBeenCalled();
+    } finally {
+      env.MFA_ENABLED = true;
+    }
+  });
+
+  it('client avec MFA_ENABLED=false : connexion directe inchangée (interrupteur conservé)', async () => {
+    const { env } = jest.requireMock('../../src/config/env') as { env: { MFA_ENABLED: boolean } };
+    env.MFA_ENABLED = false;
+    try {
+      userMock.findFirst.mockResolvedValue(client);
+      const res = await auth.login({ email: client.email, password: 'x' }, '1.2.3.4');
+      expect(res).toMatchObject({ mfaRequired: false });
+      expect(sendEmail).not.toHaveBeenCalled();
+    } finally {
+      env.MFA_ENABLED = true;
+    }
+  });
+
   it('admin avec application : code TOTP demandé, AUCUN e-mail envoyé', async () => {
     userMock.findFirst.mockResolvedValue(adminTotp);
 

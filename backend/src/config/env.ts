@@ -125,6 +125,8 @@ const envSchema = z.object({
 
   // Monitoring
   SENTRY_DSN: optionalStringEnv(),
+  // Jeton exigé pour lire /metrics en production (Authorization: Bearer …). Absent → /metrics fermé (404).
+  METRICS_TOKEN: optionalStringEnv(),
 
   // Admin — AUCUN mot de passe par défaut (un défaut connu = compte super_admin compromis).
   // ADMIN_EMAIL : boîte qui reçoit les demandes de contact, et adresse du premier
@@ -161,23 +163,26 @@ export const env = {
 };
 export type Env = typeof env;
 
-const DEFAULT_CORS_ORIGINS = [
-  'http://localhost:5173',
-  'http://localhost:5174',
+const PRODUCTION_CORS_ORIGINS = [
   'https://blalinker.com',
   'https://www.blalinker.com',
   'https://admin.blalinker.com',
 ];
+/** Serveurs de développement : jamais autorisés par défaut en production (cookies d'authentification). */
+const DEVELOPMENT_CORS_ORIGINS = ['http://localhost:5173', 'http://localhost:5174'];
 
 function normalizeCorsOrigin(origin: string): string {
   return origin.trim().replace(/\/+$/, '');
 }
 
-export function getCorsOrigins(rawOrigins: string = env.CORS_ORIGIN): string[] {
+export function getCorsOrigins(rawOrigins: string = env.CORS_ORIGIN, nodeEnv: string = env.NODE_ENV): string[] {
   const explicitOrigins = rawOrigins
     .split(',')
     .map(normalizeCorsOrigin)
     .filter(Boolean);
+  const defaults = nodeEnv === 'production'
+    ? PRODUCTION_CORS_ORIGINS
+    : [...DEVELOPMENT_CORS_ORIGINS, ...PRODUCTION_CORS_ORIGINS];
 
-  return Array.from(new Set([...DEFAULT_CORS_ORIGINS, ...explicitOrigins]));
+  return Array.from(new Set([...defaults, ...explicitOrigins]));
 }

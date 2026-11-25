@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { prisma } from '../../config/database';
 import { logger } from '../../config/logger';
 import { uploadBuffer, isCloudinaryConfigured } from '../../config/cloudinary';
+import { AVATAR_KINDS, ID_DOCUMENT_KINDS, isAllowedFile } from '../../utils/fileType.util';
 
 async function ensureProfile(userId: string) {
   const profile = await prisma.profile.findUnique({ where: { userId }, select: { userId: true } });
@@ -17,6 +18,9 @@ export const uploadsController = {
       return res.status(503).json({ error: 'Stockage de fichiers non configuré.' });
     }
     if (!req.file) return res.status(400).json({ error: 'Aucun fichier fourni' });
+    if (!isAllowedFile(req.file.buffer, AVATAR_KINDS)) {
+      return res.status(415).json({ error: 'Format non accepté : photo JPEG, PNG ou WebP (6 Mo maximum).', code: 'UNSUPPORTED_FILE_TYPE' });
+    }
 
     try {
       const result = await uploadBuffer(req.file.buffer, `bla/avatars/${req.user!.id}`, 'image');
@@ -35,6 +39,9 @@ export const uploadsController = {
       return res.status(503).json({ error: 'Stockage de fichiers non configuré.' });
     }
     if (!req.file) return res.status(400).json({ error: 'Aucun fichier fourni' });
+    if (!isAllowedFile(req.file.buffer, ID_DOCUMENT_KINDS)) {
+      return res.status(415).json({ error: 'Format non accepté : photo (JPEG, PNG, WebP) ou PDF, 6 Mo maximum.', code: 'UNSUPPORTED_FILE_TYPE' });
+    }
 
     try {
       // Livraison « authenticated » : lisible uniquement via une URL signée temporaire

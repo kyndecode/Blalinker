@@ -6,6 +6,7 @@ import { auditFromReq } from '../../utils/audit.util';
 import { cachedValue, invalidateCache } from '../../utils/cache.util';
 import { getPaginationParams, getSkip, paginate } from '../../utils/pagination.util';
 import { isCloudinaryConfigured, uploadBuffer } from '../../config/cloudinary';
+import { SITE_IMAGE_KINDS, isAllowedFile } from '../../utils/fileType.util';
 import { SETTINGS_REGISTRY, SUPPORTED_LOCALES, isSettingKey, scopeSchema, type SupportedLocale } from './settings.registry';
 import { contentStatusValues } from './content.schemas';
 import type {
@@ -506,7 +507,9 @@ export const contentAdminController = {
 
   async uploadMedia(req: Request, res: Response) {
     if (!isCloudinaryConfigured()) return res.status(503).json({ error: 'Stockage de fichiers non configuré.', code: 'STORAGE_UNAVAILABLE' });
-    if (!req.file) return res.status(400).json({ error: 'Aucune image valide (JPEG, PNG, WebP ou GIF, 5 Mo maximum).' });
+    if (!req.file || !isAllowedFile(req.file.buffer, SITE_IMAGE_KINDS)) {
+      return res.status(400).json({ error: 'Aucune image valide (JPEG, PNG, WebP ou GIF, 5 Mo maximum).' });
+    }
     const alt = typeof req.body?.alt === 'string' ? req.body.alt.trim().slice(0, 200) : null;
     try {
       const result = await uploadBuffer(req.file.buffer, 'bla/site', 'image');

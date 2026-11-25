@@ -213,13 +213,19 @@ export class AuthService {
       data:  { loginAttempts: 0, lockedUntil: null },
     });
 
-    // MFA activé (au niveau compte ET au niveau plateforme) → envoyer l'OTP
-    if (user.mfaEnabled && env.MFA_ENABLED) {
+    // Administrateur avec application d'authentification : second facteur TOUJOURS exigé.
+    // MFA_ENABLED=false (prévu pour contourner une panne d'envoi d'e-mails, qui n'affecte pas
+    // l'application) et la désactivation de la MFA du compte ne doivent jamais permettre
+    // une connexion d'administration avec le seul mot de passe.
+    const totpAdmin = isTotpUser(user);
+
+    // MFA activé (au niveau compte ET au niveau plateforme), ou admin avec TOTP → second facteur
+    if (totpAdmin || (user.mfaEnabled && env.MFA_ENABLED)) {
       const tempToken = await this._createMfaTempToken(user.id, ip);
 
       // Administrateur avec application d'authentification : on demande le code TOTP.
       // Aucun e-mail n'est envoyé ici ; le secours par e-mail se demande explicitement.
-      if (isTotpUser(user)) {
+      if (totpAdmin) {
         return {
           mfaRequired: true,
           tempToken,
