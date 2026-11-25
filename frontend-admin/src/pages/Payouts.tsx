@@ -87,12 +87,12 @@ export default function Payouts() {
             ) : data?.data?.length ? data.data.map((p: Payout) => (
               <tr key={p.id} className="border-b border-white/10 hover:bg-white/5">
                 <td className="px-4 py-3">
-                  <div className="text-white">{p.provider?.profile ? `${p.provider.profile.firstName} ${p.provider.profile.lastName}`.trim() : '—'}</div>
+                  <div className="text-white">{p.provider?.profile ? `${p.provider.profile.firstName} ${p.provider.profile.lastName}`.trim() : '-'}</div>
                   <div className="text-white/40 text-xs">{p.provider?.email}</div>
                 </td>
                 <td className="px-4 py-3 text-white font-semibold">{Number(p.amount).toLocaleString('fr-FR')} {p.currency}</td>
                 <td className="px-4 py-3 text-gray-400">
-                  <span className="capitalize">{p.method?.replace('_', ' ') ?? '—'}</span>
+                  <span className="capitalize">{p.method?.replace('_', ' ') ?? '-'}</span>
                   {p.destination && <div className="text-white/40 text-xs">{p.destination}</div>}
                 </td>
                 <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[p.status] ?? 'bg-white/10 text-gray-400'}`}>{p.status}</span></td>

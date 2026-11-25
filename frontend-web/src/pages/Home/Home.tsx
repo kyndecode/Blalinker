@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { fetchSiteStats, fetchTestimonials, type PublicStat } from '../../services/site';
 import api from '../../services/api';
-import { contentLocale, settingText, useActiveCountries, useSiteSettings } from '../../hooks/useSiteContent';
+import { contentLocale, settingText, useSiteSettings } from '../../hooks/useSiteContent';
 
 /** Catégorie active publiée par l'administration (GET /categories). */
 interface ApiCategory { id: string; name: string; slug: string; iconUrl: string | null; children?: Array<{ id: string; name: string; slug: string }> }
@@ -153,7 +153,6 @@ export default function Home() {
   // Données réelles uniquement ; en cas d'absence ou d'erreur, la section est masquée.
   const locale = contentLocale(i18n?.language);
   const { data: settings } = useSiteSettings();
-  const { data: countries = [] } = useActiveCountries();
   // Catégories gérées depuis l'administration ; à défaut, catégories intégrées.
   const { data: apiCategories = [] } = useQuery<ApiCategory[]>({
     queryKey: ['home-categories'],
@@ -213,12 +212,10 @@ export default function Home() {
         </div>
 
         <div className="relative mx-auto max-w-4xl px-4 py-24 sm:py-32 text-center">
-          {countries.length > 0 && (
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-xs font-medium text-white/80 backdrop-blur-sm" data-testid="home-countries">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-orange-400" />
-              {t('home.available_in')} {countries.map((c) => c.name).join(' · ')}
-            </div>
-          )}
+          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-xs font-medium text-white/80 backdrop-blur-sm" data-testid="home-countries">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-orange-400" />
+            {t('home.available_in')}
+          </div>
 
           <h1 className="mb-5 text-4xl font-extrabold leading-tight tracking-tight text-white sm:text-5xl lg:text-6xl">
             {heroTitle ?? (

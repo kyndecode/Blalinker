@@ -7,7 +7,6 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
 import PhoneCountrySelect from '../../components/common/PhoneCountrySelect';
-import ServedCountries from '../../components/common/ServedCountries';
 import api from '../../services/api';
 import { useContactInfo } from '../../hooks/useContactInfo';
 import { useAuthStore } from '../../store/authStore';
@@ -336,7 +335,6 @@ export default function Contact() {
               {contact.phoneDisplay}
             </a>
             <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">{t('contact.available_markets')}</p>
-            <ServedCountries className="mt-2" />
           </div>
 
           <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-5">

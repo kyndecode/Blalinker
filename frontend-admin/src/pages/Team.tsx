@@ -161,7 +161,7 @@ export default function Team() {
             ) : data?.data?.map((m: Member) => (
               <tr key={m.id} className="border-b border-white/10 hover:bg-white/5">
                 <td className="px-4 py-3">
-                  <div className="text-white">{m.profile ? `${m.profile.firstName} ${m.profile.lastName}`.trim() : '—'}</div>
+                  <div className="text-white">{m.profile ? `${m.profile.firstName} ${m.profile.lastName}`.trim() : '-'}</div>
                   <div className="text-white/40 text-xs">{m.email}</div>
                 </td>
                 <td className="px-4 py-3">
@@ -285,7 +285,7 @@ function MemberModal({ presets, allPermissions, initial, saving, errorMsg, onClo
 
         <label className="block text-xs text-white/50 mb-1">Rôle prédéfini</label>
         <select value={form.preset} onChange={(e) => applyPreset(e.target.value)} className="input w-full mb-3">
-          <option value="">— Personnalisé —</option>
+          <option value="">Personnalisé</option>
           {presets.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
         </select>
 

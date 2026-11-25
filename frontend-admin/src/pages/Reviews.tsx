@@ -37,7 +37,7 @@ const BADGES: Record<Moderation, { label: string; cls: string }> = {
   rejected: { label: 'Refusé', cls: 'bg-white/10 text-gray-300' },
 };
 
-const name = (p: Person) => `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim() || p.email || '—';
+const name = (p: Person) => `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim() || p.email || '-';
 
 type PendingAction = { kind: 'reject' | 'delete'; review: AdminReview } | null;
 

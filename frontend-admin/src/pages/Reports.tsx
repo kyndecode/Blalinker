@@ -38,7 +38,7 @@ const BOOKING_LABELS: Record<string, string> = {
 
 const who = (p: Person) => {
   const n = `${p.profile?.firstName ?? ''} ${p.profile?.lastName ?? ''}`.trim();
-  return `${n || '—'}${p.email ? ` (${p.email})` : ''}`;
+  return `${n || '-'}${p.email ? ` (${p.email})` : ''}`;
 };
 
 function DisputeDialog({ report, onClose }: { report: AdminReport | null; onClose: () => void }) {

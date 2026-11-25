@@ -5,12 +5,12 @@ import { useNetworkStatus } from './hooks/useNetworkStatus';
 import { useTranslation } from 'react-i18next';
 import api, { shouldLogoutAfterRefreshError, useServerStatus } from './services/api';
 
-// Layout (chargé immédiatement — présent sur toutes les pages)
+// Layout (chargé immédiatement : présent sur toutes les pages)
 import Header from './components/layout/Header';
 import Footer from './components/layout/Footer';
 import AnnouncementBar from './components/content/AnnouncementBar';
 
-// Pages — chargées à la demande (code-splitting) pour alléger le bundle initial.
+// Pages : chargées à la demande (code-splitting) pour alléger le bundle initial.
 const Home            = lazy(() => import('./pages/Home/Home'));
 const Contact         = lazy(() => import('./pages/Contact/Contact'));
 const AboutPage       = lazy(() => import('./pages/About/AboutPage'));
@@ -149,7 +149,7 @@ export default function App() {
           <Route path="/profile"      element={<RequireAuth><ProfilePage /></RequireAuth>} />
           <Route path="/notifications" element={<RequireAuth><NotificationsPage /></RequireAuth>} />
 
-          {/* 404 — affiche une vraie page plutôt qu'une redirection silencieuse */}
+          {/* 404 : affiche une vraie page plutôt qu'une redirection silencieuse */}
           <Route path="*" element={<NotFound />} />
         </Routes>
         </Suspense>

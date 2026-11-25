@@ -14,7 +14,7 @@ type RetryableRequestConfig = InternalAxiosRequestConfig & {
  * Délais : le serveur (offre gratuite Render) peut mettre 30 à 60 s à se réveiller.
  * - Lectures : 15 s, rejouées jusqu'à 2 fois (sans effet de bord).
  * - Écritures (connexion, envoi de code, réservation…) : 75 s, JAMAIS rejouées
- *   automatiquement — une connexion rejouée créait plusieurs codes OTP d'affilée.
+ *   automatiquement : une connexion rejouée créait plusieurs codes OTP d'affilée.
  */
 export const READ_TIMEOUT_MS = 15_000;
 export const WRITE_TIMEOUT_MS = 75_000;

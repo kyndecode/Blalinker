@@ -24,7 +24,7 @@ export const BOOKING_STATUS: Record<string, { label: string; cls: string }> = {
   disputed: { label: 'En litige', cls: 'bg-orange-900/50 text-orange-300' },
 };
 
-const who = (p: Person) => `${p.firstName} ${p.lastName}`.trim() || p.email || '—';
+const who = (p: Person) => `${p.firstName} ${p.lastName}`.trim() || p.email || '-';
 
 export default function Bookings() {
   const [page, setPage] = useState(1);
@@ -73,10 +73,10 @@ export default function Bookings() {
             {!isLoading && rows.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">Aucune réservation ne correspond.</td></tr>}
             {rows.map((b) => (
               <tr key={b.id} className="border-b border-white/5 hover:bg-white/5">
-                <td className="px-4 py-3 text-white">{b.service?.name ?? '—'}</td>
+                <td className="px-4 py-3 text-white">{b.service?.name ?? '-'}</td>
                 <td className="px-4 py-3 text-gray-300">{who(b.client)}</td>
                 <td className="px-4 py-3 text-gray-300">{who(b.provider)}</td>
-                <td className="px-4 py-3 text-gray-300">{b.amount ? `${Number(b.amount).toLocaleString('fr-FR')} ${b.currency}` : '—'}</td>
+                <td className="px-4 py-3 text-gray-300">{b.amount ? `${Number(b.amount).toLocaleString('fr-FR')} ${b.currency}` : '-'}</td>
                 <td className="px-4 py-3"><span className={`rounded-full px-2 py-0.5 text-xs ${BOOKING_STATUS[b.status]?.cls ?? ''}`}>{BOOKING_STATUS[b.status]?.label ?? b.status}</span></td>
                 <td className="px-4 py-3 text-gray-400">{new Date(b.createdAt).toLocaleDateString('fr-FR')}</td>
               </tr>

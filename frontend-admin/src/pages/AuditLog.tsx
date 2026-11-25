@@ -59,10 +59,10 @@ export default function AuditLog() {
             {rows.map((row) => (
               <tr key={row.id} className="border-b border-white/5 hover:bg-white/5">
                 <td className="whitespace-nowrap px-4 py-3 text-gray-400">{new Date(row.createdAt).toLocaleString('fr-FR')}</td>
-                <td className="px-4 py-3 text-gray-300">{row.user?.email ?? '—'}{row.user?.adminTitle ? <span className="block text-xs text-gray-500">{row.user.adminTitle}</span> : null}</td>
+                <td className="px-4 py-3 text-gray-300">{row.user?.email ?? '-'}{row.user?.adminTitle ? <span className="block text-xs text-gray-500">{row.user.adminTitle}</span> : null}</td>
                 <td className="px-4 py-3"><span className="font-mono text-xs text-green-400">{row.action}</span></td>
-                <td className="px-4 py-3 text-xs text-gray-400">{row.entity ? `${row.entity}${row.entityId ? ` · ${row.entityId.slice(0, 8)}` : ''}` : '—'}</td>
-                <td className="px-4 py-3 text-xs text-gray-500">{row.ipAddress ?? '—'}</td>
+                <td className="px-4 py-3 text-xs text-gray-400">{row.entity ? `${row.entity}${row.entityId ? ` · ${row.entityId.slice(0, 8)}` : ''}` : '-'}</td>
+                <td className="px-4 py-3 text-xs text-gray-500">{row.ipAddress ?? '-'}</td>
               </tr>
             ))}
           </tbody>

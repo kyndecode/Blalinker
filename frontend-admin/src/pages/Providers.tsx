@@ -56,10 +56,10 @@ export default function Providers() {
             {!isLoading && rows.length === 0 && <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">Aucun prestataire ne correspond.</td></tr>}
             {rows.map((p) => (
               <tr key={p.id} className="border-b border-white/5 hover:bg-white/5">
-                <td className="px-4 py-3 text-white">{p.profile ? `${p.profile.firstName} ${p.profile.lastName}` : '—'}</td>
-                <td className="px-4 py-3 text-gray-300">{p.email ?? p.phone ?? '—'}</td>
-                <td className="px-4 py-3 text-gray-300">{p.profile?.city ?? '—'}</td>
-                <td className="px-4 py-3 text-gray-300">{p.providerProfile && p.providerProfile.ratingCount > 0 ? `${Number(p.providerProfile.ratingAverage).toFixed(1)} (${p.providerProfile.ratingCount})` : '—'}</td>
+                <td className="px-4 py-3 text-white">{p.profile ? `${p.profile.firstName} ${p.profile.lastName}` : '-'}</td>
+                <td className="px-4 py-3 text-gray-300">{p.email ?? p.phone ?? '-'}</td>
+                <td className="px-4 py-3 text-gray-300">{p.profile?.city ?? '-'}</td>
+                <td className="px-4 py-3 text-gray-300">{p.providerProfile && p.providerProfile.ratingCount > 0 ? `${Number(p.providerProfile.ratingAverage).toFixed(1)} (${p.providerProfile.ratingCount})` : '-'}</td>
                 <td className="px-4 py-3 text-gray-300">{p.providerProfile?.completedJobs ?? 0}</td>
                 <td className="px-4 py-3">{p.profile?.idVerified ? <span className="rounded-full bg-green-900/50 px-2 py-0.5 text-xs text-green-300">Vérifiée</span> : <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs text-gray-300">Non vérifiée</span>}</td>
                 <td className="px-4 py-3 text-gray-300">{STATUS[p.status] ?? p.status}</td>

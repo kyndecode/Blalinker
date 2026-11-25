@@ -6,7 +6,7 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Palette BLA — Vert principal + Orange secondaire
+        // Palette BLA : Vert principal + Orange secondaire
         primary: {
           50:  '#f0fdf4',
           100: '#dcfce7',

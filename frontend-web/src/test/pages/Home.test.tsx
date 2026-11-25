@@ -90,18 +90,13 @@ describe('Accueil — aucun chiffre ni témoignage inventé', () => {
 });
 
 describe('Accueil — contenus administrables', () => {
-  it('aucun pays présupposé : pas de bandeau tant qu’aucun pays n’est activé', async () => {
-    mockApi([], []);
-    renderHome();
-    await waitFor(() => expect(calledWith('/site/countries')).toBe(true));
-    expect(screen.queryByTestId('home-countries')).not.toBeInTheDocument();
-    expect(screen.queryByText(/Togo|Burkina|Mali/)).not.toBeInTheDocument();
-  });
-
-  it('pays activés dans l’administration : affichés', async () => {
+  it('disponible partout en Afrique : aucun pays cité, aucun appel à la liste des pays', async () => {
     mockApi([], [], { '/site/countries': { items: [{ code: 'XA', name: 'Pays A', dialCode: '+999', currency: 'XOF', defaultLocale: 'fr' }] } });
     renderHome();
-    expect(await screen.findByTestId('home-countries')).toHaveTextContent('Pays A');
+    await waitFor(() => expect(calledWith('/site/testimonials')).toBe(true));
+    expect(screen.getByTestId('home-countries')).toHaveTextContent('home.available_in');
+    expect(screen.queryByText(/Pays A|Togo|Burkina|Mali|Côte d/)).not.toBeInTheDocument();
+    expect(calledWith('/site/countries')).toBe(false);
   });
 
   it('catégories et titre publiés depuis l’administration remplacent les valeurs intégrées', async () => {

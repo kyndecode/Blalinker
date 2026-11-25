@@ -100,7 +100,7 @@ export default function Settings() {
           Portée{' '}
           <select value={scope} onChange={(e) => setScope(e.target.value)} className="ml-1 rounded-lg border border-white/10 bg-[#1a2744] px-3 py-2 text-sm text-white">
             <option value="global">Tous les pays (global)</option>
-            {(countries?.items ?? []).map((c) => <option key={c.code} value={c.code}>{c.name} ({c.code}){c.isActive ? '' : ' — inactif'}</option>)}
+            {(countries?.items ?? []).map((c) => <option key={c.code} value={c.code}>{c.name} ({c.code}){c.isActive ? '' : ' (inactif)'}</option>)}
           </select>
         </label>
       </div>

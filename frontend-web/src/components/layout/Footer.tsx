@@ -1,7 +1,6 @@
 ﻿import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import Logo from '../common/Logo';
-import ServedCountries from '../common/ServedCountries';
 import { useContactInfo } from '../../hooks/useContactInfo';
 import { useSiteConfig } from '../../hooks/useSiteConfig';
 
@@ -160,7 +159,7 @@ export default function Footer() {
               </li>
               <li>
                 <p className="text-xs text-white/60 mb-0.5">{t('footer.available_in')}</p>
-                <ServedCountries tone="onDark" className="mt-1.5" />
+                <p className="text-sm text-white/80" data-testid="footer-service-area">{t('footer.service_area')}</p>
               </li>
             </ul>
           </div>
@@ -170,7 +169,7 @@ export default function Footer() {
       <div className="border-t border-white/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row items-center justify-between gap-2">
           <p className="text-xs text-white/55">
-            © {new Date().getFullYear()} BLA Services - {t('footer.copyright')}
+            © {new Date().getFullYear()} BLA Services. {t('footer.copyright')}
           </p>
           <p className="text-xs text-white/55">{t('footer.made_for_africa')}</p>
         </div>

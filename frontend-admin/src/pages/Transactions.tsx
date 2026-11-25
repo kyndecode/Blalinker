@@ -99,7 +99,7 @@ export default function Transactions() {
       </div>
       {data?.meta && <Pagination page={page} totalPages={data.meta.totalPages} total={data.meta.total} label="transactions" onChange={setPage} />}
       <ConfirmDialog open={Boolean(refunding)} danger title="Rembourser ce paiement"
-        message={refunding ? `${money(refunding.amount, refunding.currency)} — la réservation liée sera annulée. Action journalisée, réservée à la permission « Rembourser ».` : ''}
+        message={refunding ? `${money(refunding.amount, refunding.currency)} : la réservation liée sera annulée. Action journalisée, réservée à la permission « Rembourser ».` : ''}
         confirmLabel="Rembourser" busy={refund.isPending} error={refund.isError ? getApiErrorMessage(refund.error) : null}
         onClose={() => setRefunding(null)} onConfirm={() => refunding && refund.mutate(refunding.id)} />
     </div>

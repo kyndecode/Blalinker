@@ -34,8 +34,8 @@ function getClient() {
 const SMS_TEMPLATES = {
   otp_register:      (code: string) => `Votre code BLA est : ${code}. Valable 10 minutes. Ne le partagez jamais.`,
   otp_login:         (code: string) => `Code de connexion BLA : ${code}. Si vous n'êtes pas à l'origine de cette demande, changez votre mot de passe.`,
-  otp_password_reset:(code: string) => `BLA — Code de réinitialisation : ${code}. Valable 10 minutes.`,
-  otp_payment:       (code: string) => `BLA — Confirmez votre paiement avec le code : ${code}.`,
+  otp_password_reset:(code: string) => `BLA : code de réinitialisation ${code}. Valable 10 minutes.`,
+  otp_payment:       (code: string) => `BLA : confirmez votre paiement avec le code ${code}.`,
   booking_accepted:  (name: string) => `BLA: ${name} a accepté votre réservation. Suivez-le dans l'application.`,
   booking_arrived:   (name: string) => `BLA: ${name} est arrivé à votre adresse.`,
   payment_confirmed: (amount: number, currency: string) => `BLA: Paiement de ${amount} ${currency} confirmé. Merci !`,

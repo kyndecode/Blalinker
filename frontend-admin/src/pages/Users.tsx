@@ -41,7 +41,7 @@ const STATUS_ACTIONS: Record<StatusAction['next'], { title: string; label: strin
 };
 
 const fullName = (u: { profile: { firstName: string; lastName: string } | null }) =>
-  (u.profile ? `${u.profile.firstName} ${u.profile.lastName}`.trim() : '') || '—';
+  (u.profile ? `${u.profile.firstName} ${u.profile.lastName}`.trim() : '') || '-';
 
 interface Activity {
   lastLoginAt: string | null; failedAttempts: number; lockedUntil: string | null;
@@ -118,7 +118,7 @@ function UserPanel({ userId, onClose, onStatus }: { userId: string | null; onClo
   const verify = useMutation({
     mutationFn: (body: { approved: boolean; comment?: string }) => api.post(`/admin/users/${userId}/verify-id`, body).then((r) => r.data),
     onSuccess: (res) => {
-      toast.success(res?.activated ? `${res.message} — compte activé` : res?.message ?? 'Décision enregistrée');
+      toast.success(res?.activated ? `${res.message} (compte activé)` : res?.message ?? 'Décision enregistrée');
       setRejecting(false);
       setApproving(false);
       qc.invalidateQueries({ queryKey: ['admin-user', userId] });
@@ -138,10 +138,10 @@ function UserPanel({ userId, onClose, onStatus }: { userId: string | null; onClo
           <dl className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
             <div><dt className="text-gray-400">Rôle</dt><dd>{ROLES[user.role] ?? user.role}</dd></div>
             <div><dt className="text-gray-400">Statut</dt><dd><span className={`rounded-full px-2 py-0.5 text-xs ${STATUS[user.status]?.cls ?? ''}`}>{STATUS[user.status]?.label ?? user.status}</span></dd></div>
-            <div><dt className="text-gray-400">E-mail</dt><dd className="break-all">{user.email ?? '—'}</dd></div>
-            <div><dt className="text-gray-400">Téléphone</dt><dd>{user.phone ?? '—'}</dd></div>
-            <div><dt className="text-gray-400">Ville</dt><dd>{[p?.city, p?.country].filter(Boolean).join(', ') || '—'}</dd></div>
-            <div><dt className="text-gray-400">Dernière connexion</dt><dd>{user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString('fr-FR') : '—'}</dd></div>
+            <div><dt className="text-gray-400">E-mail</dt><dd className="break-all">{user.email ?? 'Non renseigné'}</dd></div>
+            <div><dt className="text-gray-400">Téléphone</dt><dd>{user.phone ?? 'Non renseigné'}</dd></div>
+            <div><dt className="text-gray-400">Ville</dt><dd>{[p?.city, p?.country].filter(Boolean).join(', ') || 'Non renseignée'}</dd></div>
+            <div><dt className="text-gray-400">Dernière connexion</dt><dd>{user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString('fr-FR') : 'Jamais'}</dd></div>
             {user._count && (
               <div className="sm:col-span-2"><dt className="text-gray-400">Activité</dt>
                 <dd>{user._count.clientBookings} réservation(s) client · {user._count.providerBookings} mission(s) · {user._count.receivedReviews} avis reçu(s)</dd></div>
@@ -157,7 +157,7 @@ function UserPanel({ userId, onClose, onStatus }: { userId: string | null; onClo
                   : p?.hasIdDocument ? 'Pièce déposée, en attente de vérification.' : 'Aucune pièce déposée.'}
               </p>
               {p?.dateOfBirth !== undefined && (
-                <p className="mt-1 text-gray-400">Date de naissance : {p.dateOfBirth ? new Date(p.dateOfBirth).toLocaleDateString('fr-FR') : '—'}</p>
+                <p className="mt-1 text-gray-400">Date de naissance : {p.dateOfBirth ? new Date(p.dateOfBirth).toLocaleDateString('fr-FR') : 'non renseignée'}</p>
               )}
               {p?.hasIdDocument && (
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -298,7 +298,7 @@ export default function Users() {
               : (data?.data ?? []).map((u) => (
                 <tr key={u.id} className="border-b border-white/5 hover:bg-white/5">
                   <td className="px-4 py-3 text-white">{fullName(u)}</td>
-                  <td className="px-4 py-3 text-gray-300">{u.email ?? u.phone ?? '—'}</td>
+                  <td className="px-4 py-3 text-gray-300">{u.email ?? u.phone ?? '-'}</td>
                   <td className="px-4 py-3 text-gray-300">{ROLES[u.role] ?? u.role}</td>
                   <td className="px-4 py-3"><span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS[u.status]?.cls ?? ''}`}>{STATUS[u.status]?.label ?? u.status}</span></td>
                   <td className="px-4 py-3 text-gray-400">{new Date(u.createdAt).toLocaleDateString('fr-FR')}</td>
@@ -321,7 +321,7 @@ export default function Users() {
       <ConfirmDialog
         open={Boolean(statusAction)}
         title={cfg?.title ?? ''}
-        message={<>{statusAction ? fullName(statusAction.user) : ''} — {cfg?.message}</>}
+        message={<>{statusAction ? fullName(statusAction.user) : ''} : {cfg?.message}</>}
         confirmLabel={cfg?.label ?? ''}
         danger={cfg?.danger}
         reason={statusAction?.next === 'active' ? undefined : { label: 'Motif (journalisé)', required: true, minLength: 5 }}

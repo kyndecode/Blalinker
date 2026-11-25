@@ -68,7 +68,7 @@ function SkeletonBlock({ className = '' }: { className?: string }) {
   return <div className={`bg-gray-200 dark:bg-gray-700 rounded animate-pulse ${className}`} />;
 }
 
-function fullName(person?: Person, fallback = '—') {
+function fullName(person?: Person, fallback = 'Non renseigné') {
   const name = `${person?.firstName ?? ''} ${person?.lastName ?? ''}`.trim();
   return name || fallback;
 }
@@ -310,7 +310,7 @@ export default function BookingDetail() {
 
         {booking.review && (
           <p className="text-sm text-gray-700 dark:text-gray-300">
-            Votre avis : <span className="text-yellow-500" aria-label={`${booking.review.rating} sur 5`}>{'★'.repeat(booking.review.rating)}</span> — {REVIEW_LABELS[booking.review.status]}
+            Votre avis : <span className="text-yellow-500" aria-label={`${booking.review.rating} sur 5`}>{'★'.repeat(booking.review.rating)}</span> · {REVIEW_LABELS[booking.review.status]}
           </p>
         )}
 

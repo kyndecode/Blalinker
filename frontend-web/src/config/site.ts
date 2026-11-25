@@ -1,5 +1,5 @@
 /**
- * Coordonnées affichées sur le site — source unique (pied de page, page Contact).
+ * Coordonnées affichées sur le site : source unique (pied de page, page Contact).
  *
  * - E-mail : contact@blalinker.com, seule boîte existante (identique à
  *   BREVO_FROM_EMAIL / ADMIN_EMAIL côté serveur, cf. render.yaml).

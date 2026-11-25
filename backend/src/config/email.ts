@@ -170,7 +170,7 @@ function baseTemplate(content: string): string {
     ${content}
     <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0">
     <p style="color:#9ca3af;font-size:11px;text-align:center;margin:0">
-      © ${new Date().getFullYear()} BLA — Ne répondez pas à cet email.<br>
+      © ${new Date().getFullYear()} BLA. Ne répondez pas à cet e-mail.<br>
       Si vous n'avez pas demandé cet email, ignorez-le.
     </p>
   </div>
@@ -193,7 +193,7 @@ export const emailTemplates = {
       </div>
       <p style="color:#6b7280;font-size:13px">
         ⏱ Ce code expire dans <strong>10 minutes</strong>.<br>
-        🔒 Ne le partagez jamais — BLA ne vous le demandera jamais par téléphone.
+        🔒 Ne le partagez jamais : BLA ne vous le demandera jamais par téléphone.
       </p>
     `),
   }),
@@ -230,7 +230,7 @@ export const emailTemplates = {
 
   /** Réservation acceptée (client) */
   bookingAccepted: (providerName: string, scheduledAt?: Date) => ({
-    subject: `✅ Votre réservation a été acceptée — BLA`,
+    subject: `✅ Votre réservation a été acceptée | BLA`,
     html: baseTemplate(`
       <h2 style="color:#111827;font-size:20px;margin:0 0 12px">Bonne nouvelle !</h2>
       <p style="color:#4b5563;font-size:15px;line-height:1.6">
@@ -245,7 +245,7 @@ export const emailTemplates = {
 
   /** Paiement confirmé */
   paymentConfirmed: (amount: number, currency: string, providerName: string) => ({
-    subject: `💰 Paiement confirmé — ${amount.toLocaleString('fr-SN')} ${currency}`,
+    subject: `💰 Paiement confirmé : ${amount.toLocaleString('fr-SN')} ${currency}`,
     html: baseTemplate(`
       <h2 style="color:#111827;font-size:20px;margin:0 0 12px">Paiement confirmé</h2>
       <div style="background:#f0fdf4;border-radius:12px;padding:20px;margin:16px 0">
@@ -261,7 +261,7 @@ export const emailTemplates = {
 
   /** Identité validée par l'admin */
   identityVerified: (firstName: string) => ({
-    subject: '✅ Votre identité a été vérifiée — BLA',
+    subject: '✅ Votre identité a été vérifiée | BLA',
     html: baseTemplate(`
       <h2 style="color:#111827;font-size:20px;margin:0 0 12px">Identité vérifiée !</h2>
       <p style="color:#4b5563;font-size:15px;line-height:1.6">
@@ -277,7 +277,7 @@ export const emailTemplates = {
 
   /** Alerte de sécurité */
   securityAlert: (firstName: string, city: string, device: string) => ({
-    subject: '⚠️ Connexion depuis un nouvel appareil — BLA',
+    subject: '⚠️ Connexion depuis un nouvel appareil | BLA',
     html: baseTemplate(`
       <h2 style="color:#dc2626;font-size:20px;margin:0 0 12px">⚠️ Alerte de sécurité</h2>
       <p style="color:#4b5563;font-size:15px;line-height:1.6">

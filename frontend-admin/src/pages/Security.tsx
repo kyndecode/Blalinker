@@ -26,7 +26,7 @@ const primary = 'px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 t
 
 function RecoveryCodes({ codes, onDone }: { codes: string[]; onDone: () => void }) {
   const [saved, setSaved] = useState(false);
-  const text = `BLA Services — codes de récupération (usage unique)\n\n${codes.join('\n')}\n`;
+  const text = `BLA Services : codes de récupération (usage unique)\n\n${codes.join('\n')}\n`;
 
   const copy = async () => {
     try {
@@ -173,7 +173,7 @@ export default function Security() {
               <ShieldCheck className="w-5 h-5" /> Application d'authentification activée
             </div>
             <p className="text-sm text-gray-600">
-              Depuis le {status.totpEnabledAt ? new Date(status.totpEnabledAt).toLocaleDateString('fr-FR') : '—'}.
+              {status.totpEnabledAt ? `Depuis le ${new Date(status.totpEnabledAt).toLocaleDateString('fr-FR')}.` : 'Date d’activation inconnue.'}
               Codes de récupération restants : <strong>{status.recoveryCodesRemaining}</strong>.
             </p>
           </div>

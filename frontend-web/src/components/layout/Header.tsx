@@ -86,7 +86,7 @@ export default function Header() {
             <Logo size="sm" variant="white" />
           </Link>
 
-          {/* Navigation — Desktop */}
+          {/* Navigation : Desktop */}
           <nav className="hidden lg:flex items-center gap-1 flex-1 justify-center">
             {navLinks.map((link) => (
               <Link
@@ -103,7 +103,7 @@ export default function Header() {
             ))}
           </nav>
 
-          {/* Actions — Desktop */}
+          {/* Actions : Desktop */}
           <div className="hidden lg:flex items-center gap-2">
 
             {/* Recherche rapide */}
@@ -224,7 +224,7 @@ export default function Header() {
             )}
           </div>
 
-          {/* Mobile — droite */}
+          {/* Mobile : droite */}
           <div className="flex lg:hidden items-center gap-2">
             {isAuthenticated && <NotificationBell variant="mobile" />}
             {isAuthenticated && (

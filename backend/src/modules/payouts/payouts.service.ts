@@ -93,7 +93,7 @@ export const payoutsService = {
     if (!transaction) throw httpError('Transaction introuvable', 404);
     if (transaction.status !== 'completed') throw httpError('Seuls les paiements complétés sont remboursables.', 400);
     if (transaction.payout && transaction.payout.status === 'paid') {
-      throw httpError('Fonds déjà reversés au prestataire — remboursement manuel requis.', 400);
+      throw httpError('Fonds déjà reversés au prestataire : remboursement manuel requis.', 400);
     }
 
     const provider = (transaction.metadata as { provider?: string } | null)?.provider;
