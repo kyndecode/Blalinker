@@ -1,6 +1,7 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import { create } from 'zustand';
 import { useAuthStore } from '../store/authStore';
+import { endLocalSession } from './session';
 
 type RetryableRequestConfig = InternalAxiosRequestConfig & {
   _retry?: boolean;
@@ -88,7 +89,7 @@ function getConfiguredApiBaseUrls(): string[] {
 const API_BASE_URLS = getConfiguredApiBaseUrls();
 let activeBaseIndex = 0;
 
-function getActiveApiBaseUrl(): string {
+export function getActiveApiBaseUrl(): string {
   return API_BASE_URLS[activeBaseIndex] ?? API_BASE_URLS[0] ?? '/api/v1';
 }
 
@@ -192,6 +193,13 @@ api.interceptors.response.use(
     const requestUrl = originalRequest.url ?? '';
     const isRefreshRequest = requestUrl.includes('/auth/refresh-token');
 
+    // Compte suspendu ou banni pendant la session : fin de session immédiate (tous les onglets).
+    const code = (error.response?.data as { code?: string } | undefined)?.code;
+    if (error.response?.status === 403 && (code === 'ACCOUNT_SUSPENDED' || code === 'ACCOUNT_BANNED')) {
+      if (useAuthStore.getState().isAuthenticated) endLocalSession();
+      return Promise.reject(error);
+    }
+
     if (error.response?.status === 401 && !originalRequest._retry && !isRefreshRequest) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
@@ -207,7 +215,7 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const { setTokens, logout } = useAuthStore.getState();
+        const { setTokens } = useAuthStore.getState();
 
         // Le refresh token est dans un cookie HttpOnly : envoyé automatiquement
         // grâce à withCredentials, sans être accessible au JavaScript.
@@ -218,7 +226,7 @@ api.interceptors.response.use(
         );
 
         if (!data?.accessToken) {
-          logout();
+          endLocalSession();
           return Promise.reject(error);
         }
 
@@ -230,7 +238,7 @@ api.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError as Error, null);
         // Session refusée par le serveur → déconnexion ; panne passagère → session conservée.
-        if (shouldLogoutAfterRefreshError(refreshError)) useAuthStore.getState().logout();
+        if (shouldLogoutAfterRefreshError(refreshError)) endLocalSession();
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

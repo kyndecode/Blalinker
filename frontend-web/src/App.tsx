@@ -1,9 +1,12 @@
-import { type ReactNode, lazy, Suspense, useEffect, useState } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { lazy, Suspense, useEffect, useState } from 'react';
+import { Routes, Route } from 'react-router-dom';
 import { useAuthStore } from './store/authStore';
 import { useNetworkStatus } from './hooks/useNetworkStatus';
 import { useTranslation } from 'react-i18next';
 import api, { shouldLogoutAfterRefreshError, useServerStatus } from './services/api';
+import { clearLocalSession, endLocalSession, subscribeAuthSync } from './services/session';
+import { flushPendingLogout } from './services/logout';
+import RequireAuth from './components/auth/RequireAuth';
 
 // Layout (chargé immédiatement : présent sur toutes les pages)
 import Header from './components/layout/Header';
@@ -42,11 +45,6 @@ function PageFallback() {
   );
 }
 
-function RequireAuth({ children }: { children: ReactNode }) {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
-}
-
 export default function App() {
   const isOnline = useNetworkStatus();
   const { t }    = useTranslation();
@@ -54,8 +52,13 @@ export default function App() {
   const user = useAuthStore((state) => state.user);
   const setTokens = useAuthStore((state) => state.setTokens);
   const setUser = useAuthStore((state) => state.setUser);
-  const logout = useAuthStore((state) => state.logout);
   const [authReady, setAuthReady] = useState(false);
+
+  // Déconnexion faite dans un autre onglet : cet onglet se déconnecte aussi (sans rediffuser).
+  useEffect(() => subscribeAuthSync(() => clearLocalSession()), []);
+
+  // Déconnexion restée en attente (serveur injoignable au moment du clic) : terminée ici.
+  useEffect(() => { void flushPendingLogout(); }, []);
   const serverSlow = useServerStatus((s) => s.slowRequests > 0);
 
   useEffect(() => {
@@ -84,7 +87,7 @@ export default function App() {
       } catch (error) {
         // Session refusée (401/403) → déconnexion. Serveur en réveil ou réseau coupé :
         // la session est conservée et sera renouvelée à la prochaine requête.
-        if (shouldLogoutAfterRefreshError(error)) logout();
+        if (shouldLogoutAfterRefreshError(error)) endLocalSession();
       } finally {
         if (!cancelled) setAuthReady(true);
       }
@@ -94,7 +97,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [accessToken, user, setTokens, setUser, logout]);
+  }, [accessToken, user, setTokens, setUser]);
 
   if (!authReady) {
     return (

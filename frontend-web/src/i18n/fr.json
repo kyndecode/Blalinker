@@ -59,6 +59,7 @@
     "otp_resend_in": "Renvoyer dans {{seconds}}s",
     "otp_resend_error": "Erreur lors du renvoi du code",
     "logged_as": "Connecté en tant que",
+    "logged_out": "Vous êtes déconnecté.",
     "google_continue": "Continuer avec Google",
     "google_loading": "Connexion Google...",
     "google_unavailable": "Connexion Google indisponible pour le moment.",

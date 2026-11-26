@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { clearLogoutPending } from '../utils/logoutPending';
 
 interface User {
   id: string;
@@ -32,8 +33,11 @@ export const useAuthStore = create<AuthState>()(
 
       setUser: (user) => set({ user }),
 
-      setTokens: (accessToken) =>
-        set({ accessToken, isAuthenticated: true }),
+      setTokens: (accessToken) => {
+        // Nouvelle session ouverte : une ancienne déconnexion en attente ne doit pas la fermer.
+        clearLogoutPending();
+        set({ accessToken, isAuthenticated: true });
+      },
 
       logout: () =>
         set({

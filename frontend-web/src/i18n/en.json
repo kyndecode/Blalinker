@@ -59,6 +59,7 @@
     "otp_resend_in": "Resend in {{seconds}}s",
     "otp_resend_error": "Failed to resend code",
     "logged_as": "Logged in as",
+    "logged_out": "You are signed out.",
     "google_continue": "Continue with Google",
     "google_loading": "Google sign-in...",
     "google_unavailable": "Google sign-in is currently unavailable.",
