@@ -243,7 +243,7 @@ export default function Contacts() {
                 <Archive className="w-5 h-5 text-gray-400" />
               </div>
               <p className="text-gray-300 font-medium">Selectionnez une demande</p>
-              <p className="text-gray-500 text-xs mt-1">
+              <p className="text-gray-400 text-xs mt-1">
                 Le detail s'affiche ici pour traiter et notifier le client.
               </p>
             </div>
@@ -257,7 +257,7 @@ export default function Contacts() {
                 <p className="text-sm text-gray-400 mt-1">
                   {selectedContact.firstName} {selectedContact.lastName} - {selectedContact.email}
                 </p>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-400 mt-1">
                   Telephone: {selectedContact.phone} ({selectedContact.countryCode})
                 </p>
               </div>
@@ -304,7 +304,7 @@ export default function Contacts() {
                              focus:outline-none focus:ring-2 focus:ring-green-500"
                   placeholder="Message envoye au client (email + notification)..."
                 />
-                <p className="text-[11px] text-gray-500 text-right">{adminResponse.length}/3000</p>
+                <p className="text-[11px] text-gray-400 text-right">{adminResponse.length}/3000</p>
               </div>
 
               <button

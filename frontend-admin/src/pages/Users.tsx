@@ -79,7 +79,7 @@ function UserActivity({ userId }: { userId: string }) {
                     <span className={l.success ? 'text-green-400' : 'text-red-400'}>{l.success ? 'Réussie' : 'Échec'}</span>
                     <span className="text-gray-300">{new Date(l.at).toLocaleString('fr-FR')}</span>
                     {l.method && <span className="text-gray-400">{METHOD_LABELS[l.method] ?? l.method}</span>}
-                    {l.ip && <span className="text-gray-500">{l.ip}</span>}
+                    {l.ip && <span className="text-gray-400">{l.ip}</span>}
                   </li>
                 ))}
               </ul>

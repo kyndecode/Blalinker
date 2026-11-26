@@ -314,7 +314,7 @@ export default function AdminLogin() {
                 {mfa.step === 'totp' && (
                   <>
                     <p className="text-sm text-gray-300 mb-2">Code de votre application d'authentification</p>
-                    <p className="text-xs text-gray-500 mb-2">Google Authenticator ou Microsoft Authenticator : 6 chiffres.</p>
+                    <p className="text-xs text-gray-400 mb-2">Google Authenticator ou Microsoft Authenticator : 6 chiffres.</p>
                   </>
                 )}
                 {(mfa.step === 'email-otp' || mfa.step === 'totp-email') && (
@@ -345,14 +345,14 @@ export default function AdminLogin() {
                 {mfa.step === 'email-otp' && (
                   <>
                     <p className="text-xs text-gray-400 mt-2">Code envoyé sur {mfa.email}</p>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-gray-400 mt-1">
                       Si vous avez reçu plusieurs e-mails, seul le code du plus récent est valide (10 minutes).
                       Pensez à vérifier les courriers indésirables.
                     </p>
                   </>
                 )}
                 {mfa.step === 'totp-email' && (
-                  <p className="text-xs text-gray-500 mt-2">
+                  <p className="text-xs text-gray-400 mt-2">
                     Seul le code du plus récent e-mail est valide. Pensez à vérifier les courriers indésirables.
                   </p>
                 )}
@@ -411,7 +411,7 @@ export default function AdminLogin() {
           )}
         </div>
 
-        <p className="text-center text-gray-600 text-xs mt-6">BLA Admin - Acces non autorise interdit</p>
+        <p className="text-center text-gray-400 text-xs mt-6">BLA Admin - Accès non autorisé interdit</p>
       </div>
     </div>
   );

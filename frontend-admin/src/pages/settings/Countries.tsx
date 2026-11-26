@@ -90,7 +90,7 @@ export default function Countries() {
             {!isLoading && items.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">Aucun pays configuré.</td></tr>}
             {items.map((c) => (
               <tr key={c.code} className="border-b border-white/5">
-                <td className="px-4 py-3 text-white">{c.name} <span className="text-gray-500">({c.code})</span></td>
+                <td className="px-4 py-3 text-white">{c.name} <span className="text-gray-400">({c.code})</span></td>
                 <td className="px-4 py-3 text-gray-300">{c.dialCode}</td>
                 <td className="px-4 py-3 text-gray-300">{c.currency}</td>
                 <td className="px-4 py-3 uppercase text-gray-300">{c.defaultLocale}</td>

@@ -95,7 +95,7 @@ export default function Faq() {
               <span className={`rounded-full px-2 py-0.5 text-xs ${STATUS_BADGE[q.status]?.cls ?? ''}`}>{STATUS_BADGE[q.status]?.label}</span>
             </div>
             <p className="mt-1 line-clamp-2 text-sm text-gray-300">{q.answer}</p>
-            <p className="mt-1 text-xs text-gray-500">{q.category ? `${q.category} · ` : ''}ordre {q.sortOrder}</p>
+            <p className="mt-1 text-xs text-gray-400">{q.category ? `${q.category} · ` : ''}ordre {q.sortOrder}</p>
             <div className="mt-2 flex gap-2">
               <button onClick={() => setEditing(q)} className="rounded-lg border border-white/15 px-3 py-1 text-xs">Modifier</button>
               <button onClick={() => { remove.reset(); setDeleting(q); }} className="rounded-lg border border-red-500/40 px-3 py-1 text-xs text-red-300">Supprimer</button>

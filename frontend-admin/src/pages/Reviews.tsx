@@ -154,11 +154,11 @@ export default function Reviews() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-yellow-400" aria-label={`${r.rating} sur 5`}>{'★'.repeat(r.rating)}<span className="text-gray-600">{'★'.repeat(5 - r.rating)}</span></span>
+                <span className="text-yellow-400" aria-label={`${r.rating} sur 5`}>{'★'.repeat(r.rating)}<span className="text-gray-400">{'★'.repeat(5 - r.rating)}</span></span>
                 <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${BADGES[r.moderation].cls}`}>{BADGES[r.moderation].label}</span>
               </div>
             </div>
-            <p className="mt-3 whitespace-pre-line text-sm text-gray-200">{r.comment || <span className="italic text-gray-500">Sans commentaire</span>}</p>
+            <p className="mt-3 whitespace-pre-line text-sm text-gray-200">{r.comment || <span className="italic text-gray-400">Sans commentaire</span>}</p>
             {r.response && <p className="mt-2 border-l-2 border-green-500 pl-3 text-sm text-gray-300">Réponse du prestataire : {r.response}</p>}
             {r.moderation === 'rejected' && r.flagReason && <p className="mt-2 text-xs text-gray-400">Motif du refus : {r.flagReason}</p>}
             <div className="mt-3 flex flex-wrap gap-2">

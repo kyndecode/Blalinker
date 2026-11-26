@@ -45,7 +45,7 @@ function SettingEditor({ entry, scope, row }: { entry: CatalogEntry; scope: stri
     <form onSubmit={(e) => { e.preventDefault(); save.mutate(); }} className="rounded-lg border border-white/10 p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <label htmlFor={entry.kind === 'localized' ? `${id}-fr` : id} className="text-sm font-medium text-gray-100">{entry.label}</label>
-        <span className="text-[11px] text-gray-500">{row ? `modifié le ${new Date(row.updatedAt).toLocaleDateString('fr-FR')}` : scope === 'global' ? 'valeur intégrée au site' : 'valeur globale'}</span>
+        <span className="text-[11px] text-gray-400">{row ? `modifié le ${new Date(row.updatedAt).toLocaleDateString('fr-FR')}` : scope === 'global' ? 'valeur intégrée au site' : 'valeur globale'}</span>
       </div>
       {entry.kind === 'localized' ? (
         <div className="mt-2 grid gap-2 sm:grid-cols-3">

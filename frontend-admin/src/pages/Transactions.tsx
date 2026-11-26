@@ -84,7 +84,7 @@ export default function Transactions() {
                 <td className="px-4 py-3 text-gray-300">{METHODS[t.method] ?? t.method}</td>
                 <td className="px-4 py-3">
                   <span className={`rounded-full px-2 py-0.5 text-xs ${TX_STATUS[t.status]?.cls ?? ''}`}>{TX_STATUS[t.status]?.label ?? t.status}</span>
-                  {t.releasedAt && <span className="ml-1 text-xs text-gray-500">fonds libérés</span>}
+                  {t.releasedAt && <span className="ml-1 text-xs text-gray-400">fonds libérés</span>}
                 </td>
                 <td className="px-4 py-3 text-gray-400">{new Date(t.createdAt).toLocaleDateString('fr-FR')}</td>
                 <td className="px-4 py-3 text-right">
