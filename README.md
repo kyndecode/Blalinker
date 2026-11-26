@@ -68,7 +68,7 @@ bla/
 | Paiements | Wave API, Orange Money API, Free Money API |
 | IA | TensorFlow.js / Python microservice (FastAPI) |
 | Tests | Jest, React Testing Library, Supertest, k6 |
-| CI/CD | GitHub Actions + Docker + Nginx |
+| CI/CD | GitHub Actions (contrôles) ; hébergement Render (API) et Vercel (site, administration) |
 | Monitoring | Sentry + Prometheus + Grafana |
 
 ---
