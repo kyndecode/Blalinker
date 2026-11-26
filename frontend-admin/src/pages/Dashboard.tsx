@@ -105,8 +105,8 @@ export default function Dashboard() {
               sub={`${data.bookings.today} aujourd'hui`}                  color="bg-green-600" />
             <StatCard icon={Clock}         label="Missions en cours"    value={data.bookings.inProgress}
               sub="Temps réel"                                            color="bg-orange-600"  />
-            <StatCard icon={DollarSign}    label="Paiements encaissés (mois)" value={`${data.revenue.thisMonth.toLocaleString()} ${data.revenue.currency}`}
-              sub={data.commissions ? `Commissions : ${data.commissions.thisMonth.toLocaleString()} ${data.commissions.currency}` : undefined} color="bg-emerald-600" />
+            <StatCard icon={DollarSign}    label="Paiements encaissés (mois)" value={`${data.revenue.thisMonth.toLocaleString('fr-FR')} ${data.revenue.currency}`}
+              sub={data.commissions ? `Commissions : ${data.commissions.thisMonth.toLocaleString('fr-FR')} ${data.commissions.currency}` : undefined} color="bg-emerald-600" />
             <StatCard icon={AlertTriangle} label="Signalements"         value={data.reports.open}
               sub="À traiter en priorité"                                 color="bg-red-600"     />
             <StatCard icon={TrendingUp}    label="Avis à modérer"       value={data.reviews.pending}
@@ -162,17 +162,17 @@ export default function Dashboard() {
               <div className="space-y-5">
                 <div>
                   <p className="text-gray-500 text-xs mb-1">Paiements encaissés ce mois</p>
-                  <p className="text-3xl font-extrabold text-white">{data.revenue.thisMonth.toLocaleString()}</p>
+                  <p className="text-3xl font-extrabold text-white">{data.revenue.thisMonth.toLocaleString('fr-FR')}</p>
                   <p className="text-gray-500 text-xs">{data.revenue.currency}</p>
                 </div>
                 <div className="pt-4 border-t border-white/10">
                   <p className="text-gray-500 text-xs mb-1">Paiements encaissés (cumul)</p>
-                  <p className="text-xl font-bold text-green-400">{data.revenue.total.toLocaleString()} {data.revenue.currency}</p>
+                  <p className="text-xl font-bold text-green-400">{data.revenue.total.toLocaleString('fr-FR')} {data.revenue.currency}</p>
                 </div>
                 {data.commissions && (
                   <div className="pt-4 border-t border-white/10">
                     <p className="text-gray-500 text-xs mb-1">Commissions du mois (enregistrées)</p>
-                    <p className="text-xl font-bold text-amber-400">{data.commissions.thisMonth.toLocaleString()} {data.commissions.currency}</p>
+                    <p className="text-xl font-bold text-amber-400">{data.commissions.thisMonth.toLocaleString('fr-FR')} {data.commissions.currency}</p>
                   </div>
                 )}
               </div>
