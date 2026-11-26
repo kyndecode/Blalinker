@@ -74,8 +74,6 @@
     "radius": "Radius (km)",
     "min_rating": "Minimum rating",
     "available_only": "Available only",
-    "results": "{{count}} provider found",
-    "results_plural": "{{count}} providers found",
     "no_results": "No providers found in this area.",
     "loading": "Searching...",
     "all_categories": "All categories",
@@ -89,7 +87,9 @@
     "smart_recommendations": "Smart recommendations for you",
     "try_expand_radius": "Try expanding your search radius.",
     "prev": "Previous",
-    "next": "Next"
+    "next": "Next",
+    "results_one": "{{count}} provider found",
+    "results_other": "{{count}} providers found"
   },
   "provider": {
     "rating": "{{rating}} out of 5",
@@ -100,7 +100,9 @@
     "unavailable": "Unavailable",
     "contact": "Contact",
     "book": "Book Now",
-    "verified": "Identity Verified"
+    "verified": "Identity Verified",
+    "reviews_one": "{{count}} review",
+    "reviews_other": "{{count}} reviews"
   },
   "booking": {
     "new": "New Booking",
@@ -266,7 +268,20 @@
   "common": {
     "ok": "OK",
     "language": "Language",
-    "menu": "Menu"
+    "menu": "Menu",
+    "loading": "Loading…",
+    "previous": "Previous",
+    "next": "Next",
+    "page_of": "Page {{page}} of {{total}}",
+    "pagination": "Pagination",
+    "back": "Back",
+    "cancel": "Cancel",
+    "close": "Close",
+    "send": "Send",
+    "sending": "Sending…",
+    "save": "Save",
+    "saving": "Saving…",
+    "out_of_5": "{{rating}} out of 5"
   },
   "contact": {
     "title": "Contact & Support",
@@ -439,5 +454,126 @@
         "text": "These terms are governed by applicable law in the service operating country, subject to local mandatory provisions."
       }
     }
+  },
+  "text_search": {
+    "sort_relevance": "Relevance",
+    "sort_rating": "Top rated",
+    "sort_price_asc": "Price: low to high",
+    "sort_price_desc": "Price: high to low",
+    "sort_distance": "Distance",
+    "geo_unavailable": "Location is not available on this device.",
+    "geo_denied": "Location denied or unavailable: enter a city instead.",
+    "what_label": "What are you looking for?",
+    "what_placeholder": "E.g. plumber, hairdresser, electrician…",
+    "what_help": "Typos and missing accents are fine.",
+    "suggestions": "Suggestions",
+    "suggest_category": "Category",
+    "suggest_city": "City",
+    "suggest_providers_one": "{{count}} provider",
+    "suggest_providers_other": "{{count}} providers",
+    "city_label": "City",
+    "city_placeholder": "E.g. Abidjan",
+    "submit": "Search",
+    "category_label": "Category",
+    "category_all": "All",
+    "sort_label": "Sort by",
+    "around_me": "Near me (15 km)",
+    "around_me_stop": "Stop filtering near me",
+    "clear": "Clear search",
+    "map": "View map",
+    "loading": "Searching…",
+    "error": "Search is unavailable right now.",
+    "count_one": "{{count}} result",
+    "count_other": "{{count}} results",
+    "count_query": " for “{{q}}”",
+    "count_city": " in {{city}}",
+    "did_you_mean": "Did you mean",
+    "question_mark": "?",
+    "no_match": "No provider matches your search.",
+    "no_match_tip": "Try a broader term, remove the city or pick a category.",
+    "provider_fallback": "Provider",
+    "rating_aria": "Rated {{rating}} out of 5",
+    "no_reviews": "No reviews yet",
+    "price_on_quote": "Price on request",
+    "view_profile": "View profile",
+    "pagination": "Pagination",
+    "page_of": "Page {{page}} of {{total}}"
+  },
+  "provider_page": {
+    "not_found": "Provider not found.",
+    "back": "Back",
+    "verified": "Verified",
+    "message": "Message",
+    "services": "Services offered",
+    "reviews_title": "Customer reviews",
+    "no_reviews": "No reviews yet.",
+    "provider_reply": "Provider's reply:",
+    "report": "Report this profile",
+    "this_provider": "this provider",
+    "similar_title": "Similar providers",
+    "provider_fallback": "Provider"
+  },
+  "content_page": {
+    "not_found_title": "Page not found",
+    "not_found_text": "This page does not exist or is no longer published.",
+    "back_home": "Back to home"
+  },
+  "announcement": {
+    "region": "Announcement",
+    "learn_more": "Learn more",
+    "dismiss": "Hide announcement"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "just_now": "just now",
+    "minutes_ago": "{{count}} min ago",
+    "hours_ago": "{{count}} h ago",
+    "bell_unread_one": "Notifications, {{count}} unread",
+    "bell_unread_other": "Notifications, {{count}} unread",
+    "latest": "Latest notifications",
+    "mark_all": "Mark all as read",
+    "mark_all_count": "Mark all as read ({{count}})",
+    "empty_short": "No notifications yet.",
+    "empty_long": "No notifications yet. You will be told here about every step of your bookings.",
+    "unread_prefix": "Unread: ",
+    "fallback_title": "Notification",
+    "see_all": "See all notifications"
+  },
+  "report": {
+    "title": "Report {{name}}",
+    "intro": "Our team reviews every report. The reported person is not told who you are.",
+    "sent": "Report sent.",
+    "reason": "Reason",
+    "details": "Details (optional)",
+    "reason_fraud": "Fraud or scam",
+    "reason_fake_profile": "Fake profile",
+    "reason_no_show": "Did not show up",
+    "reason_harassment": "Harassment",
+    "reason_inappropriate": "Inappropriate content or behaviour",
+    "reason_other": "Other"
+  },
+  "service_edit": {
+    "title": "Edit service",
+    "field_title": "Title",
+    "field_description": "Description",
+    "field_price": "Price (XOF)",
+    "error_title": "Title: at least 3 characters.",
+    "error_price": "Enter a price above 0."
+  },
+  "reviews": {
+    "status_pending": "Under review",
+    "status_published": "Published",
+    "status_rejected": "Not published",
+    "edit_reply": "Edit my reply",
+    "reply_publicly": "Reply publicly",
+    "your_reply": "Your reply",
+    "publish_reply": "Publish reply",
+    "received": "Reviews received",
+    "mine": "My reviews",
+    "unavailable": "Reviews are unavailable right now.",
+    "none_provider": "No reviews yet.",
+    "none_client": "You can rate a service once the job is completed.",
+    "booking_fallback": "Booking",
+    "reply_label": "Reply:"
   }
 }

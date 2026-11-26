@@ -74,8 +74,6 @@
     "radius": "Rayon (km)",
     "min_rating": "Note minimale",
     "available_only": "Disponibles uniquement",
-    "results": "{{count}} prestataire trouvé",
-    "results_plural": "{{count}} prestataires trouvés",
     "no_results": "Aucun prestataire trouvé dans cette zone.",
     "loading": "Recherche en cours...",
     "all_categories": "Toutes catégories",
@@ -89,7 +87,9 @@
     "smart_recommendations": "Recommandations intelligentes pour vous",
     "try_expand_radius": "Essayez d'augmenter le rayon de recherche.",
     "prev": "Précédent",
-    "next": "Suivant"
+    "next": "Suivant",
+    "results_one": "{{count}} prestataire trouvé",
+    "results_other": "{{count}} prestataires trouvés"
   },
   "provider": {
     "rating": "{{rating}} sur 5",
@@ -100,7 +100,9 @@
     "unavailable": "Indisponible",
     "contact": "Contacter",
     "book": "Réserver",
-    "verified": "Identité vérifiée"
+    "verified": "Identité vérifiée",
+    "reviews_one": "{{count}} avis",
+    "reviews_other": "{{count}} avis"
   },
   "booking": {
     "new": "Nouvelle réservation",
@@ -266,7 +268,20 @@
   "common": {
     "ok": "OK",
     "language": "Langue",
-    "menu": "Menu"
+    "menu": "Menu",
+    "loading": "Chargement…",
+    "previous": "Précédent",
+    "next": "Suivant",
+    "page_of": "Page {{page}} / {{total}}",
+    "pagination": "Pagination",
+    "back": "Retour",
+    "cancel": "Annuler",
+    "close": "Fermer",
+    "send": "Envoyer",
+    "sending": "Envoi…",
+    "save": "Enregistrer",
+    "saving": "Enregistrement…",
+    "out_of_5": "{{rating}} sur 5"
   },
   "contact": {
     "title": "Contact & Support",
@@ -439,5 +454,126 @@
         "text": "Les présentes conditions sont soumises au droit applicable dans le pays d'exploitation du service, sous réserve des règles locales en vigueur."
       }
     }
+  },
+  "text_search": {
+    "sort_relevance": "Pertinence",
+    "sort_rating": "Mieux notés",
+    "sort_price_asc": "Prix croissant",
+    "sort_price_desc": "Prix décroissant",
+    "sort_distance": "Distance",
+    "geo_unavailable": "La géolocalisation n’est pas disponible sur cet appareil.",
+    "geo_denied": "Position refusée ou indisponible : indiquez plutôt une ville.",
+    "what_label": "Que recherchez-vous ?",
+    "what_placeholder": "Ex. : plombier, coiffure, électricité…",
+    "what_help": "Les fautes de frappe et les accents sont tolérés.",
+    "suggestions": "Suggestions",
+    "suggest_category": "Catégorie",
+    "suggest_city": "Ville",
+    "suggest_providers_one": "{{count}} prestataire",
+    "suggest_providers_other": "{{count}} prestataires",
+    "city_label": "Ville",
+    "city_placeholder": "Ex. : Abidjan",
+    "submit": "Rechercher",
+    "category_label": "Catégorie",
+    "category_all": "Toutes",
+    "sort_label": "Trier par",
+    "around_me": "Autour de moi (15 km)",
+    "around_me_stop": "Ne plus filtrer autour de moi",
+    "clear": "Effacer la recherche",
+    "map": "Voir la carte",
+    "loading": "Recherche…",
+    "error": "Recherche indisponible pour le moment.",
+    "count_one": "{{count}} résultat",
+    "count_other": "{{count}} résultats",
+    "count_query": " pour « {{q}} »",
+    "count_city": " à {{city}}",
+    "did_you_mean": "Vouliez-vous dire",
+    "question_mark": " ?",
+    "no_match": "Aucun prestataire ne correspond.",
+    "no_match_tip": "Essayez un terme plus général, retirez la ville ou choisissez une catégorie.",
+    "provider_fallback": "Prestataire",
+    "rating_aria": "Note {{rating}} sur 5",
+    "no_reviews": "Pas encore d’avis",
+    "price_on_quote": "Prix sur devis",
+    "view_profile": "Voir le profil",
+    "pagination": "Pagination",
+    "page_of": "Page {{page}} / {{total}}"
+  },
+  "provider_page": {
+    "not_found": "Prestataire introuvable.",
+    "back": "Retour",
+    "verified": "Vérifié",
+    "message": "Message",
+    "services": "Services proposés",
+    "reviews_title": "Avis clients",
+    "no_reviews": "Aucun avis pour le moment.",
+    "provider_reply": "Réponse du prestataire :",
+    "report": "Signaler ce profil",
+    "this_provider": "ce prestataire",
+    "similar_title": "Prestataires similaires",
+    "provider_fallback": "Prestataire"
+  },
+  "content_page": {
+    "not_found_title": "Page introuvable",
+    "not_found_text": "Cette page n’existe pas ou n’est plus publiée.",
+    "back_home": "Retour à l’accueil"
+  },
+  "announcement": {
+    "region": "Annonce",
+    "learn_more": "En savoir plus",
+    "dismiss": "Masquer l’annonce"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "just_now": "à l’instant",
+    "minutes_ago": "il y a {{count}} min",
+    "hours_ago": "il y a {{count}} h",
+    "bell_unread_one": "Notifications, {{count}} non lue",
+    "bell_unread_other": "Notifications, {{count}} non lues",
+    "latest": "Dernières notifications",
+    "mark_all": "Tout marquer comme lu",
+    "mark_all_count": "Tout marquer comme lu ({{count}})",
+    "empty_short": "Aucune notification pour le moment.",
+    "empty_long": "Aucune notification. Vous serez prévenu ici de chaque étape de vos réservations.",
+    "unread_prefix": "Non lue : ",
+    "fallback_title": "Notification",
+    "see_all": "Voir toutes les notifications"
+  },
+  "report": {
+    "title": "Signaler {{name}}",
+    "intro": "Notre équipe examine chaque signalement. La personne signalée n'est pas informée de votre identité.",
+    "sent": "Signalement envoyé.",
+    "reason": "Motif",
+    "details": "Précisions (facultatif)",
+    "reason_fraud": "Fraude ou arnaque",
+    "reason_fake_profile": "Faux profil",
+    "reason_no_show": "Absence au rendez-vous",
+    "reason_harassment": "Harcèlement",
+    "reason_inappropriate": "Contenu ou comportement inapproprié",
+    "reason_other": "Autre"
+  },
+  "service_edit": {
+    "title": "Modifier le service",
+    "field_title": "Titre",
+    "field_description": "Description",
+    "field_price": "Prix (XOF)",
+    "error_title": "Titre : 3 caractères minimum.",
+    "error_price": "Indiquez un prix supérieur à 0."
+  },
+  "reviews": {
+    "status_pending": "En vérification",
+    "status_published": "Publié",
+    "status_rejected": "Non publié",
+    "edit_reply": "Modifier ma réponse",
+    "reply_publicly": "Répondre publiquement",
+    "your_reply": "Votre réponse",
+    "publish_reply": "Publier la réponse",
+    "received": "Avis reçus",
+    "mine": "Mes avis",
+    "unavailable": "Avis indisponibles pour le moment.",
+    "none_provider": "Aucun avis pour le moment.",
+    "none_client": "Vous pourrez noter une prestation une fois la mission terminée.",
+    "booking_fallback": "Réservation",
+    "reply_label": "Réponse :"
   }
 }

@@ -11,6 +11,7 @@ import Markdown, { safeHref } from '../../components/content/Markdown';
 import ManagedPage from '../../components/content/ManagedPage';
 import AnnouncementBar from '../../components/content/AnnouncementBar';
 import FaqPage from '../../pages/Help/FaqPage';
+import { tr } from '../tr';
 
 function wrap(ui: JSX.Element) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -64,14 +65,14 @@ describe('pages administrables', () => {
     getMock.mockResolvedValue({ data: { items: [{ id: 'f1', category: null, question: 'Comment réserver ?', answer: 'Depuis la **fiche** du prestataire.' }] } });
     wrap(<FaqPage />);
     expect(await screen.findByText('Comment réserver ?')).toBeInTheDocument();
-    expect(screen.queryByText('faq.q1.question')).not.toBeInTheDocument();
+    expect(screen.queryByText(tr('faq.q1.question'))).not.toBeInTheDocument();
   });
 
   it('FAQ vide côté administration : questions intégrées', async () => {
     getMock.mockResolvedValue({ data: { items: [] } });
     wrap(<FaqPage />);
     await waitFor(() => expect(getMock).toHaveBeenCalled());
-    expect(screen.getByText('faq.q1.question')).toBeInTheDocument();
+    expect(screen.getByText(tr('faq.q1.question'))).toBeInTheDocument();
   });
 });
 

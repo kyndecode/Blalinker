@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import VerifyOTP from '../../pages/Auth/VerifyOTP';
+import { trRx } from '../tr';
 
 const { postMock, setTokensMock, setUserMock } = vi.hoisted(() => ({
   postMock: vi.fn(),
@@ -45,7 +46,7 @@ describe('VerifyOTP page', () => {
     postMock.mockResolvedValue({ data: { message: 'ok' } });
     renderVerify();
 
-    await user.click(screen.getByRole('button', { name: /auth.resend/i }));
+    await user.click(screen.getByRole('button', { name: trRx('auth.resend') }));
 
     await waitFor(() => {
       expect(postMock).toHaveBeenCalledWith('/auth/resend-otp', {

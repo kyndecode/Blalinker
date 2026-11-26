@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../store/authStore';
 import { ReportDialog } from '../../components/report/ReportDialog';
 import SimilarProviders from '../../components/provider/SimilarProviders';
 import { MapPin, Star, CheckCircle, MessageSquare, Calendar } from 'lucide-react';
 import api from '../../services/api';
+import { formatLocale } from '../../utils/locale';
 
 type ProviderCategory = {
   id?: string | number;
@@ -53,6 +55,7 @@ function SkeletonBlock({ className = '' }: { className?: string }) {
 export default function ProviderProfile() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { t, i18n } = useTranslation();
 
   const { data, isLoading, isError } = useQuery<ProviderData | { data: ProviderData }>({
     queryKey: ['provider', id],
@@ -116,12 +119,12 @@ export default function ProviderProfile() {
   if (isError || !provider) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-16 text-center">
-        <p className="text-gray-500 dark:text-gray-400 text-lg">Prestataire introuvable.</p>
+        <p className="text-gray-500 dark:text-gray-400 text-lg">{t('provider_page.not_found')}</p>
         <button
           onClick={() => navigate(-1)}
-          className="mt-4 text-green-600 dark:text-green-400 hover:underline text-sm font-medium"
+          className="mt-4 text-green-700 dark:text-green-400 hover:underline text-sm font-medium"
         >
-          ← Retour
+          <span aria-hidden="true">← </span>{t('provider_page.back')}
         </button>
       </div>
     );
@@ -156,7 +159,7 @@ export default function ProviderProfile() {
               {provider?.isVerified && (
                 <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-2 py-0.5 rounded-full">
                   <CheckCircle className="w-3 h-3" />
-                  Vérifié
+                  {t('provider_page.verified')}
                 </span>
               )}
             </div>
@@ -179,8 +182,8 @@ export default function ProviderProfile() {
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                   {Number(rating).toFixed(1)}
                 </span>
-                <span className="text-xs text-gray-400 dark:text-gray-500">
-                  ({reviewCount} avis)
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  ({t('provider.reviews', { count: reviewCount })})
                 </span>
               </div>
             )}
@@ -206,17 +209,17 @@ export default function ProviderProfile() {
         <div className="mt-5 pt-5 border-t border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row gap-3">
           <button
             onClick={() => navigate(`/bookings/new?provider=${id}`)}
-            className="flex-1 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 active:bg-green-800 text-white font-semibold py-2.5 px-5 rounded-xl transition-colors"
+            className="flex-1 flex items-center justify-center gap-2 bg-green-700 hover:bg-green-800 active:bg-green-900 text-white font-semibold py-2.5 px-5 rounded-xl transition-colors"
           >
             <Calendar className="w-4 h-4" />
-            Réserver
+            {t('provider.book')}
           </button>
           <button
             onClick={() => navigate(`/contact?subject=support_booking&providerId=${id}`)}
             className="flex items-center justify-center gap-2 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 font-medium py-2.5 px-5 rounded-xl transition-colors"
           >
             <MessageSquare className="w-4 h-4" />
-            Message
+            {t('provider_page.message')}
           </button>
         </div>
       </div>
@@ -225,7 +228,7 @@ export default function ProviderProfile() {
       {categories.length > 0 && (
         <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
           <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-3">
-            Services proposés
+            {t('provider_page.services')}
           </h2>
           <div className="flex flex-wrap gap-2">
             {categories.map((cat) => (
@@ -243,11 +246,11 @@ export default function ProviderProfile() {
       {/* Reviews */}
       <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
         <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide mb-4">
-          Avis clients {reviewCount > 0 && <span className="font-normal normal-case text-gray-400">({reviewCount})</span>}
+          {t('provider_page.reviews_title')} {reviewCount > 0 && <span className="font-normal normal-case text-gray-500 dark:text-gray-400">({reviewCount})</span>}
         </h2>
 
         {reviews.length === 0 ? (
-          <p className="text-sm text-gray-400 dark:text-gray-500">Aucun avis pour le moment.</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">{t('provider_page.no_reviews')}</p>
         ) : (
           <div className="space-y-4">
             {reviews.map((rev) => (
@@ -275,11 +278,11 @@ export default function ProviderProfile() {
                   </p>
                 )}
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  {new Date(rev.createdAt).toLocaleDateString('fr-FR')}
+                  {new Date(rev.createdAt).toLocaleDateString(formatLocale(i18n.language))}
                 </p>
                 {rev.response && (
                   <p className="mt-2 border-l-2 border-green-500 pl-3 text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium">Réponse du prestataire :</span> {rev.response}
+                    <span className="font-medium">{t('provider_page.provider_reply')}</span> {rev.response}
                   </p>
                 )}
               </div>
@@ -293,9 +296,9 @@ export default function ProviderProfile() {
       {isAuthenticated && user?.id !== id && id && (
         <div className="text-center">
           <button onClick={() => setReportOpen(true)} className="text-xs text-gray-500 dark:text-gray-400 hover:text-red-600 hover:underline">
-            Signaler ce profil
+            {t('provider_page.report')}
           </button>
-          <ReportDialog open={reportOpen} onClose={() => setReportOpen(false)} reportedId={id} reportedName={`${firstName} ${lastName}`.trim() || 'ce prestataire'} />
+          <ReportDialog open={reportOpen} onClose={() => setReportOpen(false)} reportedId={id} reportedName={`${firstName} ${lastName}`.trim() || t('provider_page.this_provider')} />
         </div>
       )}
     </div>
