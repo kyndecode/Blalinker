@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useAdminAuthStore } from '../store/adminAuthStore';
 import api from '../services/api';
+import { logoutAdmin } from '../services/logout';
 
 interface NavItem { to: string; icon: LucideIcon; label: string; permission?: string }
 interface NavGroup { title: string; items: NavItem[] }
@@ -126,7 +127,7 @@ function Navigation({ onNavigate }: { onNavigate?: () => void }) {
 }
 
 export default function AdminLayout() {
-  const { user, logout } = useAdminAuthStore();
+  const { user } = useAdminAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
   const [drawer, setDrawer] = useState(false);
@@ -140,8 +141,8 @@ export default function AdminLayout() {
   }, [drawer]);
 
   const handleLogout = () => {
-    logout();
     navigate('/login');
+    void logoutAdmin(); // interface déconnectée tout de suite ; session fermée côté serveur
   };
   const initials = user?.email?.slice(0, 2).toUpperCase() ?? 'AD';
   const roleLabel = user?.role === 'super_admin' ? 'Super-administrateur' : 'Équipe';

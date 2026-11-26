@@ -86,7 +86,7 @@ function getConfiguredApiBaseUrls(): string[] {
 const API_BASE_URLS = getConfiguredApiBaseUrls();
 let activeBaseIndex = 0;
 
-function getActiveApiBaseUrl(): string {
+export function getActiveApiBaseUrl(): string {
   return API_BASE_URLS[activeBaseIndex] ?? API_BASE_URLS[0] ?? '/api/v1';
 }
 
