@@ -33,7 +33,7 @@ export default function AuditLog() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-white">Journal d'audit</h1>
-          <p className="mt-0.5 text-sm text-white/50">Traçabilité des actions sensibles et des connexions (qui, quoi, quand, IP).</p>
+          <p className="mt-0.5 text-sm text-white/70">Traçabilité des actions sensibles et des connexions (qui, quoi, quand, IP).</p>
         </div>
         <ExportButton dataset="audit" params={filters} />
       </div>
@@ -54,8 +54,8 @@ export default function AuditLog() {
             <th scope="col" className="px-4 py-3 text-left font-medium">IP</th>
           </tr></thead>
           <tbody>
-            {isLoading && <tr><td colSpan={5} className="px-4 py-6 text-center text-white/40">Chargement…</td></tr>}
-            {!isLoading && rows.length === 0 && <tr><td colSpan={5} className="px-4 py-8 text-center text-white/40">Aucune action ne correspond.</td></tr>}
+            {isLoading && <tr><td colSpan={5} className="px-4 py-6 text-center text-white/70">Chargement…</td></tr>}
+            {!isLoading && rows.length === 0 && <tr><td colSpan={5} className="px-4 py-8 text-center text-white/70">Aucune action ne correspond.</td></tr>}
             {rows.map((row) => (
               <tr key={row.id} className="border-b border-white/5 hover:bg-white/5">
                 <td className="whitespace-nowrap px-4 py-3 text-gray-400">{new Date(row.createdAt).toLocaleString('fr-FR')}</td>

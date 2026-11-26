@@ -310,7 +310,7 @@ export default function Contacts() {
               <button
                 onClick={handleSubmitStatus}
                 disabled={updateStatus.isPending}
-                className="w-full inline-flex items-center justify-center gap-2 bg-green-600 hover:bg-green-500
+                className="w-full inline-flex items-center justify-center gap-2 bg-green-700 hover:bg-green-800
                            disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-semibold
                            rounded-lg py-2.5 transition-colors"
               >

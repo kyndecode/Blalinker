@@ -29,7 +29,7 @@ function ResetPasswordDialog({ member, busy, error, onClose, onSubmit }: { membe
         {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
         <div className="flex gap-3">
           <button type="button" onClick={() => { setPw(''); onClose(); }} className="flex-1 rounded-lg border border-white/15 py-2 text-sm">Annuler</button>
-          <button type="submit" disabled={busy || issues.length > 0} className="flex-1 rounded-lg bg-green-600 py-2 text-sm font-semibold text-white disabled:opacity-50">{busy ? 'Enregistrement…' : 'Réinitialiser'}</button>
+          <button type="submit" disabled={busy || issues.length > 0} className="flex-1 rounded-lg bg-green-700 py-2 text-sm font-semibold text-white disabled:opacity-50">{busy ? 'Enregistrement…' : 'Réinitialiser'}</button>
         </div>
       </form>
     </Modal>
@@ -133,11 +133,11 @@ export default function Team() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Équipe & Rôles</h1>
-          <p className="text-white/40 text-sm mt-0.5">Gérez les administrateurs et leurs permissions (RBAC).</p>
+          <p className="text-white/70 text-sm mt-0.5">Gérez les administrateurs et leurs permissions (RBAC).</p>
         </div>
         <button
           onClick={() => setModal({ mode: 'create' })}
-          className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-500 text-white text-sm font-medium rounded-lg transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-green-700 hover:bg-green-800 text-white text-sm font-medium rounded-lg transition-colors"
         >
           <UserPlus className="w-4 h-4" /> Nouveau membre
         </button>
@@ -157,16 +157,16 @@ export default function Team() {
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={6} className="px-4 py-6 text-center text-white/40">Chargement…</td></tr>
+              <tr><td colSpan={6} className="px-4 py-6 text-center text-white/70">Chargement…</td></tr>
             ) : data?.data?.map((m: Member) => (
               <tr key={m.id} className="border-b border-white/10 hover:bg-white/5">
                 <td className="px-4 py-3">
                   <div className="text-white">{m.profile ? `${m.profile.firstName} ${m.profile.lastName}`.trim() : '-'}</div>
-                  <div className="text-white/40 text-xs">{m.email}</div>
+                  <div className="text-white/70 text-xs">{m.email}</div>
                 </td>
                 <td className="px-4 py-3">
                   <div className="text-gray-300">{m.adminTitle ?? (m.role === 'super_admin' ? 'Super Admin' : 'Administrateur')}</div>
-                  <div className="text-white/40 text-xs capitalize">{m.role}</div>
+                  <div className="text-white/70 text-xs capitalize">{m.role}</div>
                 </td>
                 <td className="px-4 py-3 text-gray-400">
                   {m.role === 'super_admin'
@@ -269,7 +269,7 @@ function MemberModal({ presets, allPermissions, initial, saving, errorMsg, onClo
       <div className="bg-[#1a2744] border border-white/10 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-auto p-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold text-white">{isEdit ? 'Modifier les droits' : 'Nouveau membre admin'}</h2>
-          <button onClick={onClose} className="text-white/50 hover:text-white"><X className="w-5 h-5" /></button>
+          <button onClick={onClose} className="text-white/70 hover:text-white"><X className="w-5 h-5" /></button>
         </div>
 
         {errorMsg && <div className="mb-3 text-sm text-red-400 bg-red-900/20 rounded-lg p-2">{errorMsg}</div>}
@@ -283,7 +283,7 @@ function MemberModal({ presets, allPermissions, initial, saving, errorMsg, onClo
           </div>
         )}
 
-        <label className="block text-xs text-white/50 mb-1">Rôle prédéfini</label>
+        <label className="block text-xs text-white/70 mb-1">Rôle prédéfini</label>
         <select value={form.preset} onChange={(e) => applyPreset(e.target.value)} className="input w-full mb-3">
           <option value="">Personnalisé</option>
           {presets.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
@@ -291,7 +291,7 @@ function MemberModal({ presets, allPermissions, initial, saving, errorMsg, onClo
 
         <input placeholder="Titre affiché (ex: Responsable KYC)" value={form.adminTitle} onChange={(e) => setForm({ ...form, adminTitle: e.target.value })} className="input w-full mb-3" />
 
-        <label className="block text-xs text-white/50 mb-2">Permissions</label>
+        <label className="block text-xs text-white/70 mb-2">Permissions</label>
         <div className="grid grid-cols-2 gap-2 mb-4">
           {allPermissions.map((perm) => (
             <label key={perm} className="flex items-center gap-2 text-sm text-white/80 cursor-pointer">
@@ -303,7 +303,7 @@ function MemberModal({ presets, allPermissions, initial, saving, errorMsg, onClo
 
         <div className="flex justify-end gap-2">
           <button onClick={onClose} className="px-4 py-2 text-sm text-white/60 hover:text-white">Annuler</button>
-          <button disabled={saving} onClick={() => onSubmit(form)} className="px-4 py-2 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white text-sm font-medium rounded-lg">
+          <button disabled={saving} onClick={() => onSubmit(form)} className="px-4 py-2 bg-green-700 hover:bg-green-800 disabled:opacity-50 text-white text-sm font-medium rounded-lg">
             {saving ? 'Enregistrement…' : (isEdit ? 'Enregistrer' : 'Créer le membre')}
           </button>
         </div>

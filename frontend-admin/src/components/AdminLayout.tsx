@@ -99,7 +99,7 @@ function Navigation({ onNavigate }: { onNavigate?: () => void }) {
         if (items.length === 0) return null;
         return (
           <div key={group.title}>
-            <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-widest text-white/30">{group.title}</p>
+            <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-widest text-white/70">{group.title}</p>
             <ul className="space-y-0.5">
               {items.map(({ to, icon: Icon, label }) => (
                 <li key={to}>
@@ -112,7 +112,7 @@ function Navigation({ onNavigate }: { onNavigate?: () => void }) {
                       <>
                         <Icon className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
                         <span className="flex-1">{label}</span>
-                        {isActive && <ChevronRight className="h-3.5 w-3.5 text-white/50" aria-hidden="true" />}
+                        {isActive && <ChevronRight className="h-3.5 w-3.5 text-white/70" aria-hidden="true" />}
                       </>
                     )}
                   </NavLink>
@@ -149,12 +149,12 @@ export default function AdminLayout() {
 
   const brand = (
     <div className="flex items-center gap-3 border-b border-white/[0.08] px-5 py-5">
-      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-green-600 shadow-lg">
+      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-green-700 shadow-lg">
         <Shield className="h-5 w-5 text-white" aria-hidden="true" />
       </div>
       <div>
         <p className="text-base font-extrabold leading-tight tracking-tight text-white">BLA <span className="text-green-400">Admin</span></p>
-        <p className="text-xs text-white/40">{roleLabel}</p>
+        <p className="text-xs text-white/70">{roleLabel}</p>
       </div>
     </div>
   );
@@ -190,7 +190,7 @@ export default function AdminLayout() {
           <HealthIndicator />
           <div className="ml-2 flex items-center gap-2">
             <span className="hidden max-w-[200px] truncate text-xs text-white/60 md:block">{user?.email}</span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-600 text-xs font-bold text-white" aria-hidden="true">{initials}</div>
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-700 text-xs font-bold text-white" aria-hidden="true">{initials}</div>
             <button onClick={handleLogout} className="ml-1 inline-flex items-center gap-1.5 rounded-lg border border-white/20 px-3 py-1.5 text-xs font-medium text-white/80 hover:bg-white/10 hover:text-white">
               <LogOut className="h-3.5 w-3.5" aria-hidden="true" /><span className="hidden sm:inline">Déconnexion</span><span className="sr-only sm:hidden">Déconnexion</span>
             </button>

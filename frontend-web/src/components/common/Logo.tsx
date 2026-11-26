@@ -40,7 +40,7 @@ export default function Logo({ size = 'md', variant = 'default', showText = true
       {showText && (
         <span className={`font-extrabold tracking-tight leading-none ${s.text} ${textColor}`}>
           BLA
-          <span className={`${variant === 'white' ? 'text-green-500' : 'text-green-600'} font-extrabold`} style={{ fontSize: '0.55em', verticalAlign: 'super', marginLeft: '1px' }}>
+          <span className={`${variant === 'white' ? 'text-green-500' : 'text-green-700'} font-extrabold`} style={{ fontSize: '0.55em', verticalAlign: 'super', marginLeft: '1px' }}>
             services
           </span>
         </span>

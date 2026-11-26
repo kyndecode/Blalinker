@@ -32,7 +32,7 @@
   }
 
   .btn-primary {
-    @apply btn bg-green-600 text-white hover:bg-green-500 active:bg-green-700 shadow-sm shadow-green-900/40;
+    @apply btn bg-green-700 text-white hover:bg-green-800 active:bg-green-700 shadow-sm shadow-green-900/40;
   }
 
   .btn-secondary {
@@ -71,7 +71,7 @@
     @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold;
   }
   .badge-green  { @apply bg-green-500/15  text-green-400;  }
-  .badge-orange { @apply bg-orange-500/15 text-orange-400; }
+  .badge-orange { @apply bg-orange-700/15 text-orange-400; }
   .badge-red    { @apply bg-red-500/15    text-red-400;    }
   .badge-gray   { @apply bg-gray-700      text-gray-300;   }
   .badge-blue   { @apply bg-blue-500/15   text-blue-400;   }

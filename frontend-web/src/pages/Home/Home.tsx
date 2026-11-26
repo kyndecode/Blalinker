@@ -251,7 +251,7 @@ export default function Home() {
             </div>
             <button
               type="submit"
-              className="m-1.5 rounded-xl bg-orange-500 px-7 py-3 text-sm font-bold text-white transition-colors hover:bg-orange-600 active:bg-orange-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400"
+              className="m-1.5 rounded-xl bg-orange-700 px-7 py-3 text-sm font-bold text-white transition-colors hover:bg-orange-800 active:bg-orange-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400"
             >
               {t('home.search_btn')}
             </button>
@@ -285,7 +285,7 @@ export default function Home() {
               const shown = formatStat(stat);
               return (
                 <div key={stat.key} className="px-4 py-8 text-center sm:py-10">
-                  <p className="text-3xl font-extrabold text-green-600 dark:text-green-400 sm:text-4xl">{shown.value}</p>
+                  <p className="text-3xl font-extrabold text-green-700 dark:text-green-400 sm:text-4xl">{shown.value}</p>
                   <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 sm:text-sm">{shown.label}</p>
                 </div>
               );
@@ -369,7 +369,7 @@ export default function Home() {
             <p className="mx-auto mb-8 max-w-md text-base text-green-100">{t('home.cta_desc')}</p>
             <button
               onClick={() => navigate('/register?role=provider')}
-              className="inline-flex items-center gap-2 rounded-xl bg-orange-500 px-8 py-3.5 text-sm font-bold text-white shadow-lg transition-colors hover:bg-orange-600 active:bg-orange-700"
+              className="inline-flex items-center gap-2 rounded-xl bg-orange-700 px-8 py-3.5 text-sm font-bold text-white shadow-lg transition-colors hover:bg-orange-800 active:bg-orange-900"
             >
               {t('home.cta_btn')}
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

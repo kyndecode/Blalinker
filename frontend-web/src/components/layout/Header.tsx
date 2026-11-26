@@ -95,7 +95,7 @@ export default function Header() {
   const avatar = me?.avatarUrl
     ? <img src={me.avatarUrl} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
     : (
-      <span className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center text-white text-sm font-bold shrink-0" aria-hidden="true">
+      <span className="w-8 h-8 rounded-full bg-green-700 flex items-center justify-center text-white text-sm font-bold shrink-0" aria-hidden="true">
         {initial}
       </span>
     );
@@ -150,7 +150,7 @@ export default function Header() {
                     placeholder={t('search.placeholder')}
                     className="flex-1 px-3 py-2 text-sm bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500"
                   />
-                  <button type="submit" className="px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700">{t('common.ok')}</button>
+                  <button type="submit" className="px-3 py-2 bg-green-700 text-white rounded-lg text-sm font-medium hover:bg-green-800">{t('common.ok')}</button>
                 </form>
               )}
             </div>
@@ -210,11 +210,11 @@ export default function Header() {
                           {contactLine && <p className="text-xs text-gray-600 dark:text-gray-300 truncate">{contactLine}</p>}
                         </div>
                       )}
-                      <Link to="/dashboard" onClick={() => setUserMenu(false)} className="flex items-center gap-2.5 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-green-50 dark:hover:bg-green-500/10 hover:text-green-700 dark:hover:text-green-400 transition-colors">
+                      <Link to="/dashboard" onClick={() => setUserMenu(false)} className="flex items-center gap-2.5 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-green-50 dark:hover:bg-green-800/10 hover:text-green-700 dark:hover:text-green-400 transition-colors">
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7h18M3 12h18M3 17h18"/></svg>
                         {t('nav.dashboard')}
                       </Link>
-                      <Link to="/profile" onClick={() => setUserMenu(false)} className="flex items-center gap-2.5 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-green-50 dark:hover:bg-green-500/10 hover:text-green-700 dark:hover:text-green-400 transition-colors">
+                      <Link to="/profile" onClick={() => setUserMenu(false)} className="flex items-center gap-2.5 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-green-50 dark:hover:bg-green-800/10 hover:text-green-700 dark:hover:text-green-400 transition-colors">
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
                         {t('nav.profile')}
                       </Link>
@@ -234,7 +234,7 @@ export default function Header() {
                 <Link to="/login" className="px-4 py-1.5 text-sm font-medium text-white/80 hover:text-white transition-colors">
                   {t('auth.login')}
                 </Link>
-                <Link to="/register" className="px-4 py-1.5 bg-green-600 hover:bg-green-500 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm">
+                <Link to="/register" className="px-4 py-1.5 bg-green-700 hover:bg-green-800 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm">
                   {t('auth.register')}
                 </Link>
               </div>
@@ -281,7 +281,7 @@ export default function Header() {
               placeholder={t('search.placeholder')}
               className="flex-1 px-3 py-2 text-sm bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-green-500"
             />
-            <button type="submit" className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg">
+            <button type="submit" className="px-4 py-2 bg-green-700 text-white text-sm font-medium rounded-lg">
               {t('home.search_btn')}
             </button>
           </form>
@@ -315,7 +315,7 @@ export default function Header() {
           ) : (
             <div className="flex gap-2 pt-2">
               <Link to="/login"    onClick={() => setMenuOpen(false)} className="flex-1 text-center py-2 border border-white/20 rounded-lg text-sm font-medium text-white/80">{t('auth.login')}</Link>
-              <Link to="/register" onClick={() => setMenuOpen(false)} className="flex-1 text-center py-2 bg-green-600 text-white rounded-lg text-sm font-semibold">{t('auth.register')}</Link>
+              <Link to="/register" onClick={() => setMenuOpen(false)} className="flex-1 text-center py-2 bg-green-700 text-white rounded-lg text-sm font-semibold">{t('auth.register')}</Link>
             </div>
           )}
 
@@ -326,7 +326,7 @@ export default function Header() {
                 key={l.code}
                 onClick={() => changeLang(l.code)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                  languageCode === l.code ? 'bg-green-600 text-white' : 'bg-white/10 text-white/60'
+                  languageCode === l.code ? 'bg-green-700 text-white' : 'bg-white/10 text-white/60'
                 }`}
               >
                 {l.shortLabel}

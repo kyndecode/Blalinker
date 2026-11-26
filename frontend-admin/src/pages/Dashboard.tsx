@@ -102,9 +102,9 @@ export default function Dashboard() {
             <StatCard icon={Briefcase}     label="Prestataires"         value={data.providers.total}
               sub={`${data.providers.pendingApproval} en attente approbation`} color="bg-purple-600" />
             <StatCard icon={CalendarCheck} label="Réservations"         value={data.bookings.total}
-              sub={`${data.bookings.today} aujourd'hui`}                  color="bg-green-600" />
+              sub={`${data.bookings.today} aujourd'hui`}                  color="bg-green-700" />
             <StatCard icon={Clock}         label="Missions en cours"    value={data.bookings.inProgress}
-              sub="Temps réel"                                            color="bg-orange-600"  />
+              sub="Temps réel"                                            color="bg-orange-700"  />
             <StatCard icon={DollarSign}    label="Paiements encaissés (mois)" value={`${data.revenue.thisMonth.toLocaleString('fr-FR')} ${data.revenue.currency}`}
               sub={data.commissions ? `Commissions : ${data.commissions.thisMonth.toLocaleString('fr-FR')} ${data.commissions.currency}` : undefined} color="bg-emerald-600" />
             <StatCard icon={AlertTriangle} label="Signalements"         value={data.reports.open}
@@ -121,7 +121,7 @@ export default function Dashboard() {
               <h3 className="text-white font-semibold text-sm mb-5">Répartition réservations</h3>
               <div className="space-y-4">
                 {[
-                  { label: 'En cours',    value: data.bookings.inProgress, max: data.bookings.total, color: 'bg-orange-500' },
+                  { label: 'En cours',    value: data.bookings.inProgress, max: data.bookings.total, color: 'bg-orange-700' },
                   { label: 'Terminées',   value: data.bookings.completed,  max: data.bookings.total, color: 'bg-green-500'  },
                   { label: "Aujourd'hui", value: data.bookings.today,      max: data.bookings.total, color: 'bg-blue-500'   },
                 ].map((row) => (

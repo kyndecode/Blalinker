@@ -71,7 +71,7 @@ export default function Media() {
             className="w-full rounded-lg border border-white/10 bg-[#0f1b33] px-3 py-2 text-sm text-white" />
         </div>
         <input ref={input} type="file" accept={ACCEPT} className="sr-only" id="media-file" onChange={(e) => onFile(e.target.files?.[0])} />
-        <label htmlFor="media-file" className={`inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white ${upload.isPending ? 'pointer-events-none opacity-50' : ''}`}>
+        <label htmlFor="media-file" className={`inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white ${upload.isPending ? 'pointer-events-none opacity-50' : ''}`}>
           <Upload className="h-4 w-4" aria-hidden="true" /> {upload.isPending ? 'Envoi…' : 'Ajouter une image'}
         </label>
       </div>

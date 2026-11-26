@@ -167,7 +167,7 @@ export default function VerifyOTP() {
           <button
             onClick={handleResend}
             disabled={resendCooldown > 0}
-            className="text-sm text-green-600 dark:text-green-400 hover:underline disabled:text-gray-400 dark:disabled:text-gray-600 disabled:cursor-not-allowed transition-colors"
+            className="text-sm text-green-700 dark:text-green-400 hover:underline disabled:text-gray-400 dark:disabled:text-gray-600 disabled:cursor-not-allowed transition-colors"
           >
             {resendCooldown > 0
               ? t('auth.otp_resend_in', { seconds: resendCooldown })

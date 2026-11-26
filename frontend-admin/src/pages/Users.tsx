@@ -165,7 +165,7 @@ function UserPanel({ userId, onClose, onStatus }: { userId: string | null; onClo
                     {viewDocument.isPending ? 'Ouverture…' : 'Voir la pièce (lien temporaire)'}
                   </button>
                   {!p.idVerified && (
-                    <button onClick={() => { verify.reset(); setApproving(true); }} className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700">Valider l’identité</button>
+                    <button onClick={() => { verify.reset(); setApproving(true); }} className="rounded-lg bg-green-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-800">Valider l’identité</button>
                   )}
                   <button onClick={() => { verify.reset(); setRejecting(true); }} className="rounded-lg border border-red-500/40 px-3 py-1.5 text-xs font-semibold text-red-300 hover:bg-red-500/10">Refuser la pièce</button>
                 </div>
@@ -175,7 +175,7 @@ function UserPanel({ userId, onClose, onStatus }: { userId: string | null; onClo
 
           {!isStaff && (
             <div className="flex flex-wrap gap-2">
-              {user.status !== 'active' && <button onClick={() => onStatus({ user, next: 'active' })} className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white">Réactiver</button>}
+              {user.status !== 'active' && <button onClick={() => onStatus({ user, next: 'active' })} className="rounded-lg bg-green-700 px-3 py-1.5 text-xs font-semibold text-white">Réactiver</button>}
               {user.status !== 'suspended' && <button onClick={() => onStatus({ user, next: 'suspended' })} className="rounded-lg border border-orange-500/40 px-3 py-1.5 text-xs font-semibold text-orange-300">Suspendre</button>}
               {user.status !== 'banned' && <button onClick={() => onStatus({ user, next: 'banned' })} className="rounded-lg border border-red-500/40 px-3 py-1.5 text-xs font-semibold text-red-300">Bannir</button>}
             </div>

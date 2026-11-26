@@ -72,7 +72,7 @@ function Editor({ item, all, onClose }: { item: Category | 'new' | null; all: Ca
         {save.isError && !Object.keys(errors).length && <p role="alert" className="text-sm text-red-400">{getApiErrorMessage(save.error)}</p>}
         <div className="flex justify-end gap-3">
           <button type="button" onClick={onClose} className="rounded-lg border border-white/15 px-4 py-2 text-sm">Annuler</button>
-          <button type="submit" disabled={save.isPending} className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{save.isPending ? 'Enregistrement…' : 'Enregistrer'}</button>
+          <button type="submit" disabled={save.isPending} className="rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{save.isPending ? 'Enregistrement…' : 'Enregistrer'}</button>
         </div>
       </form>
     </Modal>
@@ -128,7 +128,7 @@ export default function Categories() {
           <h1 className="text-2xl font-bold text-white">Catégories</h1>
           <p className="text-sm text-gray-400">Les catégories actives de premier niveau apparaissent sur l’accueil du site.</p>
         </div>
-        <button onClick={() => setEditing('new')} className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white"><Plus className="h-4 w-4" aria-hidden="true" /> Nouvelle catégorie</button>
+        <button onClick={() => setEditing('new')} className="inline-flex items-center gap-2 rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white"><Plus className="h-4 w-4" aria-hidden="true" /> Nouvelle catégorie</button>
       </div>
       {error && <p role="alert" className="text-sm text-red-400">{getApiErrorMessage(error)}</p>}
       {isLoading && <p className="text-sm text-gray-400">Chargement…</p>}

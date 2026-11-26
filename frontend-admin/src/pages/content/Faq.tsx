@@ -47,7 +47,7 @@ function FaqEditor({ item, onClose }: { item: FaqItem | 'new' | null; onClose: (
         {save.isError && !Object.keys(errors).length && <p role="alert" className="text-sm text-red-400">{getApiErrorMessage(save.error)}</p>}
         <div className="flex justify-end gap-3">
           <button type="button" onClick={onClose} className="rounded-lg border border-white/15 px-4 py-2 text-sm">Annuler</button>
-          <button type="submit" disabled={save.isPending} className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{save.isPending ? 'Enregistrement…' : 'Enregistrer'}</button>
+          <button type="submit" disabled={save.isPending} className="rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{save.isPending ? 'Enregistrement…' : 'Enregistrer'}</button>
         </div>
       </form>
     </Modal>
@@ -81,7 +81,7 @@ export default function Faq() {
           <select aria-label="Langue" value={locale} onChange={(e) => setLocale(e.target.value)} className="rounded-lg border border-white/10 bg-[#1a2744] px-3 py-2 text-sm text-white">
             {LOCALES.map((l) => <option key={l.value} value={l.value}>{l.label}</option>)}
           </select>
-          <button onClick={() => setEditing('new')} className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white"><Plus className="h-4 w-4" aria-hidden="true" /> Ajouter</button>
+          <button onClick={() => setEditing('new')} className="inline-flex items-center gap-2 rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white"><Plus className="h-4 w-4" aria-hidden="true" /> Ajouter</button>
         </div>
       </div>
       {error && <p role="alert" className="text-sm text-red-400">{getApiErrorMessage(error)}</p>}

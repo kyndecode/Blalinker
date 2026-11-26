@@ -103,7 +103,7 @@ export default function Reviews() {
               role="tab"
               aria-selected={status === t.value}
               onClick={() => { setStatus(t.value); setPage(1); setSelected([]); }}
-              className={`rounded-md px-3 py-1.5 text-sm ${status === t.value ? 'bg-green-600 text-white' : 'text-gray-300 hover:bg-white/10'}`}
+              className={`rounded-md px-3 py-1.5 text-sm ${status === t.value ? 'bg-green-700 text-white' : 'text-gray-300 hover:bg-white/10'}`}
             >
               {t.label}
             </button>
@@ -124,7 +124,7 @@ export default function Reviews() {
           <span className="text-gray-400" aria-live="polite">{selected.length} sélectionné(s)</span>
           {selected.length > 0 && (
             <>
-              <button onClick={() => bulk.mutate({ action: 'approve' })} disabled={bulk.isPending} className="rounded-lg bg-green-600 px-3 py-1 text-xs font-semibold text-white disabled:opacity-50">Publier la sélection</button>
+              <button onClick={() => bulk.mutate({ action: 'approve' })} disabled={bulk.isPending} className="rounded-lg bg-green-700 px-3 py-1 text-xs font-semibold text-white disabled:opacity-50">Publier la sélection</button>
               <button onClick={() => { bulk.reset(); setBulkRejecting(true); }} className="rounded-lg border border-orange-500/40 px-3 py-1 text-xs font-semibold text-orange-300">Refuser la sélection</button>
             </>
           )}
@@ -163,7 +163,7 @@ export default function Reviews() {
             {r.moderation === 'rejected' && r.flagReason && <p className="mt-2 text-xs text-gray-400">Motif du refus : {r.flagReason}</p>}
             <div className="mt-3 flex flex-wrap gap-2">
               {r.moderation !== 'published' && (
-                <button onClick={() => approve.mutate(r.id)} disabled={approve.isPending} className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-50">
+                <button onClick={() => approve.mutate(r.id)} disabled={approve.isPending} className="rounded-lg bg-green-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-800 disabled:opacity-50">
                   Publier
                 </button>
               )}
