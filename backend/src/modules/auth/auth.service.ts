@@ -569,6 +569,16 @@ export class AuthService {
       if (recentlyRotated) {
         throw Object.assign(new Error('Session déjà renouvelée par une autre requête.'), { status: 409, code: 'REFRESH_RACE' });
       }
+      // Session fermée volontairement (déconnexion) : refus simple, sans fermer les autres appareils.
+      let closedByLogout = false;
+      try {
+        closedByLogout = Boolean(await redis.get(`session:closed:${payload.sessionId}`));
+      } catch {
+        // Redis indisponible : règle de sécurité ci-dessous.
+      }
+      if (closedByLogout) {
+        throw Object.assign(new Error('Session terminée. Reconnectez-vous.'), { status: 401, code: 'SESSION_CLOSED' });
+      }
       // Jeton déjà utilisé hors de cette fenêtre : possible vol — révoquer toute la famille.
       await prisma.userSession.deleteMany({ where: { userId: payload.userId } });
       throw Object.assign(new Error('Session invalide. Reconnectez-vous.'), { status: 401 });
@@ -576,10 +586,14 @@ export class AuthService {
 
     const user = await prisma.user.findUnique({
       where: { id: payload.userId },
-      select: { id: true, role: true, status: true },
+      select: { id: true, role: true, status: true, deletedAt: true },
     });
-    if (!user || user.status === 'banned') {
-      throw Object.assign(new Error('Accès refusé'), { status: 403 });
+    // Seul un compte actif renouvelle sa session. Compte suspendu, banni ou supprimé : la session
+    // est fermée (auparavant, un compte suspendu continuait à obtenir de nouveaux jetons).
+    if (!user || user.deletedAt || user.status !== 'active') {
+      await prisma.userSession.deleteMany({ where: { id: session.id } });
+      const code = user?.status === 'banned' ? 'ACCOUNT_BANNED' : user?.status === 'suspended' ? 'ACCOUNT_SUSPENDED' : 'ACCOUNT_INACTIVE';
+      throw Object.assign(new Error('Accès refusé : compte inactif ou suspendu.'), { status: 403, code });
     }
 
     // Renouveler les tokens (la session remplacée reste reconnue 60 s comme « déjà renouvelée »)
@@ -593,18 +607,49 @@ export class AuthService {
   }
 
   /** Déconnexion — révoque le token */
-  async logout(userId: string, accessToken: string) {
-    let sessionId: string | undefined;
-    try {
-      sessionId = verifyAccessToken(accessToken).sessionId;
-    } catch {
-      // jeton déjà expiré : rien à rattacher
+  /**
+   * Déconnexion de l'appareil courant, sans exiger de jeton d'accès valide : la session est
+   * retrouvée par le jeton d'accès (s'il est encore valide) et/ou par le jeton de renouvellement
+   * (cookie du site, corps pour le mobile). Effets :
+   * - jeton d'accès révoqué jusqu'à son expiration (refusé par l'API dès maintenant) ;
+   * - session supprimée : le jeton de renouvellement ne fonctionne plus ;
+   * - session marquée « fermée » : sa réutilisation est un simple refus, pas un vol présumé.
+   * Idempotente : des jetons invalides ou déjà fermés ne provoquent aucune erreur.
+   */
+  async logoutSession({ accessToken, refreshToken }: { accessToken?: string; refreshToken?: string }) {
+    const targets: Array<{ userId: string; sessionId: string; exp?: number }> = [];
+
+    if (accessToken) {
+      try {
+        const payload = verifyAccessToken(accessToken) as { userId: string; sessionId: string; exp?: number };
+        targets.push({ userId: payload.userId, sessionId: payload.sessionId });
+        await revokeToken(accessToken); // uniquement un jeton authentique (pas de clé Redis arbitraire)
+      } catch {
+        // jeton expiré ou invalide : la session est retrouvée par le jeton de renouvellement
+      }
     }
-    await revokeToken(accessToken);
-    // Ferme la session de cet appareil : son jeton de renouvellement devient inutilisable
-    // (auparavant il restait valable 30 jours après la déconnexion).
-    if (sessionId) await prisma.userSession.deleteMany({ where: { id: sessionId, userId } });
-    logger.info('Déconnexion', { userId, sessionClosed: Boolean(sessionId) });
+    if (refreshToken) {
+      try {
+        const payload = verifyRefreshToken(refreshToken) as { userId: string; sessionId: string; exp?: number };
+        targets.push({ userId: payload.userId, sessionId: payload.sessionId, exp: payload.exp });
+      } catch {
+        // jeton de renouvellement invalide ou expiré : rien à fermer
+      }
+    }
+
+    const nowSec = Math.floor(Date.now() / 1000);
+    for (const t of targets) {
+      await prisma.userSession.deleteMany({ where: { id: t.sessionId, userId: t.userId } });
+      const ttl = Math.max(60, (t.exp ?? nowSec + 30 * 24 * 3600) - nowSec);
+      try {
+        await redis.setex(`session:closed:${t.sessionId}`, ttl, '1');
+      } catch {
+        // Redis indisponible : la session est tout de même supprimée en base.
+      }
+    }
+    const userIds = [...new Set(targets.map((t) => t.userId))];
+    logger.info('Déconnexion', { userIds, sessionsClosed: new Set(targets.map((t) => t.sessionId)).size });
+    return { sessionsClosed: new Set(targets.map((t) => t.sessionId)).size };
   }
 
   /** Mot de passe oublié — envoie un OTP de réinitialisation (réponse générique anti-énumération) */

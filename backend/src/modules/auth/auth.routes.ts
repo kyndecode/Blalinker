@@ -106,9 +106,8 @@ router.post('/refresh-token',
   authController.refreshToken
 );
 
-// POST /api/v1/auth/logout
+// POST /api/v1/auth/logout — sans jeton d'accès obligatoire (voir authController.logout)
 router.post('/logout',
-  authenticate,
   authController.logout
 );
 

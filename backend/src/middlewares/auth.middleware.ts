@@ -64,11 +64,11 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
     }
 
     if (user.status === 'banned') {
-      return res.status(403).json({ error: 'Votre compte a été suspendu.' });
+      return res.status(403).json({ error: 'Votre compte a été suspendu.', code: 'ACCOUNT_BANNED' });
     }
 
     if (user.status === 'suspended') {
-      return res.status(403).json({ error: 'Votre compte est temporairement suspendu. Contactez le support.' });
+      return res.status(403).json({ error: 'Votre compte est temporairement suspendu. Contactez le support.', code: 'ACCOUNT_SUSPENDED' });
     }
 
     req.user = {

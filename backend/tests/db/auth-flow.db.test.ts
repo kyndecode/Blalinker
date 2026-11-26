@@ -197,11 +197,68 @@ describeDb('PostgreSQL réel — authentification et données de bout en bout', 
       refreshToken = r2.body.refreshToken;
     });
 
-    it('déconnexion : la session est fermée, son jeton de renouvellement ne fonctionne plus', async () => {
-      const out = await request(app).post(api('/auth/logout')).set('Authorization', `Bearer ${accessToken}`);
+    // Seconde session (autre appareil) sans repasser par un code e-mail (délai entre deux codes).
+    const newSession = async () => {
+      const { AuthService } = await import('../../src/modules/auth/auth.service');
+      const svc = new AuthService() as unknown as {
+        _generateTokens: (id: string, role: string, ctx: { method: string; ip?: string; silent?: boolean }) => Promise<{ accessToken: string; refreshToken: string }>;
+      };
+      return svc._generateTokens(ids.client, 'client', { method: 'password', ip: '10.0.0.2', silent: true });
+    };
+    const sessionIdOf = (refresh: string) => (JSON.parse(Buffer.from(refresh.split('.')[1], 'base64url').toString()) as { sessionId: string }).sessionId;
+
+    it('déconnexion : session fermée, ancien jeton d’accès refusé, autres appareils intacts', async () => {
+      const other = await newSession();
+      const out = await request(app).post(api('/auth/logout')).set('Authorization', `Bearer ${accessToken}`).send({ refreshToken });
       expect(out.status).toBe(200);
+      expect(out.body.sessionsClosed).toBe(1);
+      // L'ancien jeton d'accès ne permet plus d'utiliser l'API.
+      expect((await request(app).get(api('/users/me')).set('Authorization', `Bearer ${accessToken}`)).status).toBe(401);
+      // Son jeton de renouvellement est refusé, simplement (pas de fermeture de tous les appareils).
       const after = await request(app).post(api('/auth/refresh-token')).send({ refreshToken });
       expect(after.status).toBe(401);
+      expect(after.body.code).toBe('SESSION_CLOSED');
+      const stillOk = await request(app).post(api('/auth/refresh-token')).send({ refreshToken: other.refreshToken });
+      expect(stillOk.status).toBe(200);
+      await request(app).post(api('/auth/logout')).send({ refreshToken: stillOk.body.refreshToken });
+    });
+
+    it('déconnexion du site par cookie, même avec un jeton d’accès expiré ; un formulaire d’un autre site ne ferme rien', async () => {
+      const s = await newSession();
+      const cookie = `bla_refresh=${s.refreshToken}`;
+      // Requête d'un autre site (formulaire) : pas d'en-tête X-Auth-Mode → rien n'est fermé ni effacé.
+      const forged = await request(app).post(api('/auth/logout')).set('Cookie', cookie);
+      expect(forged.status).toBe(200);
+      expect(forged.body.sessionsClosed).toBe(0);
+      expect(forged.headers['set-cookie']).toBeUndefined();
+      expect(await prisma.userSession.count({ where: { id: sessionIdOf(s.refreshToken) } })).toBe(1);
+      // Site : cookie + en-tête, jeton d'accès périmé (avant : 401 et session laissée ouverte).
+      const out = await request(app).post(api('/auth/logout'))
+        .set('Cookie', cookie).set('X-Auth-Mode', 'cookie').set('Authorization', 'Bearer jeton.expire.invalide');
+      expect(out.status).toBe(200);
+      expect(out.body.sessionsClosed).toBe(1);
+      expect(String(out.headers['set-cookie'])).toMatch(/bla_refresh=;/);
+      expect(await prisma.userSession.count({ where: { id: sessionIdOf(s.refreshToken) } })).toBe(0);
+      const reuse = await request(app).post(api('/auth/refresh-token')).set('Cookie', cookie).set('X-Auth-Mode', 'cookie');
+      expect(reuse.status).toBe(401);
+      // Idempotent : une seconde déconnexion ne provoque aucune erreur.
+      expect((await request(app).post(api('/auth/logout')).set('Cookie', cookie).set('X-Auth-Mode', 'cookie')).status).toBe(200);
+    });
+
+    it('compte suspendu : session existante refusée par l’API et au renouvellement, puis fermée', async () => {
+      const s = await newSession();
+      await prisma.user.update({ where: { id: ids.client }, data: { status: 'suspended' } });
+      try {
+        const me = await request(app).get(api('/users/me')).set('Authorization', `Bearer ${s.accessToken}`);
+        expect(me.status).toBe(403);
+        expect(me.body.code).toBe('ACCOUNT_SUSPENDED');
+        const refreshed = await request(app).post(api('/auth/refresh-token')).send({ refreshToken: s.refreshToken });
+        expect(refreshed.status).toBe(403);
+        expect(refreshed.body.code).toBe('ACCOUNT_SUSPENDED');
+        expect(await prisma.userSession.count({ where: { id: sessionIdOf(s.refreshToken) } })).toBe(0);
+      } finally {
+        await prisma.user.update({ where: { id: ids.client }, data: { status: 'active' } });
+      }
     });
   });
 
