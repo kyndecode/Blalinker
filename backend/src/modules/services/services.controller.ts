@@ -2,6 +2,12 @@ import { Prisma } from '@prisma/client';
 import { Request, Response } from 'express';
 import { prisma } from '../../config/database';
 import { paginate } from '../../utils/pagination.util';
+import {
+  coarseCoordinate,
+  coarseDistanceKm,
+  publicProfileSelect,
+  publicProviderProfileSelect,
+} from '../../utils/serializers';
 import type { ListServicesQueryInput } from './services.schemas';
 
 function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -56,15 +62,12 @@ export const servicesController = {
           provider: {
             select: {
               id: true,
-              email: true,
-              phone: true,
               profile: {
                 select: {
                   firstName: true,
                   lastName: true,
                   city: true,
                   country: true,
-                  address: true,
                   avatarUrl: true,
                   latitude: true,
                   longitude: true,
@@ -105,18 +108,16 @@ export const servicesController = {
             price: row.price !== null && row.price !== undefined ? Number(row.price) : null,
             isActive: row.isActive,
             category: row.category,
+            // Public : ni e-mail, ni téléphone, ni adresse ; position arrondie (≈ 1 km).
             provider: {
               id: row.provider.id,
-              email: row.provider.email,
-              phone: row.provider.phone,
               firstName: row.provider.profile?.firstName,
               lastName: row.provider.profile?.lastName,
               city: row.provider.profile?.city,
               country: row.provider.profile?.country,
-              address: row.provider.profile?.address,
               avatarUrl: row.provider.profile?.avatarUrl,
-              latitude: providerLat,
-              longitude: providerLng,
+              latitude: coarseCoordinate(providerLat),
+              longitude: coarseCoordinate(providerLng),
               idVerified: row.provider.profile?.idVerified ?? false,
               isAvailable: row.provider.providerProfile?.isAvailable ?? false,
               ratingAverage: row.provider.providerProfile?.ratingAverage !== null && row.provider.providerProfile?.ratingAverage !== undefined
@@ -125,19 +126,24 @@ export const servicesController = {
               ratingCount: row.provider.providerProfile?.ratingCount ?? 0,
               businessName: row.provider.providerProfile?.businessName,
             },
-            distanceKm,
+            distanceKm: coarseDistanceKm(distanceKm),
+            exactDistanceKm: distanceKm, // filtre uniquement, retiré avant la réponse
             createdAt: row.createdAt,
             updatedAt: row.updatedAt,
           };
         })
         .filter((row) => {
           if (q.lat === undefined || q.lng === undefined) return true;
-          if (row.distanceKm === null) return false;
-          return row.distanceKm <= q.radiusKm;
+          if (row.exactDistanceKm === null) return false;
+          return row.exactDistanceKm <= q.radiusKm;
         });
 
-      const paged = paginate(normalized, normalized.length, { page: q.page, limit: q.limit });
-      return res.json(paged);
+      // Pagination réelle (auparavant toutes les lignes étaient renvoyées à chaque page).
+      const start = (q.page - 1) * q.limit;
+      const pageRows = normalized
+        .slice(start, start + q.limit)
+        .map(({ exactDistanceKm: _exact, ...row }) => row);
+      return res.json(paginate(pageRows, normalized.length, { page: q.page, limit: q.limit }));
     } catch {
       return res.status(500).json({ error: 'Erreur lors du chargement des services' });
     }
@@ -160,9 +166,11 @@ export const servicesController = {
         include: {
           category: true,
           provider: {
-            include: {
-              profile: true,
-              providerProfile: true,
+            select: {
+              id: true,
+              role: true,
+              profile: { select: publicProfileSelect },
+              providerProfile: { select: publicProviderProfileSelect },
             },
           },
         },

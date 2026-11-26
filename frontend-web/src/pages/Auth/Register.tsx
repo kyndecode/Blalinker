@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
 import Logo from '../../components/common/Logo';
+import PhoneCountrySelect from '../../components/common/PhoneCountrySelect';
 import api from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { requestGoogleIdToken } from '../../services/googleAuth';
@@ -17,6 +18,8 @@ import {
   getCountryOptions,
   isValidLocalPhoneForCountry,
 } from '../../utils/phoneCountries';
+import type { CountryOption } from '../../utils/phoneCountries';
+import { useActiveCountries, useSiteSettings } from '../../hooks/useSiteContent';
 
 const E164_PHONE_REGEX = /^\+[1-9]\d{7,14}$/;
 
@@ -33,7 +36,7 @@ const schema = z.object({
     .max(100, 'Nom trop long'),
   countryCode: z
     .string()
-    .regex(/^[A-Z]{2}$/, 'Pays invalide'),
+    .regex(/^[A-Z]{2}$/, 'Choisissez votre pays'),
   phoneLocal: z
     .string()
     .trim()
@@ -56,7 +59,7 @@ const schema = z.object({
     const rule = getPhoneLengthRule(data.countryCode);
     const lengthMessage = rule.min === rule.max ? `${rule.min}` : `${rule.min}-${rule.max}`;
     ctx.addIssue({
-      code: z.ZodIssueCode.custom,
+      code: 'custom',
       message: `Numero invalide pour ce pays (${lengthMessage} chiffres)`,
       path: ['phoneLocal'],
     });
@@ -66,7 +69,7 @@ const schema = z.object({
   const phone = formatInternationalPhone(data.phoneLocal, data.countryCode);
   if (!E164_PHONE_REGEX.test(phone)) {
     ctx.addIssue({
-      code: z.ZodIssueCode.custom,
+      code: 'custom',
       message: 'Format téléphone invalide',
       path: ['phoneLocal'],
     });
@@ -89,8 +92,20 @@ export default function Register() {
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID?.toString().trim();
 
   const lang = (i18n.resolvedLanguage || i18n.language || 'fr').split('-')[0];
-  const countries = useMemo(() => getCountryOptions(lang), [lang]);
-  const detectedCountryCode = useMemo(() => detectDefaultCountryCode(countries), [countries]);
+  // Pays actifs (administration) en tête de liste ; tous les autres restent disponibles.
+  const { data: activeCountries = [] } = useActiveCountries();
+  const { data: siteSettings } = useSiteSettings();
+  const activeCodes = useMemo(() => activeCountries.map((c) => c.code), [activeCountries]);
+  const countries = useMemo(() => {
+    const all = getCountryOptions(lang);
+    const first = activeCodes.map((code) => all.find((c) => c.code === code)).filter((c): c is CountryOption => Boolean(c));
+    return [...first, ...all.filter((c) => !activeCodes.includes(c.code))];
+  }, [lang, activeCodes]);
+  const configuredDefault = typeof siteSettings?.['markets.defaultCountry'] === 'string' ? siteSettings['markets.defaultCountry'] as string : undefined;
+  const detectedCountryCode = useMemo(
+    () => detectDefaultCountryCode(countries, [configuredDefault, ...activeCodes].filter((c): c is string => Boolean(c))),
+    [countries, configuredDefault, activeCodes],
+  );
 
   const {
     register,
@@ -276,19 +291,16 @@ export default function Register() {
               <span className="text-red-500 ml-1" aria-hidden="true">*</span>
             </label>
 
-            <div className="grid grid-cols-[minmax(150px,40%)_1fr] gap-2">
-              <select
+            <div className="grid grid-cols-1 sm:grid-cols-[minmax(150px,40%)_1fr] gap-2">
+              <PhoneCountrySelect
                 id="countryCode"
                 aria-label={t('auth.phone_country')}
-                className={`input ${errors.countryCode?.message ? 'input-error' : ''}`}
+                countries={countries}
+                selectedCode={selectedCountryCode}
+                placeholder={t('auth.phone_country_placeholder')}
+                hasError={Boolean(errors.countryCode?.message)}
                 {...register('countryCode')}
-              >
-                {countries.map((country) => (
-                  <option key={country.code} value={country.code}>
-                    {country.flag} +{country.dialCode} {country.name}
-                  </option>
-                ))}
-              </select>
+              />
 
               <input
                 id="phoneLocal"
@@ -308,7 +320,7 @@ export default function Register() {
               </p>
             ) : (
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                {t('auth.phone_format_helper', {
+                {t(selectedPhoneRule.min === selectedPhoneRule.max ? 'auth.phone_format_helper_exact' : 'auth.phone_format_helper', {
                   dialCode: selectedCountry?.dialCode ? `+${selectedCountry.dialCode}` : '+',
                   min: selectedPhoneRule.min,
                   max: selectedPhoneRule.max,

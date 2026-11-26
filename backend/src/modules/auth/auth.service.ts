@@ -13,17 +13,39 @@ import {
   signAccessToken,
   signRefreshToken,
   verifyRefreshToken,
+  verifyAccessToken,
   revokeToken,
   generateTokenFamily,
 } from '../../utils/jwt.util';
 import { generateOTP, hashOTP, verifyOTP, otpExpiresAt } from '../../utils/otp.util';
-import { sendSMS } from '../../utils/sms.util';
+import { sendSMS, isSmsConfigured } from '../../utils/sms.util';
 import { sendEmail, emailTemplates } from '../../config/email';
+import { maskEmail, maskPhone } from '../../utils/mask.util';
+import { writeAudit } from '../../utils/audit.util';
+import { mfaService, isAdminRole } from './mfa.service';
 import type { RegisterInput, LoginInput, ResendOtpInput, GoogleLoginInput } from './auth.schemas';
+
+export type MfaMethod = 'totp' | 'email' | 'recovery';
+
+/** Essais de second facteur autorisés par tentative de connexion (jeton mfa_temp). */
+export const MFA_MAX_ATTEMPTS_PER_LOGIN = 5;
+/** Secours par e-mail : délai minimal entre deux envois et plafond horaire. */
+export const MFA_EMAIL_COOLDOWN_SECONDS = 60;
+export const MFA_EMAIL_MAX_PER_HOUR = 5;
+
+const EMAIL_FORMAT = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Administrateur dont l'application d'authentification est configurée. */
+function isTotpUser(user: { role: string; mfaTotpEnabledAt: Date | null; mfaSecret: string | null }): boolean {
+  return isAdminRole(user.role) && Boolean(user.mfaTotpEnabledAt) && Boolean(user.mfaSecret);
+}
 
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCK_DURATION_MIN  = 30;
 type OtpFlowPurpose = 'registration' | 'login' | 'password_reset' | 'payment_confirm';
+
+/** Délai minimal entre deux envois de code au même compte pour le même usage. */
+export const OTP_RESEND_COOLDOWN_SEC = 45;
 
 export class AuthService {
   /** Inscription — crée le compte et envoie l'OTP */
@@ -110,13 +132,13 @@ export class AuthService {
       }).catch((err) => {
         logger.error('Echec email activation compte', {
           userId: user.id,
-          email: user.email,
+          email: maskEmail(user.email),
           error: err instanceof Error ? err.message : String(err),
         });
       });
     }
 
-    const tokens = await this._generateTokens(user.id, user.role);
+    const tokens = await this._generateTokens(user.id, user.role, { method: 'otp_registration' });
     return { ...tokens, user: { id: user.id, role: user.role } };
   }
 
@@ -191,9 +213,29 @@ export class AuthService {
       data:  { loginAttempts: 0, lockedUntil: null },
     });
 
-    // MFA activé (au niveau compte ET au niveau plateforme) → envoyer l'OTP
-    if (user.mfaEnabled && env.MFA_ENABLED) {
+    // Administrateur avec application d'authentification : second facteur TOUJOURS exigé.
+    // MFA_ENABLED=false (prévu pour contourner une panne d'envoi d'e-mails, qui n'affecte pas
+    // l'application) et la désactivation de la MFA du compte ne doivent jamais permettre
+    // une connexion d'administration avec le seul mot de passe.
+    const totpAdmin = isTotpUser(user);
+
+    // MFA activé (au niveau compte ET au niveau plateforme), ou admin avec TOTP → second facteur
+    if (totpAdmin || (user.mfaEnabled && env.MFA_ENABLED)) {
       const tempToken = await this._createMfaTempToken(user.id, ip);
+
+      // Administrateur avec application d'authentification : on demande le code TOTP.
+      // Aucun e-mail n'est envoyé ici ; le secours par e-mail se demande explicitement.
+      if (totpAdmin) {
+        return {
+          mfaRequired: true,
+          tempToken,
+          mfaMethod: 'totp' as const,
+          mfaMethods: ['totp', 'email', 'recovery'] as const,
+          user: { id: user.id, role: user.role },
+        };
+      }
+
+      // Tous les autres comptes (clients, prestataires, admins sans TOTP) : inchangé.
       await this._sendOtp(user.id, user.phone ?? undefined, user.email ?? undefined, 'login', ip);
       return {
         mfaRequired: true,
@@ -203,13 +245,18 @@ export class AuthService {
     }
 
     // MFA désactivé → connexion directe
-    const tokens = await this._generateTokens(user.id, user.role);
+    const tokens = await this._generateTokens(user.id, user.role, { method: 'password', ip });
     await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
     return { mfaRequired: false, ...tokens, user: { id: user.id, role: user.role } };
   }
 
-  /** Validation OTP MFA → retourne les tokens */
-  async verifyMfa(tempToken: string, otpCode: string) {
+  /**
+   * Validation MFA → retourne les tokens.
+   * - Comptes sans TOTP (clients, prestataires…) : OTP e-mail/SMS, comportement inchangé.
+   * - Administrateurs avec TOTP : code de l'application (méthode principale), code
+   *   e-mail demandé explicitement (secours) ou code de récupération.
+   */
+  async verifyMfa(tempToken: string, otpCode: string, method?: MfaMethod) {
     const data = await redis.get(`mfa_temp:${tempToken}`);
     if (!data) throw Object.assign(new Error('Session MFA expirée'), { status: 401 });
 
@@ -217,14 +264,167 @@ export class AuthService {
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw Object.assign(new Error('Utilisateur introuvable'), { status: 404 });
 
-    await this._validateOtp(userId, otpCode, 'login');
+    const chosen: MfaMethod = method ?? 'email';
+    if (!isTotpUser(user)) {
+      if (chosen !== 'email') {
+        throw Object.assign(new Error('Méthode de vérification non disponible pour ce compte.'), { status: 400 });
+      }
+      await this._validateOtp(userId, otpCode, 'login');
+    } else {
+      await this._verifyAdminSecondFactor(user, tempToken, otpCode, chosen, ip);
+    }
     await redis.del(`mfa_temp:${tempToken}`);
 
-    const tokens = await this._generateTokens(userId, user.role);
+    const tokens = await this._generateTokens(userId, user.role, { method: `mfa_${chosen}`, ip });
     await prisma.user.update({ where: { id: userId }, data: { lastLoginAt: new Date() } });
 
     logger.info(`Connexion réussie: ${userId} depuis ${ip}`);
     return { ...tokens, user: { id: userId, role: user.role } };
+  }
+
+  /**
+   * Secours « Je n'ai pas accès à mon application d'authentification » :
+   * envoie un OTP UNIQUEMENT à l'adresse enregistrée sur le compte (jamais à une
+   * adresse fournie par la requête), après vérification de cette adresse et du
+   * compte, avec délai minimal et plafond horaire. Journalisé.
+   */
+  async requestMfaEmailFallback(tempToken: string, ip: string) {
+    const data = await redis.get(`mfa_temp:${tempToken}`);
+    if (!data) throw Object.assign(new Error('Session expirée : reconnectez-vous.'), { status: 401 });
+
+    const { userId } = JSON.parse(data) as { userId: string };
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user || !isTotpUser(user)) {
+      throw Object.assign(new Error('Secours par e-mail non disponible pour ce compte.'), { status: 400 });
+    }
+    if (user.deletedAt || user.status !== 'active') {
+      throw Object.assign(new Error('Compte inactif.'), { status: 403 });
+    }
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      throw Object.assign(new Error('Compte temporairement verrouillé.'), { status: 423 });
+    }
+
+    // Vérification de l'adresse du compte avant tout envoi.
+    const email = user.email?.trim().toLowerCase();
+    if (!email || !EMAIL_FORMAT.test(email)) {
+      logger.warn('Secours MFA refusé : aucune adresse e-mail valide sur le compte', { userId });
+      throw Object.assign(
+        new Error('Aucune adresse e-mail valide n\'est associée à ce compte : utilisez un code de récupération.'),
+        { status: 409, code: 'MFA_EMAIL_UNAVAILABLE' }
+      );
+    }
+
+    // Anti-abus : 1 envoi par minute, 5 par heure.
+    const cooldownKey = `mfa_email_cd:${userId}`;
+    const slot = await redis.set(cooldownKey, '1', 'EX', MFA_EMAIL_COOLDOWN_SECONDS, 'NX');
+    if (slot !== 'OK') {
+      const ttl = await redis.ttl(cooldownKey);
+      const retryAfter = ttl > 0 ? ttl : MFA_EMAIL_COOLDOWN_SECONDS;
+      throw Object.assign(
+        new Error(`Un code vient d'être envoyé. Patientez ${retryAfter} s avant d'en demander un autre.`),
+        { status: 429, code: 'MFA_EMAIL_COOLDOWN', retryAfter }
+      );
+    }
+    const hourKey = `mfa_email_hour:${userId}`;
+    const sentThisHour = await redis.incr(hourKey);
+    if (sentThisHour === 1) await redis.expire(hourKey, 3600);
+    if (sentThisHour > MFA_EMAIL_MAX_PER_HOUR) {
+      await writeAudit({ userId, action: 'auth.mfa.email_fallback_blocked', entity: 'user', entityId: userId, ip });
+      throw Object.assign(
+        new Error('Trop de codes demandés par e-mail. Réessayez plus tard ou utilisez un code de récupération.'),
+        { status: 429, code: 'MFA_EMAIL_HOURLY_LIMIT' }
+      );
+    }
+
+    await prisma.otpCode.deleteMany({ where: { userId, purpose: 'login', usedAt: null } });
+    try {
+      await this._sendOtp(userId, undefined, email, 'login', ip); // e-mail uniquement
+    } catch (err) {
+      await redis.del(cooldownKey); // l'échec d'envoi ne doit pas bloquer un nouvel essai
+      throw err;
+    }
+    await redis.setex(`mfa_email_fallback:${tempToken}`, 10 * 60, '1');
+
+    await writeAudit({
+      userId,
+      action: 'auth.mfa.email_fallback_requested',
+      entity: 'user',
+      entityId: userId,
+      ip,
+      newData: { to: maskEmail(email) },
+    });
+
+    return {
+      message: 'Code envoyé par e-mail.',
+      sentTo: maskEmail(email),
+      cooldownSeconds: MFA_EMAIL_COOLDOWN_SECONDS,
+      expiresInMinutes: 10,
+    };
+  }
+
+  /** Second facteur d'un administrateur avec TOTP (plafond d'essais, verrouillage, audit). */
+  private async _verifyAdminSecondFactor(
+    user: { id: string; email: string | null; status: string; deletedAt: Date | null; lockedUntil: Date | null; loginAttempts: number; mfaSecret: string | null },
+    tempToken: string,
+    code: string,
+    method: MfaMethod,
+    ip: string,
+  ) {
+    if (user.deletedAt || user.status !== 'active') {
+      throw Object.assign(new Error('Compte inactif.'), { status: 403 });
+    }
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      const remaining = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60_000);
+      throw Object.assign(new Error(`Compte temporairement verrouillé. Réessayez dans ${remaining} minutes.`), { status: 423 });
+    }
+
+    const attemptsKey = `mfa_attempts:${tempToken}`;
+    const attempts = await redis.incr(attemptsKey);
+    if (attempts === 1) await redis.expire(attemptsKey, 5 * 60);
+    if (attempts > MFA_MAX_ATTEMPTS_PER_LOGIN) {
+      await redis.del(`mfa_temp:${tempToken}`);
+      throw Object.assign(new Error('Trop de tentatives. Reconnectez-vous.'), { status: 429 });
+    }
+
+    let ok = false;
+    if (method === 'totp') {
+      ok = await mfaService.verifyTotp(user, code);
+    } else if (method === 'recovery') {
+      ok = await mfaService.consumeRecoveryCode(user.id, code);
+    } else {
+      const requested = await redis.get(`mfa_email_fallback:${tempToken}`);
+      if (!requested) {
+        throw Object.assign(new Error('Demandez d\'abord un code par e-mail.'), { status: 400 });
+      }
+      try {
+        await this._validateOtp(user.id, code, 'login');
+        ok = true;
+      } catch (err) {
+        if ((err as { status?: number }).status !== 422) throw err;
+      }
+    }
+
+    if (!ok) {
+      await this._handleFailedLogin(user.id, user.loginAttempts);
+      await writeAudit({ userId: user.id, action: `auth.mfa.${method}_failed`, entity: 'user', entityId: user.id, ip });
+      throw Object.assign(new Error('Code incorrect ou déjà utilisé.'), { status: 422 });
+    }
+
+    await redis.del(attemptsKey);
+    await redis.del(`mfa_email_fallback:${tempToken}`);
+    await prisma.user.update({ where: { id: user.id }, data: { loginAttempts: 0, lockedUntil: null } });
+    await writeAudit({ userId: user.id, action: `auth.mfa.login_${method}`, entity: 'user', entityId: user.id, ip });
+
+    if (method === 'recovery') {
+      const remaining = await prisma.mfaRecoveryCode.count({ where: { userId: user.id, usedAt: null } });
+      if (user.email) {
+        void sendEmail({
+          to: user.email,
+          subject: 'BLA Services - Code de récupération utilisé',
+          html: `<p>Un code de récupération vient d'être utilisé pour vous connecter. Il vous en reste ${remaining}.</p><p>Si ce n'est pas vous, contactez immédiatement un super-administrateur.</p>`,
+        }).catch(() => undefined);
+      }
+    }
   }
 
   /** Connexion/inscription Google via ID Token */
@@ -265,16 +465,41 @@ export class AuthService {
         },
       });
     } else {
+      // Les comptes d'administration ne peuvent pas se connecter via Google :
+      // cela contournerait le mot de passe et la double authentification.
+      if (user.role === 'admin' || user.role === 'super_admin') {
+        logger.warn('Connexion Google refusée pour un compte d\'administration', { userId: user.id, ip });
+        throw Object.assign(
+          new Error('La connexion Google n\'est pas disponible pour les comptes d\'administration.'),
+          { status: 403, code: 'GOOGLE_LOGIN_ADMIN_FORBIDDEN' }
+        );
+      }
       if (user.status === 'banned') {
         throw Object.assign(new Error('Compte suspendu. Contactez le support.'), { status: 403 });
+      }
+      if (user.status === 'suspended') {
+        throw Object.assign(
+          new Error('Votre compte est temporairement suspendu. Contactez le support.'),
+          { status: 403 }
+        );
+      }
+
+      const updateData: { lastLoginAt: Date; status?: 'active'; passwordHash?: string } = {
+        lastLoginAt: new Date(),
+      };
+      if (user.status === 'pending') {
+        // Google vient de prouver la possession de l'adresse : on active le compte,
+        // mais on renouvelle le mot de passe local, qui a pu être choisi par un tiers
+        // ayant créé ce compte avec l'adresse de la victime (pré-détournement).
+        updateData.status = 'active';
+        updateData.passwordHash = await bcrypt.hash(crypto.randomBytes(24).toString('hex'), 12);
+        await prisma.otpCode.deleteMany({ where: { userId: user.id, purpose: 'registration', usedAt: null } });
+        logger.info('Compte en attente activé par Google : mot de passe local renouvelé', { userId: user.id });
       }
 
       user = await prisma.user.update({
         where: { id: user.id },
-        data: {
-          status: 'active',
-          lastLoginAt: new Date(),
-        },
+        data: updateData,
       });
 
       await prisma.profile.upsert({
@@ -304,7 +529,7 @@ export class AuthService {
       }
     }
 
-    const tokens = await this._generateTokens(user.id, user.role);
+    const tokens = await this._generateTokens(user.id, user.role, { method: 'google', ip });
     logger.info(`Connexion Google réussie: ${user.id} (${ip})`);
 
     return {
@@ -333,30 +558,98 @@ export class AuthService {
     });
 
     if (!session) {
-      // Possible vol de token — révoquer toute la famille
+      // Session renouvelée il y a moins d'une minute par une requête concurrente (deux onglets,
+      // démarrage de page) : simple course, pas un vol → refus sans fermer les autres sessions.
+      let recentlyRotated = false;
+      try {
+        recentlyRotated = Boolean(await redis.get(`refresh:rotated:${payload.sessionId}`));
+      } catch {
+        // Redis indisponible : on applique la règle de sécurité ci-dessous.
+      }
+      if (recentlyRotated) {
+        throw Object.assign(new Error('Session déjà renouvelée par une autre requête.'), { status: 409, code: 'REFRESH_RACE' });
+      }
+      // Session fermée volontairement (déconnexion) : refus simple, sans fermer les autres appareils.
+      let closedByLogout = false;
+      try {
+        closedByLogout = Boolean(await redis.get(`session:closed:${payload.sessionId}`));
+      } catch {
+        // Redis indisponible : règle de sécurité ci-dessous.
+      }
+      if (closedByLogout) {
+        throw Object.assign(new Error('Session terminée. Reconnectez-vous.'), { status: 401, code: 'SESSION_CLOSED' });
+      }
+      // Jeton déjà utilisé hors de cette fenêtre : possible vol — révoquer toute la famille.
       await prisma.userSession.deleteMany({ where: { userId: payload.userId } });
       throw Object.assign(new Error('Session invalide. Reconnectez-vous.'), { status: 401 });
     }
 
     const user = await prisma.user.findUnique({
       where: { id: payload.userId },
-      select: { id: true, role: true, status: true },
+      select: { id: true, role: true, status: true, deletedAt: true },
     });
-    if (!user || user.status === 'banned') {
-      throw Object.assign(new Error('Accès refusé'), { status: 403 });
+    // Seul un compte actif renouvelle sa session. Compte suspendu, banni ou supprimé : la session
+    // est fermée (auparavant, un compte suspendu continuait à obtenir de nouveaux jetons).
+    if (!user || user.deletedAt || user.status !== 'active') {
+      await prisma.userSession.deleteMany({ where: { id: session.id } });
+      const code = user?.status === 'banned' ? 'ACCOUNT_BANNED' : user?.status === 'suspended' ? 'ACCOUNT_SUSPENDED' : 'ACCOUNT_INACTIVE';
+      throw Object.assign(new Error('Accès refusé : compte inactif ou suspendu.'), { status: 403, code });
     }
 
-    // Renouveler les tokens
+    // Renouveler les tokens (la session remplacée reste reconnue 60 s comme « déjà renouvelée »)
     await prisma.userSession.delete({ where: { id: session.id } });
-    return this._generateTokens(user.id, user.role);
+    try {
+      await redis.setex(`refresh:rotated:${session.id}`, 60, '1');
+    } catch {
+      // Redis indisponible : une course éventuelle sera traitée comme une réutilisation.
+    }
+    return this._generateTokens(user.id, user.role, { method: 'refresh', ip: session.ipAddress ?? undefined, silent: true });
   }
 
   /** Déconnexion — révoque le token */
-  async logout(userId: string, accessToken: string) {
-    await revokeToken(accessToken);
-    // Supprimer toutes les sessions de cet utilisateur sur cet appareil
-    // (on pourrait aussi ne révoquer que la session courante)
-    logger.info(`Déconnexion: ${userId}`);
+  /**
+   * Déconnexion de l'appareil courant, sans exiger de jeton d'accès valide : la session est
+   * retrouvée par le jeton d'accès (s'il est encore valide) et/ou par le jeton de renouvellement
+   * (cookie du site, corps pour le mobile). Effets :
+   * - jeton d'accès révoqué jusqu'à son expiration (refusé par l'API dès maintenant) ;
+   * - session supprimée : le jeton de renouvellement ne fonctionne plus ;
+   * - session marquée « fermée » : sa réutilisation est un simple refus, pas un vol présumé.
+   * Idempotente : des jetons invalides ou déjà fermés ne provoquent aucune erreur.
+   */
+  async logoutSession({ accessToken, refreshToken }: { accessToken?: string; refreshToken?: string }) {
+    const targets: Array<{ userId: string; sessionId: string; exp?: number }> = [];
+
+    if (accessToken) {
+      try {
+        const payload = verifyAccessToken(accessToken) as { userId: string; sessionId: string; exp?: number };
+        targets.push({ userId: payload.userId, sessionId: payload.sessionId });
+        await revokeToken(accessToken); // uniquement un jeton authentique (pas de clé Redis arbitraire)
+      } catch {
+        // jeton expiré ou invalide : la session est retrouvée par le jeton de renouvellement
+      }
+    }
+    if (refreshToken) {
+      try {
+        const payload = verifyRefreshToken(refreshToken) as { userId: string; sessionId: string; exp?: number };
+        targets.push({ userId: payload.userId, sessionId: payload.sessionId, exp: payload.exp });
+      } catch {
+        // jeton de renouvellement invalide ou expiré : rien à fermer
+      }
+    }
+
+    const nowSec = Math.floor(Date.now() / 1000);
+    for (const t of targets) {
+      await prisma.userSession.deleteMany({ where: { id: t.sessionId, userId: t.userId } });
+      const ttl = Math.max(60, (t.exp ?? nowSec + 30 * 24 * 3600) - nowSec);
+      try {
+        await redis.setex(`session:closed:${t.sessionId}`, ttl, '1');
+      } catch {
+        // Redis indisponible : la session est tout de même supprimée en base.
+      }
+    }
+    const userIds = [...new Set(targets.map((t) => t.userId))];
+    logger.info('Déconnexion', { userIds, sessionsClosed: new Set(targets.map((t) => t.sessionId)).size });
+    return { sessionsClosed: new Set(targets.map((t) => t.sessionId)).size };
   }
 
   /** Mot de passe oublié — envoie un OTP de réinitialisation (réponse générique anti-énumération) */
@@ -441,6 +734,19 @@ export class AuthService {
   }
 
   private async _verifyGoogleIdToken(idToken: string) {
+    // Sans GOOGLE_CLIENT_ID, impossible de vérifier que le jeton a été émis pour
+    // BLA : un jeton obtenu par n'importe quelle autre application serait accepté.
+    if (!env.GOOGLE_CLIENT_ID) {
+      if (env.NODE_ENV === 'production') {
+        logger.error('Connexion Google refusée : GOOGLE_CLIENT_ID absent en production');
+        throw Object.assign(
+          new Error('Connexion Google momentanément indisponible.'),
+          { status: 503, code: 'GOOGLE_LOGIN_NOT_CONFIGURED' }
+        );
+      }
+      logger.warn('GOOGLE_CLIENT_ID absent : audience du jeton Google non vérifiée (hors production uniquement).');
+    }
+
     try {
       const response = await axios.get('https://oauth2.googleapis.com/tokeninfo', {
         params: { id_token: idToken },
@@ -451,11 +757,17 @@ export class AuthService {
         aud?: string;
         iss?: string;
         sub?: string;
+        exp?: string;
         email?: string;
         email_verified?: string;
         given_name?: string;
         family_name?: string;
       };
+
+      const expiresAt = Number(payload.exp ?? 0);
+      if (!payload.sub || !Number.isFinite(expiresAt) || expiresAt * 1000 <= Date.now()) {
+        throw Object.assign(new Error('Jeton Google expiré ou incomplet'), { status: 401 });
+      }
 
       if (!payload.email || payload.email_verified !== 'true') {
         throw Object.assign(new Error('Compte Google non vérifié'), { status: 401 });
@@ -487,10 +799,26 @@ export class AuthService {
     purpose: OtpFlowPurpose,
     ip: string
   ) {
+    // Un code envoyé il y a moins de OTP_RESEND_COOLDOWN_SEC secondes reste valable : on n'en
+    // crée pas d'autre (évite les rafales de codes quand l'utilisateur clique plusieurs fois
+    // ou qu'une requête est rejouée, et le refus du code reçu au profit d'un code plus récent).
+    const cooldownKey = `otp:cooldown:${userId}:${purpose}`;
+    try {
+      const remaining = await redis.ttl(cooldownKey);
+      if (typeof remaining === 'number' && remaining > 0) {
+        logger.info('OTP non renvoyé : un code récent est encore valable', { userId, purpose, retryAfterSec: remaining });
+        return { reused: true, retryAfterSec: remaining };
+      }
+    } catch {
+      // Redis indisponible : envoi normal (le délai minimal ne s'applique pas).
+    }
+
+    const startedAt = Date.now();
     const code     = generateOTP();
     const codeHash = await hashOTP(code);
 
-    await prisma.otpCode.create({
+    const otpRow = await prisma.otpCode.create({
+      select: { id: true },
       data: {
         userId,
         phone,
@@ -508,15 +836,22 @@ export class AuthService {
 
     let delivered = false;
 
-    if (phone) {
+    // Le SMS n'est tenté que si un fournisseur est configuré : sans Twilio, le
+    // canal est simplement indisponible et l'OTP part uniquement par e-mail.
+    const smsAvailable = Boolean(phone) && isSmsConfigured();
+    let smsOutcome: 'absent' | 'non configuré' | 'envoyé' | 'échec' = !phone ? 'absent' : smsAvailable ? 'échec' : 'non configuré';
+    let emailOutcome: 'absent' | 'envoyé' | 'échec' = email ? 'échec' : 'absent';
+
+    if (phone && smsAvailable) {
       try {
         const smsSent = await sendSMS(phone, template, [code]);
+        if (smsSent) smsOutcome = 'envoyé';
         delivered = delivered || smsSent;
       } catch (err) {
         logger.error('Echec canal OTP SMS', {
           userId,
           purpose,
-          phone,
+          phone: maskPhone(phone),
           error: err instanceof Error ? err.message : String(err),
         });
       }
@@ -528,27 +863,54 @@ export class AuthService {
                         : purpose === 'login'        ? emailTemplates.otpLogin(code)
                         : emailTemplates.otpPasswordReset(code);
         const emailSent = await sendEmail({ to: email, ...emailData });
+        if (emailSent) emailOutcome = 'envoyé';
         delivered = delivered || emailSent;
       } catch (err) {
         logger.error('Echec canal OTP email', {
           userId,
           purpose,
-          email,
+          email: maskEmail(email),
           error: err instanceof Error ? err.message : String(err),
         });
       }
     }
 
     if (!delivered) {
+      // Code jamais reçu : invalidé tout de suite, pour qu'un code reçu plus tôt reste utilisable.
+      try {
+        if (otpRow?.id) await prisma.otpCode.update({ where: { id: otpRow.id }, data: { expiresAt: new Date() } });
+      } catch {
+        // sans effet sur la réponse : le code expirera de lui-même
+      }
+      // La cause précise (ex. IP refusée par Brevo) est journalisée par le service e-mail.
+      logger.error('OTP non délivré : aucun canal disponible', {
+        userId, purpose, email: emailOutcome, sms: smsOutcome, durationMs: Date.now() - startedAt,
+      });
       throw Object.assign(
         new Error('Aucun canal OTP disponible. Utilisez un email valide ou contactez le support.'),
-        { status: 503 }
+        { status: 503, code: 'OTP_DELIVERY_FAILED' }
       );
     }
 
-    // En dev, afficher l'OTP dans les logs
+    // Le nouveau code remplace les précédents encore valides (un seul code utilisable à la fois).
+    try {
+      await prisma.otpCode.updateMany({
+        where: { userId, purpose, usedAt: null, ...(otpRow?.id ? { id: { not: otpRow.id } } : {}), expiresAt: { gt: new Date() } },
+        data: { expiresAt: new Date() },
+      });
+    } catch {
+      // sans effet sur la réponse : seul le code le plus récent est vérifié
+    }
+    try {
+      await redis.setex(cooldownKey, OTP_RESEND_COOLDOWN_SEC, '1');
+    } catch {
+      // Redis indisponible : pas de délai minimal.
+    }
+    logger.info('OTP envoyé', { userId, purpose, email: emailOutcome, sms: smsOutcome, durationMs: Date.now() - startedAt });
+
+    // Hors production uniquement : afficher l'OTP dans les logs pour le développement.
     if (process.env.NODE_ENV !== 'production') {
-      logger.debug(`[OTP DEV] Code pour ${phone ?? email}: ${code}`);
+      logger.debug(`[OTP DEV] Code pour ${phone ? maskPhone(phone) : maskEmail(email)}: ${code}`);
     }
   }
 
@@ -601,6 +963,10 @@ export class AuthService {
     }
 
     await prisma.user.update({ where: { id: userId }, data });
+    await writeAudit({
+      userId, action: 'auth.login.failed', entity: 'user', entityId: userId,
+      newData: { attempts, locked: attempts >= MAX_LOGIN_ATTEMPTS },
+    });
   }
 
   private async _createMfaTempToken(userId: string, ip: string): Promise<string> {
@@ -609,15 +975,28 @@ export class AuthService {
     return token;
   }
 
-  private async _generateTokens(userId: string, role: string) {
+  /**
+   * Ouvre une session. Chaque connexion (hors renouvellement silencieux du jeton) est
+   * journalisée « auth.login.success » avec la méthode et l'adresse IP : c'est
+   * l'historique des connexions consultable par l'équipe habilitée.
+   */
+  private async _generateTokens(
+    userId: string,
+    role: string,
+    ctx: { method: string; ip?: string; silent?: boolean } = { method: 'inconnue' },
+  ) {
     // Créer une session
     const session = await prisma.userSession.create({
       data: {
         userId,
         refreshHash: generateTokenFamily(),
+        ipAddress: ctx.ip ? ctx.ip.slice(0, 45) : null,
         expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       },
     });
+    if (!ctx.silent) {
+      await writeAudit({ userId, action: 'auth.login.success', entity: 'user', entityId: userId, ip: ctx.ip, newData: { method: ctx.method } });
+    }
 
     const accessToken = signAccessToken({ userId, role, sessionId: session.id });
     const refreshToken = signRefreshToken({

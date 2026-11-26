@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import ManagedPage from '../../components/content/ManagedPage';
 
 const PRIVACY_SECTION_KEYS = [
   'collect',
@@ -11,7 +12,7 @@ const PRIVACY_SECTION_KEYS = [
   'contact',
 ] as const;
 
-export default function PrivacyPage() {
+function PrivacyPageBuiltin() {
   const { t } = useTranslation();
 
   return (
@@ -37,4 +38,9 @@ export default function PrivacyPage() {
       </div>
     </div>
   );
+}
+
+/** Version publiée depuis l'administration, sinon texte intégré. */
+export default function PrivacyPage() {
+  return <ManagedPage slug="privacy" fallback={<PrivacyPageBuiltin />} />;
 }

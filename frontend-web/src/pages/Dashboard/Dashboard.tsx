@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { SkeletonCard } from '../../components/common/Skeleton';
 import api from '../../services/api';
+import MyReviews from '../../components/reviews/MyReviews';
 
 interface Booking {
   id: string;
@@ -147,7 +148,7 @@ export default function Dashboard() {
           <div className="flex flex-col gap-3">
             {bookings.map((b) => {
               const other = isProvider ? b.client : b.provider;
-              const name = other ? `${other.firstName} ${other.lastName}` : '—';
+              const name = other ? `${other.firstName} ${other.lastName}` : 'Non renseigné';
               return (
                 <Link
                   key={b.id}
@@ -156,10 +157,10 @@ export default function Dashboard() {
                 >
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-gray-900 dark:text-white truncate">
-                      {b.service?.name || 'Service'} — {name}
+                      {b.service?.name || 'Service'} · {name}
                     </p>
                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-                      {b.scheduledAt ? new Date(b.scheduledAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) : '—'}
+                      {b.scheduledAt ? new Date(b.scheduledAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) : 'Date à définir'}
                     </p>
                   </div>
                   <span className={`badge ${STATUS_COLORS[b.status] || 'badge-gray'} shrink-0`}>
@@ -171,6 +172,10 @@ export default function Dashboard() {
           </div>
         )}
       </section>
+
+      <div className="mt-8">
+        <MyReviews isProvider={isProvider} />
+      </div>
     </div>
   );
 }

@@ -1,6 +1,9 @@
 ##############################################################
 # BLA — Pipeline CI/CD GitHub Actions
 # Déclencheurs : push sur main/develop + PR sur main
+#
+# Contrôles uniquement : le déploiement n'est pas fait ici. Render (API, branche main)
+# et Vercel (site et administration) compilent directement depuis le dépôt.
 ##############################################################
 
 name: BLA CI/CD Pipeline
@@ -13,12 +16,10 @@ on:
 
 permissions:
   contents: read
-  packages: write
 
 env:
   NODE_VERSION: '22'
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
-  GHCR_IMAGE_PREFIX: ghcr.io/j-y-kpangban/blaservices
 
 jobs:
 
@@ -93,6 +94,9 @@ jobs:
         env:
           NODE_ENV:           test
           DATABASE_URL:       postgresql://bla_user:test_password@localhost:5432/bla_test
+          # Active les tests sur base réelle (tests/db : confidentialité, anti-rejeu, transitions).
+          # Base jetable du service CI ci-dessus — jamais une base distante (refusé par les tests).
+          TEST_DATABASE_URL:  postgresql://bla_user:test_password@localhost:5432/bla_test
           REDIS_URL:          redis://localhost:6379
           JWT_PRIVATE_KEY:    ${{ secrets.JWT_PRIVATE_KEY_TEST }}
           JWT_PUBLIC_KEY:     ${{ secrets.JWT_PUBLIC_KEY_TEST }}
@@ -139,12 +143,42 @@ jobs:
           VITE_API_URL: https://api.bla-app.com/api/v1
 
   # ────────────────────────────────────────────────────────
+  #  Tests Frontend Admin
+  # ────────────────────────────────────────────────────────
+  test-admin:
+    name: Tests Frontend Admin (Vitest)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend-admin/package-lock.json
+
+      - name: Installer les dépendances
+        run: cd frontend-admin && npm ci
+
+      - name: Linting
+        run: cd frontend-admin && npm run lint
+
+      - name: Tests
+        run: cd frontend-admin && npm test
+
+      - name: Build de production
+        run: cd frontend-admin && npm run build
+        env:
+          VITE_API_URL: https://api.blalinker.com/api/v1
+
+  # ────────────────────────────────────────────────────────
   #  Audit de sécurité
   # ────────────────────────────────────────────────────────
   security-audit:
     name: Audit sécurité
     runs-on: ubuntu-latest
-    needs: [test-backend, test-frontend]
+    needs: [test-backend, test-frontend, test-admin]
 
     steps:
       - uses: actions/checkout@v4
@@ -156,17 +190,25 @@ jobs:
       # Gate de sécurité sur les dépendances de PRODUCTION (celles réellement déployées).
       # Les vulnérabilités des outils de dev (vite/vitest/esbuild — serveur de dev)
       # ne partent pas en production ; on les suit hors blocage du pipeline.
+      # high/critical bloquants, sauf exceptions nominatives et datées :
+      # security/audit-allowlist.json (documentation : security/EXCEPTIONS-AUDIT.md).
       - name: Audit dépendances backend (production, high+)
         run: |
           cd backend
           npm ci
-          npm audit --omit=dev --audit-level=high
+          node ../scripts/audit-gate.mjs .
 
       - name: Audit dépendances frontend (production, high+)
         run: |
           cd frontend-web
           npm ci
-          npm audit --omit=dev --audit-level=high
+          node ../scripts/audit-gate.mjs .
+
+      - name: Audit dépendances admin (production, high+)
+        run: |
+          cd frontend-admin
+          npm ci
+          node ../scripts/audit-gate.mjs .
 
       - name: Semgrep — analyse statique de sécurité
         uses: returntocorp/semgrep-action@v1
@@ -178,157 +220,3 @@ jobs:
             p/sql-injection
             p/xss
             p/secrets
-
-  # ────────────────────────────────────────────────────────
-  #  Build Docker images
-  # ────────────────────────────────────────────────────────
-  build-docker:
-    name: Build images Docker
-    runs-on: ubuntu-latest
-    needs: [test-backend, test-frontend, security-audit]
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Configurer Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Connexion à GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ secrets.GHCR_USERNAME != '' && secrets.GHCR_USERNAME || github.repository_owner }}
-          password: ${{ secrets.GHCR_TOKEN != '' && secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}
-
-      - name: Extraire les métadonnées (tags)
-        id: meta-backend
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.GHCR_IMAGE_PREFIX }}/backend
-          tags: |
-            type=ref,event=branch
-            type=sha,prefix={{branch}}-
-            type=semver,pattern={{version}}
-
-      - name: Build + Push image backend
-        uses: docker/build-push-action@v5
-        with:
-          context:   ./backend
-          target:    production
-          push:      true
-          tags:      ${{ steps.meta-backend.outputs.tags }}
-          cache-from: type=gha
-          cache-to:   type=gha,mode=max
-
-      - name: Build + Push image frontend
-        uses: docker/build-push-action@v5
-        with:
-          context:   ./frontend-web
-          target:    production
-          push:      true
-          tags:      ${{ env.GHCR_IMAGE_PREFIX }}/frontend:${{ github.sha }}
-          cache-from: type=gha
-          cache-to:   type=gha,mode=max
-          build-args: |
-            VITE_API_URL=/api/v1
-
-  # ────────────────────────────────────────────────────────
-  #  Déploiement — Staging (develop)
-  # ────────────────────────────────────────────────────────
-  deploy-staging:
-    name: Déployer sur Staging
-    runs-on: ubuntu-latest
-    needs: [build-docker]
-    if: github.ref == 'refs/heads/develop' && vars.ENABLE_SELF_HOSTED_DEPLOY == 'true'
-    environment:
-      name: staging
-      url:  https://staging.bla-app.com
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Déployer sur le serveur Staging
-        uses: appleboy/ssh-action@v1
-        with:
-          host:     ${{ secrets.STAGING_HOST }}
-          username: ${{ secrets.STAGING_USER }}
-          key:      ${{ secrets.STAGING_SSH_KEY }}
-          script: |
-            set -e
-            cd /opt/bla
-
-            echo "📦 Pulling images..."
-            echo "${{ secrets.GHCR_TOKEN != '' && secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME != '' && secrets.GHCR_USERNAME || github.repository_owner }}" --password-stdin
-            docker pull ${{ env.GHCR_IMAGE_PREFIX }}/backend:develop
-            docker pull ${{ env.GHCR_IMAGE_PREFIX }}/frontend:${{ github.sha }}
-
-            echo "🔄 Redémarrage des services..."
-            docker compose -f docker-compose.prod.yml up -d --no-deps backend frontend
-
-            echo "📊 Migration DB..."
-            docker compose -f docker-compose.prod.yml exec -T backend \
-              npx prisma migrate deploy
-
-            echo "✅ Déploiement staging terminé !"
-
-      - name: Notification Slack (staging)
-        if: always() && vars.SLACK_NOTIFICATIONS == 'true'
-        uses: 8398a7/action-slack@v3
-        with:
-          status:      ${{ job.status }}
-          text:        "Déploiement Staging BLA — ${{ github.sha }}"
-          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
-
-  # ────────────────────────────────────────────────────────
-  #  Déploiement — Production (main, approbation requise)
-  # ────────────────────────────────────────────────────────
-  deploy-production:
-    name: Déployer en Production
-    runs-on: ubuntu-latest
-    needs: [build-docker]
-    if: github.ref == 'refs/heads/main' && vars.ENABLE_SELF_HOSTED_DEPLOY == 'true'
-    environment:
-      name: production
-      url:  https://bla-app.com
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Déployer en production (blue-green)
-        uses: appleboy/ssh-action@v1
-        with:
-          host:     ${{ secrets.PROD_HOST }}
-          username: ${{ secrets.PROD_USER }}
-          key:      ${{ secrets.PROD_SSH_KEY }}
-          script: |
-            set -e
-            cd /opt/bla
-
-            echo "📦 Pulling images production..."
-            echo "${{ secrets.GHCR_TOKEN != '' && secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME != '' && secrets.GHCR_USERNAME || github.repository_owner }}" --password-stdin
-            docker pull ${{ env.GHCR_IMAGE_PREFIX }}/backend:main
-            docker pull ${{ env.GHCR_IMAGE_PREFIX }}/frontend:${{ github.sha }}
-
-            echo "🔄 Démarrage du nouveau backend (sans downtime)..."
-            docker compose -f docker-compose.prod.yml up -d --no-deps --scale backend=2 backend
-
-            echo "📊 Migration DB..."
-            docker compose -f docker-compose.prod.yml exec -T backend \
-              npx prisma migrate deploy
-
-            echo "🔄 Mise à jour frontend..."
-            docker compose -f docker-compose.prod.yml up -d --no-deps frontend
-
-            echo "🧹 Nettoyage anciennes images..."
-            docker image prune -f --filter "until=48h"
-
-            echo "✅ Déploiement production terminé — version ${{ github.sha }}"
-
-      - name: Notification Slack (production)
-        if: always() && vars.SLACK_NOTIFICATIONS == 'true'
-        uses: 8398a7/action-slack@v3
-        with:
-          status:      ${{ job.status }}
-          text:        "🚀 Déploiement Production BLA v${{ github.sha }}"
-          webhook_url: ${{ secrets.SLACK_WEBHOOK }}

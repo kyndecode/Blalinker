@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
+import ManagedPage from '../../components/content/ManagedPage';
 
-export default function AboutPage() {
+function AboutPageBuiltin() {
   const { t } = useTranslation();
 
   return (
@@ -45,4 +46,9 @@ export default function AboutPage() {
       </div>
     </div>
   );
+}
+
+/** Version publiée depuis l'administration, sinon texte intégré. */
+export default function AboutPage() {
+  return <ManagedPage slug="about" fallback={<AboutPageBuiltin />} />;
 }

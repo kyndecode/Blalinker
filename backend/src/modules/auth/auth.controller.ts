@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
+import { mfaService } from './mfa.service';
 import { logger } from '../../config/logger';
 import {
   isCookieAuthMode,
@@ -9,6 +10,19 @@ import {
 } from '../../utils/cookies.util';
 
 const authService = new AuthService();
+
+/** Réponse d'erreur MFA : message, code et délai éventuel (jamais de détail interne). */
+function sendMfaError(res: Response, err: unknown): Response {
+  const e = err as { message?: string; status?: number; code?: string; retryAfter?: number };
+  const status = e.status ?? 500;
+  if (status >= 500 && !e.code) logger.error('Erreur MFA', { error: e.message });
+  if (e.retryAfter) res.setHeader('Retry-After', String(e.retryAfter));
+  return res.status(status).json({
+    error: status >= 500 && !e.code ? 'Erreur serveur' : e.message,
+    ...(e.code ? { code: e.code } : {}),
+    ...(e.retryAfter ? { retryAfter: e.retryAfter } : {}),
+  });
+}
 
 /**
  * Envoie le résultat d'authentification.
@@ -74,12 +88,60 @@ export const authController = {
 
   async verifyMfa(req: Request, res: Response) {
     try {
-      const { tempToken, otpCode } = req.body;
-      const result = await authService.verifyMfa(tempToken, otpCode);
+      const { tempToken, otpCode, method } = req.body;
+      const result = await authService.verifyMfa(tempToken, otpCode, method);
       sendAuthResult(req, res, result);
     } catch (err: unknown) {
       const e = err as { message: string; status?: number };
       res.status(e.status ?? 500).json({ error: e.message });
+    }
+  },
+
+  /** POST /auth/login/mfa/email — secours : code par e-mail à l'adresse du compte */
+  async requestMfaEmail(req: Request, res: Response) {
+    try {
+      res.json(await authService.requestMfaEmailFallback(req.body.tempToken, req.ip ?? ''));
+    } catch (err: unknown) {
+      sendMfaError(res, err);
+    }
+  },
+
+  /** GET /auth/mfa/status */
+  async mfaStatus(req: Request, res: Response) {
+    try {
+      res.json(await mfaService.getStatus(req.user!.id));
+    } catch (err: unknown) {
+      sendMfaError(res, err);
+    }
+  },
+
+  /** POST /auth/mfa/totp/setup — mot de passe redemandé ; QR code montré une seule fois */
+  async totpSetup(req: Request, res: Response) {
+    try {
+      res.setHeader('Cache-Control', 'no-store');
+      res.json(await mfaService.beginTotpSetup(req.user!.id, req.body.password, req.ip ?? ''));
+    } catch (err: unknown) {
+      sendMfaError(res, err);
+    }
+  },
+
+  /** POST /auth/mfa/totp/activate — premier code obligatoire ; codes de récupération montrés une fois */
+  async totpActivate(req: Request, res: Response) {
+    try {
+      res.setHeader('Cache-Control', 'no-store');
+      res.json(await mfaService.activateTotp(req.user!.id, req.body.code, req.ip ?? ''));
+    } catch (err: unknown) {
+      sendMfaError(res, err);
+    }
+  },
+
+  /** POST /auth/mfa/recovery-codes — nouveaux codes (exige un code de l'application) */
+  async regenerateRecoveryCodes(req: Request, res: Response) {
+    try {
+      res.setHeader('Cache-Control', 'no-store');
+      res.json(await mfaService.regenerateRecoveryCodes(req.user!.id, req.body.code, req.ip ?? ''));
+    } catch (err: unknown) {
+      sendMfaError(res, err);
     }
   },
 
@@ -124,22 +186,33 @@ export const authController = {
       const result = await authService.refreshTokens(token);
       return sendAuthResult(req, res, result);
     } catch (err: unknown) {
-      const e = err as { message: string; status?: number };
-      // En cas d'échec en mode cookie, on nettoie le cookie potentiellement invalide.
-      if (isCookieAuthMode(req)) clearRefreshCookie(res);
-      return res.status(e.status ?? 401).json({ error: e.message });
+      const e = err as { message: string; status?: number; code?: string };
+      // En cas d'échec en mode cookie, on nettoie le cookie potentiellement invalide
+      // (sauf course entre deux onglets : la session reste valable).
+      if (isCookieAuthMode(req) && e.status !== 409) clearRefreshCookie(res);
+      return res.status(e.status ?? 401).json({ error: e.message, ...(e.code ? { code: e.code } : {}) });
     }
   },
 
+  /**
+   * POST /auth/logout — ne dépend pas d'un jeton d'accès encore valide (un jeton expiré ne doit
+   * pas empêcher de se déconnecter). Le cookie n'est lu, et effacé, qu'avec l'en-tête
+   * X-Auth-Mode (envoyé par le site) : un formulaire d'un autre site ne peut rien fermer.
+   */
   async logout(req: Request, res: Response) {
+    const header = req.headers.authorization;
+    const accessToken = header?.startsWith('Bearer ') ? header.slice(7) : undefined;
+    const refreshToken = getRefreshToken(req);
+    const mayClearCookie = isCookieAuthMode(req) || Boolean(accessToken);
     try {
-      const token = req.headers.authorization?.split(' ')[1] ?? '';
-      await authService.logout(req.user!.id, token);
-      clearRefreshCookie(res);
-      res.json({ message: 'Déconnexion réussie' });
+      const { sessionsClosed } = await authService.logoutSession({ accessToken, refreshToken });
+      if (mayClearCookie) clearRefreshCookie(res);
+      return res.json({ message: 'Déconnexion réussie', sessionsClosed });
     } catch (err: unknown) {
       logger.error('Erreur logout:', err);
-      res.status(500).json({ error: 'Erreur lors de la déconnexion' });
+      // Le cookie est retiré du navigateur même si la base est indisponible.
+      if (mayClearCookie) clearRefreshCookie(res);
+      return res.status(503).json({ error: 'Déconnexion enregistrée sur cet appareil ; serveur momentanément indisponible.', code: 'LOGOUT_PARTIAL' });
     }
   },
 };

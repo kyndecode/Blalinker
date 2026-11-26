@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { providersController } from './providers.controller';
+import { searchController } from '../search/search.controller';
 import { authenticate, requireProvider } from '../../middlewares/auth.middleware';
 import { validate } from '../../middlewares/validate.middleware';
 import {
@@ -22,6 +23,9 @@ router.get('/:id', providersController.getProfile);
 
 // GET /api/v1/providers/:id/reviews — public
 router.get('/:id/reviews', providersController.getReviews);
+
+// Recommandations : prestataires proposant les mêmes catégories (public)
+router.get('/:id/similar', searchController.similarProviders);
 
 // GET /api/v1/providers/me/profile — protégé
 router.get('/me/profile',

@@ -14,6 +14,13 @@ import Contacts     from './pages/Contacts';
 import Team         from './pages/Team';
 import AuditLog     from './pages/AuditLog';
 import Payouts      from './pages/Payouts';
+import Security     from './pages/Security';
+import Pages        from './pages/content/Pages';
+import Faq          from './pages/content/Faq';
+import Announcements from './pages/content/Announcements';
+import Media        from './pages/content/Media';
+import Settings     from './pages/settings/Settings';
+import Countries    from './pages/settings/Countries';
 
 function RequireAdmin({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAdminAuthStore((s) => s.isAuthenticated);
@@ -42,6 +49,13 @@ export default function App() {
         <Route path="categories"   element={<Categories />} />
         <Route path="team"         element={<Team />} />
         <Route path="audit"        element={<AuditLog />} />
+        <Route path="securite"     element={<Security />} />
+        <Route path="content/pages"         element={<Pages />} />
+        <Route path="content/faq"           element={<Faq />} />
+        <Route path="content/announcements" element={<Announcements />} />
+        <Route path="content/media"         element={<Media />} />
+        <Route path="settings"     element={<Settings />} />
+        <Route path="countries"    element={<Countries />} />
         <Route path="*"            element={<Navigate to="/dashboard" replace />} />
       </Route>
     </Routes>

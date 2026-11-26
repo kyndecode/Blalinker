@@ -1,9 +1,11 @@
+import { auditWhere } from './insights.controller';
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../../config/database';
 import { logger } from '../../config/logger';
 import { getPaginationParams, getSkip, paginate } from '../../utils/pagination.util';
 import { auditFromReq } from '../../utils/audit.util';
+import { mfaService } from '../auth/mfa.service';
 import {
   ALL_PERMISSIONS,
   ROLE_PRESETS,
@@ -88,7 +90,8 @@ export const teamController = {
           passwordHash,
           role: wantsSuper ? 'super_admin' : 'admin',
           status: 'active',
-          mfaEnabled: false,
+          // MFA actif dès la création : OTP e-mail jusqu'à la configuration de l'application.
+          mfaEnabled: true,
           permissions,
           adminTitle: data.adminTitle ?? (data.preset ? ROLE_LABELS[data.preset] : 'Administrateur'),
           profile: { create: { firstName: data.firstName, lastName: data.lastName, country: 'CI', idVerified: true } },
@@ -108,6 +111,11 @@ export const teamController = {
   async update(req: Request, res: Response) {
     const { id } = req.params;
     const data = req.body as UpdateAdminInput;
+
+    // Ni auto-promotion ni auto-suspension : ses propres droits sont modifiés par un autre membre habilité.
+    if (id === req.user!.id && (data.status !== undefined || data.preset !== undefined || data.permissions !== undefined)) {
+      return res.status(400).json({ error: 'Vous ne pouvez pas modifier vos propres droits ni votre statut.' });
+    }
 
     try {
       const target = await prisma.user.findFirst({
@@ -137,6 +145,11 @@ export const teamController = {
         data: update,
         select: { id: true, email: true, role: true, status: true, adminTitle: true, permissions: true },
       });
+
+      // Membre suspendu : ses sessions sont fermées immédiatement.
+      if (data.status === 'suspended') {
+        await prisma.userSession.deleteMany({ where: { userId: id } });
+      }
 
       await auditFromReq(req, 'admin.team.update', { entity: 'user', entityId: id, oldData: target, newData: update });
       return res.json({ message: 'Membre mis à jour', member: updated });
@@ -186,8 +199,18 @@ export const teamController = {
   async forceLogout(req: Request, res: Response) {
     const { id } = req.params;
     try {
-      await prisma.userSession.deleteMany({ where: { userId: id } });
-      await auditFromReq(req, 'admin.team.force_logout', { entity: 'user', entityId: id });
+      // Uniquement un membre de l'équipe ; un super_admin ne peut être déconnecté que par un super_admin.
+      const target = await prisma.user.findFirst({
+        where: { id, role: { in: [...ADMIN_ROLES] }, deletedAt: null },
+        select: { id: true, role: true },
+      });
+      if (!target) return res.status(404).json({ error: 'Membre admin introuvable' });
+      if (target.role === 'super_admin' && !isSuperAdmin(req)) {
+        return res.status(403).json({ error: 'Action réservée au super administrateur' });
+      }
+
+      const { count } = await prisma.userSession.deleteMany({ where: { userId: id } });
+      await auditFromReq(req, 'admin.team.force_logout', { entity: 'user', entityId: id, newData: { sessionsRevoked: count, result: 'success' } });
       return res.json({ message: 'Sessions révoquées' });
     } catch (err) {
       logger.error('Erreur force logout', err);
@@ -224,11 +247,39 @@ export const teamController = {
     }
   },
 
+  /**
+   * POST /admin/team/:id/reset-mfa — réinitialise l'application d'authentification
+   * d'un membre (perte du téléphone). Le MFA reste actif (OTP e-mail jusqu'à une
+   * nouvelle configuration) ; toutes ses sessions sont fermées ; action journalisée.
+   */
+  async resetMfa(req: Request, res: Response) {
+    const { id } = req.params;
+    if (id === req.user!.id) {
+      return res.status(400).json({ error: 'Utilisez un code de récupération ou le code par e-mail pour votre propre compte.' });
+    }
+    try {
+      const target = await prisma.user.findFirst({
+        where: { id, role: { in: [...ADMIN_ROLES] }, deletedAt: null },
+        select: { id: true, role: true },
+      });
+      if (!target) return res.status(404).json({ error: 'Membre admin introuvable' });
+      if (target.role === 'super_admin' && !isSuperAdmin(req)) {
+        return res.status(403).json({ error: 'Action réservée au super administrateur' });
+      }
+
+      await mfaService.resetTotp(id, { actorId: req.user!.id, ip: req.ip, via: 'admin.team' });
+      return res.json({ message: 'Application d\'authentification réinitialisée. Sessions du membre fermées.' });
+    } catch (err) {
+      logger.error('Erreur réinitialisation MFA', { error: err instanceof Error ? err.message : String(err) });
+      return res.status(500).json({ error: 'Erreur serveur' });
+    }
+  },
+
   /** GET /admin/audit — journal d'audit */
   async auditLog(req: Request, res: Response) {
     const { page, limit } = getPaginationParams(req.query as Record<string, unknown>);
-    const action = typeof req.query.action === 'string' ? req.query.action : undefined;
-    const where = action ? { action: { contains: action } } : {};
+    // Filtres : action, entité, auteur (userId), période.
+    const where = auditWhere(req.query as Record<string, unknown>);
     try {
       const [rows, total] = await Promise.all([
         prisma.auditLog.findMany({

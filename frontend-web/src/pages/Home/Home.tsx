@@ -1,6 +1,19 @@
 ﻿import { type FormEvent, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useQuery } from '@tanstack/react-query';
+import { fetchSiteStats, fetchTestimonials, type PublicStat } from '../../services/site';
+import api from '../../services/api';
+import { contentLocale, settingText, useSiteSettings } from '../../hooks/useSiteContent';
+
+/** Catégorie active publiée par l'administration (GET /categories). */
+interface ApiCategory { id: string; name: string; slug: string; iconUrl: string | null; children?: Array<{ id: string; name: string; slug: string }> }
+const CARD_STYLES = [
+  'bg-orange-50 dark:bg-orange-950/40 border-orange-100 dark:border-orange-900',
+  'bg-blue-50 dark:bg-blue-950/40 border-blue-100 dark:border-blue-900',
+  'bg-pink-50 dark:bg-pink-950/40 border-pink-100 dark:border-pink-900',
+  'bg-green-50 dark:bg-green-950/40 border-green-100 dark:border-green-900',
+];
 
 const CATEGORIES = [
   {
@@ -101,11 +114,8 @@ const CATEGORIES = [
   },
 ];
 
-const STATS = [
-  { value: '2 000+', labelKey: 'home.stats_providers' },
-  { value: '15 000+', labelKey: 'home.stats_clients' },
-  { value: '98%', labelKey: 'home.stats_satisfaction' },
-];
+/** Colonnes de la bande d'indicateurs selon leur nombre (classes Tailwind statiques). */
+const STATS_GRID: Record<number, string> = { 1: 'grid-cols-1', 2: 'grid-cols-2', 3: 'grid-cols-3' };
 
 const STEPS = [
   {
@@ -135,34 +145,58 @@ const QUICK_CHIPS = [
   { labelKey: 'home.quick.ac', query: 'Climatisation' },
 ];
 
-const TESTIMONIALS = [
-  {
-    name: 'Aminata D.',
-    roleKey: 'home.testimonials.client_dakar',
-    textKey: 'home.testimonials.text1',
-    avatar: 'A',
-    stars: 5,
-  },
-  {
-    name: 'Moussa K.',
-    roleKey: 'home.testimonials.provider_abidjan',
-    textKey: 'home.testimonials.text2',
-    avatar: 'M',
-    stars: 5,
-  },
-  {
-    name: 'Fatoumata B.',
-    roleKey: 'home.testimonials.client_bamako',
-    textKey: 'home.testimonials.text3',
-    avatar: 'F',
-    stars: 5,
-  },
-];
-
 export default function Home() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
+
+  // Données réelles uniquement ; en cas d'absence ou d'erreur, la section est masquée.
+  const locale = contentLocale(i18n?.language);
+  const { data: settings } = useSiteSettings();
+  // Catégories gérées depuis l'administration ; à défaut, catégories intégrées.
+  const { data: apiCategories = [] } = useQuery<ApiCategory[]>({
+    queryKey: ['home-categories'],
+    queryFn: () => api.get('/categories').then((r) => (Array.isArray(r.data) ? r.data : [])),
+    staleTime: 5 * 60_000,
+    retry: 1,
+  });
+  const heroTitle = settingText(settings, 'home.heroTitle', locale);
+  const heroSubtitle = settingText(settings, 'home.heroSubtitle', locale);
+  const homeCategories = apiCategories.length > 0
+    ? apiCategories.slice(0, 8).map((c, i) => ({
+      slug: c.slug,
+      label: c.name,
+      icon: c.iconUrl,
+      style: CARD_STYLES[i % CARD_STYLES.length],
+      subs: (c.children ?? []).slice(0, 3).map((child) => child.name),
+    }))
+    : CATEGORIES.map((c) => ({ slug: c.slug, label: t(c.labelKey), icon: c.icon, style: `${c.bg} ${c.border}`, subs: c.subKeys.map((k) => t(k)) }));
+  const { data: stats = [] } = useQuery({
+    queryKey: ['site-stats'],
+    queryFn: fetchSiteStats,
+    staleTime: 5 * 60_000,
+    retry: 1,
+  });
+  const { data: testimonials = [] } = useQuery({
+    queryKey: ['site-testimonials'],
+    queryFn: fetchTestimonials,
+    staleTime: 5 * 60_000,
+    retry: 1,
+  });
+
+  const formatStat = (stat: PublicStat) => {
+    const locale = i18n.language === 'en' ? 'en-US' : 'fr-FR';
+    if (stat.key === 'average_rating') {
+      return {
+        value: `${stat.value.toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}/5`,
+        label: t('home.stats_average_rating', { count: stat.count }),
+      };
+    }
+    return {
+      value: stat.value.toLocaleString(locale),
+      label: t(stat.key === 'verified_providers' ? 'home.stats_verified_providers' : 'home.stats_completed_missions'),
+    };
+  };
 
   const handleSearch = (event: FormEvent) => {
     event.preventDefault();
@@ -178,19 +212,23 @@ export default function Home() {
         </div>
 
         <div className="relative mx-auto max-w-4xl px-4 py-24 sm:py-32 text-center">
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-xs font-medium text-white/80 backdrop-blur-sm">
+          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-xs font-medium text-white/80 backdrop-blur-sm" data-testid="home-countries">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-orange-400" />
-            {t('home.available_countries')}
+            {t('home.available_in')}
           </div>
 
           <h1 className="mb-5 text-4xl font-extrabold leading-tight tracking-tight text-white sm:text-5xl lg:text-6xl">
-            {t('app.tagline')}
-            <br />
-            <span className="text-orange-300">{t('app.tagline2')}</span>
+            {heroTitle ?? (
+              <>
+                {t('app.tagline')}
+                <br />
+                <span className="text-orange-300">{t('app.tagline2')}</span>
+              </>
+            )}
           </h1>
 
           <p className="mx-auto mb-10 max-w-xl text-base text-green-100 sm:text-lg">
-            {t('home.hero_subtitle')}
+            {heroSubtitle ?? t('home.hero_subtitle')}
           </p>
 
           <form
@@ -236,16 +274,25 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="border-b border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-900">
-        <div className="mx-auto grid max-w-4xl grid-cols-3 divide-x divide-gray-100 dark:divide-gray-800">
-          {STATS.map((stat) => (
-            <div key={stat.labelKey} className="px-4 py-8 text-center sm:py-10">
-              <p className="text-3xl font-extrabold text-green-600 dark:text-green-400 sm:text-4xl">{stat.value}</p>
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 sm:text-sm">{t(stat.labelKey)}</p>
-            </div>
-          ))}
-        </div>
-      </section>
+      {stats.length > 0 && (
+        <section
+          aria-label={t('home.stats_aria')}
+          data-testid="home-stats"
+          className="border-b border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-900"
+        >
+          <div className={`mx-auto grid max-w-4xl ${STATS_GRID[stats.length] ?? 'grid-cols-3'} divide-x divide-gray-100 dark:divide-gray-800`}>
+            {stats.map((stat) => {
+              const shown = formatStat(stat);
+              return (
+                <div key={stat.key} className="px-4 py-8 text-center sm:py-10">
+                  <p className="text-3xl font-extrabold text-green-600 dark:text-green-400 sm:text-4xl">{shown.value}</p>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 sm:text-sm">{shown.label}</p>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       <section className="px-4 py-16 sm:py-20">
         <div className="mx-auto max-w-5xl">
@@ -257,21 +304,25 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
-            {CATEGORIES.map((category) => (
+            {homeCategories.map((category) => (
               <button
                 key={category.slug}
-                onClick={() => navigate(`/search?category=${category.slug}`)}
-                className={`group flex flex-col items-start gap-2 rounded-2xl border p-4 sm:p-5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 ${category.bg} ${category.border}`}
+                onClick={() => navigate(`/search?category=${encodeURIComponent(category.slug)}`)}
+                className={`group flex flex-col items-start gap-2 rounded-2xl border p-4 sm:p-5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 ${category.style}`}
               >
-                <span className="text-3xl transition-transform duration-200 group-hover:scale-110">{category.icon}</span>
-                <span className="text-sm font-bold text-gray-900 dark:text-white">{t(category.labelKey)}</span>
-                <div className="hidden sm:flex flex-wrap gap-1 mt-0.5">
-                  {category.subKeys.map((subKey) => (
-                    <span key={subKey} className="text-[10px] text-gray-500 dark:text-gray-400 bg-white/60 dark:bg-black/20 rounded-full px-1.5 py-0.5">
-                      {t(subKey)}
-                    </span>
-                  ))}
-                </div>
+                {category.icon && /^https:\/\//.test(category.icon)
+                  ? <img src={category.icon} alt="" className="h-9 w-9 rounded-lg object-cover" loading="lazy" />
+                  : <span className="text-3xl transition-transform duration-200 group-hover:scale-110" aria-hidden="true">{category.icon || '🏷️'}</span>}
+                <span className="text-sm font-bold text-gray-900 dark:text-white">{category.label}</span>
+                {category.subs.length > 0 && (
+                  <div className="hidden sm:flex flex-wrap gap-1 mt-0.5">
+                    {category.subs.map((sub) => (
+                      <span key={sub} className="text-[10px] text-gray-600 dark:text-gray-400 bg-white/60 dark:bg-black/20 rounded-full px-1.5 py-0.5">
+                        {sub}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </button>
             ))}
           </div>
@@ -329,46 +380,50 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="bg-gray-50 px-4 py-16 dark:bg-gray-900 sm:py-20">
-        <div className="mx-auto max-w-5xl">
-          <div className="mb-10 text-center">
-            <h2 className="text-2xl font-extrabold text-gray-900 dark:text-white sm:text-3xl">
-              {t('home.testimonials_title')}
-            </h2>
-          </div>
+      {testimonials.length > 0 && (
+        <section data-testid="home-testimonials" className="bg-gray-50 px-4 py-16 dark:bg-gray-900 sm:py-20">
+          <div className="mx-auto max-w-5xl">
+            <div className="mb-10 text-center">
+              <h2 className="text-2xl font-extrabold text-gray-900 dark:text-white sm:text-3xl">
+                {t('home.testimonials_title')}
+              </h2>
+            </div>
 
-          <div className="grid gap-5 sm:grid-cols-3">
-            {TESTIMONIALS.map((item) => (
-              <div
-                key={item.name}
-                className="flex flex-col rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-950"
-              >
-                <div className="mb-3 flex gap-0.5">
-                  {Array.from({ length: item.stars }).map((_, index) => (
-                    <svg key={index} className="h-4 w-4 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                    </svg>
-                  ))}
-                </div>
-
-                <p className="mb-5 flex-1 text-sm leading-relaxed text-gray-600 dark:text-gray-400">
-                  "{t(item.textKey)}"
-                </p>
-
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-green-500 to-green-700 text-sm font-bold text-white">
-                    {item.avatar}
+            <div className="grid gap-5 sm:grid-cols-3">
+              {testimonials.map((item) => (
+                <figure
+                  key={item.id}
+                  className="flex flex-col rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-950"
+                >
+                  <div className="mb-3 flex gap-0.5" role="img" aria-label={`${item.rating}/5`}>
+                    {Array.from({ length: Math.max(0, Math.min(5, item.rating)) }).map((_, index) => (
+                      <svg key={index} aria-hidden="true" className="h-4 w-4 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                      </svg>
+                    ))}
                   </div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{item.name}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{t(item.roleKey)}</p>
-                  </div>
-                </div>
-              </div>
-            ))}
+
+                  <blockquote className="mb-5 flex-1 text-sm leading-relaxed text-gray-600 dark:text-gray-400">
+                    « {item.comment} »
+                  </blockquote>
+
+                  <figcaption className="flex items-center gap-3">
+                    <div aria-hidden="true" className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-green-500 to-green-700 text-sm font-bold text-white">
+                      {item.authorName.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white">{item.authorName}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {item.city ? t('home.testimonials.client_in', { city: item.city }) : t('home.testimonials.client')}
+                      </p>
+                    </div>
+                  </figcaption>
+                </figure>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
     </div>
   );
 }

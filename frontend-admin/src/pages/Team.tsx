@@ -1,6 +1,40 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
+import Modal from '../components/ui/Modal';
+import { useToast } from '../components/ui/Toast';
+import { getApiErrorMessage } from '../utils/apiError';
+
+/** Règle identique au serveur : 10 caractères minimum, une majuscule, une minuscule, un chiffre. */
+export function passwordIssues(pw: string): string[] {
+  const issues: string[] = [];
+  if (pw.length < 10) issues.push('10 caractères minimum');
+  if (!/[A-Z]/.test(pw)) issues.push('une majuscule');
+  if (!/[a-z]/.test(pw)) issues.push('une minuscule');
+  if (!/\d/.test(pw)) issues.push('un chiffre');
+  return issues;
+}
+
+function ResetPasswordDialog({ member, busy, error, onClose, onSubmit }: { member: { email?: string | null } | null; busy: boolean; error: string | null; onClose: () => void; onSubmit: (pw: string) => void }) {
+  const [pw, setPw] = useState('');
+  const issues = passwordIssues(pw);
+  return (
+    <Modal open={Boolean(member)} onClose={() => { setPw(''); onClose(); }} title="Réinitialiser le mot de passe" description={`Compte : ${member?.email ?? ''}. Toutes ses sessions seront fermées.`}>
+      <form onSubmit={(e) => { e.preventDefault(); if (issues.length === 0) { onSubmit(pw); setPw(''); } }} className="space-y-3">
+        <label htmlFor="reset-pw" className="block text-sm text-gray-200">Nouveau mot de passe</label>
+        <input id="reset-pw" type="password" autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} aria-describedby="reset-pw-rules"
+          className="w-full rounded-lg border border-white/10 bg-[#0f1b33] px-3 py-2 text-sm text-white" />
+        <p id="reset-pw-rules" className="text-xs text-gray-400">{issues.length ? `Manque : ${issues.join(', ')}.` : 'Mot de passe conforme.'}</p>
+        {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
+        <div className="flex gap-3">
+          <button type="button" onClick={() => { setPw(''); onClose(); }} className="flex-1 rounded-lg border border-white/15 py-2 text-sm">Annuler</button>
+          <button type="submit" disabled={busy || issues.length > 0} className="flex-1 rounded-lg bg-green-600 py-2 text-sm font-semibold text-white disabled:opacity-50">{busy ? 'Enregistrement…' : 'Réinitialiser'}</button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
 import { UserPlus, Shield, Power, KeyRound, Trash2, LogOut, X } from 'lucide-react';
 
 interface Member {
@@ -34,6 +68,8 @@ const PERMISSION_LABELS: Record<string, string> = {
   'exports.run': 'Exporter',
   'audit.read': "Journal d'audit",
   'admins.manage': 'Gérer les admins',
+  'content.manage': 'Gérer les contenus du site',
+  'settings.manage': 'Gérer paramètres et pays',
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -46,6 +82,9 @@ const emptyForm = { firstName: '', lastName: '', email: '', password: '', preset
 export default function Team() {
   const qc = useQueryClient();
   const [modal, setModal] = useState<null | { mode: 'create' } | { mode: 'edit'; member: Member }>(null);
+  const toast = useToast();
+  const [pwTarget, setPwTarget] = useState<Member | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Member | null>(null);
 
   const { data: meta } = useQuery({
     queryKey: ['team-meta'],
@@ -104,8 +143,8 @@ export default function Team() {
         </button>
       </div>
 
-      <div className="bg-[#1a2744] rounded-xl border border-white/10 overflow-hidden">
-        <table className="w-full text-sm">
+      <div role="region" aria-label="Tableau : Équipe" tabIndex={0} className="relative bg-[#1a2744] rounded-xl border border-white/10 overflow-x-auto focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500">
+        <table className="w-full min-w-[640px] text-sm">
           <thead>
             <tr className="border-b border-white/10 text-gray-400">
               <th className="text-left px-4 py-3 font-medium">Membre</th>
@@ -122,7 +161,7 @@ export default function Team() {
             ) : data?.data?.map((m: Member) => (
               <tr key={m.id} className="border-b border-white/10 hover:bg-white/5">
                 <td className="px-4 py-3">
-                  <div className="text-white">{m.profile ? `${m.profile.firstName} ${m.profile.lastName}`.trim() : '—'}</div>
+                  <div className="text-white">{m.profile ? `${m.profile.firstName} ${m.profile.lastName}`.trim() : '-'}</div>
                   <div className="text-white/40 text-xs">{m.email}</div>
                 </td>
                 <td className="px-4 py-3">
@@ -145,15 +184,12 @@ export default function Team() {
                     {m.role !== 'super_admin' && (
                       <button title="Modifier les droits" onClick={() => setModal({ mode: 'edit', member: m })} className="text-blue-400 hover:text-blue-300"><Shield className="w-4 h-4" /></button>
                     )}
-                    <button title="Forcer la déconnexion" onClick={() => forceLogoutM.mutate(m.id)} className="text-yellow-400 hover:text-yellow-300"><LogOut className="w-4 h-4" /></button>
-                    <button title="Réinitialiser le mot de passe" onClick={() => {
-                      const pw = prompt('Nouveau mot de passe (≥10 car., 1 maj, 1 min, 1 chiffre) :');
-                      if (pw) resetPwM.mutate({ id: m.id, password: pw }, { onSuccess: () => alert('Mot de passe réinitialisé.') });
-                    }} className="text-cyan-400 hover:text-cyan-300"><KeyRound className="w-4 h-4" /></button>
+                    <button title="Forcer la déconnexion" aria-label={`Forcer la déconnexion de ${m.email ?? 'ce membre'}`} onClick={() => forceLogoutM.mutate(m.id, { onSuccess: () => toast.success('Sessions fermées'), onError: (e) => toast.error(getApiErrorMessage(e)) })} className="text-yellow-400 hover:text-yellow-300"><LogOut className="w-4 h-4" /></button>
+                    <button title="Réinitialiser le mot de passe" aria-label={`Réinitialiser le mot de passe de ${m.email ?? 'ce membre'}`} onClick={() => { resetPwM.reset(); setPwTarget(m); }} className="text-cyan-400 hover:text-cyan-300"><KeyRound className="w-4 h-4" /></button>
                     {m.role !== 'super_admin' && (
                       <>
                         <button title={m.status === 'active' ? 'Suspendre' : 'Réactiver'} onClick={() => updateM.mutate({ id: m.id, body: { status: m.status === 'active' ? 'suspended' : 'active' } })} className="text-orange-400 hover:text-orange-300"><Power className="w-4 h-4" /></button>
-                        <button title="Supprimer" onClick={() => { if (confirm('Supprimer ce membre ?')) deleteM.mutate(m.id); }} className="text-red-400 hover:text-red-300"><Trash2 className="w-4 h-4" /></button>
+                        <button title="Supprimer" aria-label={`Supprimer ${m.email ?? 'ce membre'}`} onClick={() => { deleteM.reset(); setDeleteTarget(m); }} className="text-red-400 hover:text-red-300"><Trash2 className="w-4 h-4" /></button>
                       </>
                     )}
                   </div>
@@ -181,6 +217,24 @@ export default function Team() {
           }}
         />
       )}
+      <ResetPasswordDialog
+        member={pwTarget}
+        busy={resetPwM.isPending}
+        error={resetPwM.isError ? getApiErrorMessage(resetPwM.error) : null}
+        onClose={() => setPwTarget(null)}
+        onSubmit={(password) => pwTarget && resetPwM.mutate({ id: pwTarget.id, password }, { onSuccess: () => { toast.success('Mot de passe réinitialisé'); setPwTarget(null); } })}
+      />
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        danger
+        title="Supprimer ce membre de l’équipe"
+        message={`${deleteTarget?.email ?? ''} perdra immédiatement l’accès à l’administration. L’action est journalisée.`}
+        confirmLabel="Supprimer"
+        busy={deleteM.isPending}
+        error={deleteM.isError ? getApiErrorMessage(deleteM.error) : null}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => deleteTarget && deleteM.mutate(deleteTarget.id, { onSuccess: () => { toast.success('Membre supprimé'); setDeleteTarget(null); } })}
+      />
     </div>
   );
 }
@@ -231,7 +285,7 @@ function MemberModal({ presets, allPermissions, initial, saving, errorMsg, onClo
 
         <label className="block text-xs text-white/50 mb-1">Rôle prédéfini</label>
         <select value={form.preset} onChange={(e) => applyPreset(e.target.value)} className="input w-full mb-3">
-          <option value="">— Personnalisé —</option>
+          <option value="">Personnalisé</option>
           {presets.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
         </select>
 

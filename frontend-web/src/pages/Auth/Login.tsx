@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -10,6 +10,7 @@ import { useAuthStore } from '../../store/authStore';
 import Logo from '../../components/common/Logo';
 import api from '../../services/api';
 import { requestGoogleIdToken } from '../../services/googleAuth';
+import { clearFlashNotice, peekFlashNotice } from '../../utils/flashNotice';
 
 const schema = z.object({
   identifier: z.string().min(1, 'Requis'),
@@ -25,7 +26,13 @@ export default function Login() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
-  const notice = (location.state as { notice?: string } | null)?.notice;
+  // Message transmis par la page précédente (ex. « Vous êtes déconnecté. »), à usage unique.
+  const [flashNotice] = useState(() => peekFlashNotice());
+  useEffect(() => { clearFlashNotice(); }, []);
+  const notice = (location.state as { notice?: string } | null)?.notice ?? flashNotice;
+  // Retour vers la page privée demandée avant la connexion (chemin interne uniquement).
+  const from = (location.state as { from?: string } | null)?.from;
+  const afterLogin = typeof from === 'string' && /^\/(?!\/)/.test(from) && !from.startsWith('/login') ? from : '/dashboard';
   const { setTokens, setUser } = useAuthStore();
   const [apiError, setApiError] = useState('');
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -59,7 +66,7 @@ export default function Login() {
       } else {
         setTokens(res.data.accessToken, res.data.refreshToken);
         setUser(res.data.user);
-        navigate('/dashboard');
+        navigate(afterLogin);
       }
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string } } };
@@ -75,7 +82,7 @@ export default function Login() {
       const res = await api.post('/auth/login/verify-mfa', { tempToken: mfaState.tempToken, otpCode });
       setTokens(res.data.accessToken, res.data.refreshToken);
       setUser(res.data.user);
-      navigate('/dashboard');
+      navigate(afterLogin);
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string } } };
       setApiError(e?.response?.data?.error || t('auth.otp_invalid'));
@@ -98,7 +105,7 @@ export default function Login() {
       });
       setTokens(res.data.accessToken, res.data.refreshToken);
       setUser(res.data.user);
-      navigate('/dashboard');
+      navigate(afterLogin);
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string } }; message?: string };
       setApiError(e?.response?.data?.error || e?.message || t('errors.server'));

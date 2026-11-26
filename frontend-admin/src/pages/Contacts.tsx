@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import AccessDenied, { isForbidden } from '../components/AccessDenied';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight, Search, Send, Archive } from 'lucide-react';
 import api from '../services/api';
@@ -113,6 +114,8 @@ export default function Contacts() {
     });
   };
 
+  if (isForbidden(query.error)) return <AccessDenied permission="Gérer contacts" />;
+
   return (
     <div className="space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -144,6 +147,7 @@ export default function Contacts() {
               />
             </div>
             <select
+              aria-label="Filtrer par statut"
               value={status}
               onChange={(event) => {
                 setStatus(event.target.value);
@@ -161,8 +165,8 @@ export default function Contacts() {
             </select>
           </div>
 
-          <div className="bg-[#1a2744] border border-white/10 rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
+          <div role="region" aria-label="Tableau : Messages de contact" tabIndex={0} className="relative bg-[#1a2744] border border-white/10 rounded-xl overflow-x-auto focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500">
+            <table className="w-full min-w-[640px] text-sm">
               <thead>
                 <tr className="text-gray-400 border-b border-white/10">
                   <th className="text-left font-medium px-4 py-3">Contact</th>
@@ -214,6 +218,7 @@ export default function Contacts() {
                 <button
                   onClick={() => setPage((prev) => Math.max(1, prev - 1))}
                   disabled={page <= 1}
+                  aria-label="Page précédente"
                   className="p-1 rounded hover:bg-white/10 disabled:opacity-40"
                 >
                   <ChevronLeft className="w-4 h-4" />
@@ -221,6 +226,7 @@ export default function Contacts() {
                 <button
                   onClick={() => setPage((prev) => prev + 1)}
                   disabled={page >= query.data.meta.totalPages}
+                  aria-label="Page suivante"
                   className="p-1 rounded hover:bg-white/10 disabled:opacity-40"
                 >
                   <ChevronRight className="w-4 h-4" />
@@ -273,8 +279,9 @@ export default function Contacts() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs text-gray-400">Changer le statut</label>
+                <label htmlFor="contact-next-status" className="text-xs text-gray-400">Changer le statut</label>
                 <select
+                  id="contact-next-status"
                   value={nextStatus}
                   onChange={(event) => setNextStatus(event.target.value as ContactStatus)}
                   className="w-full bg-[#0f1829] border border-white/10 rounded-lg px-3 py-2 text-sm text-white

@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { getApiErrorCode, getApiErrorMessage } from '../../utils/apiError';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Calendar, Clock, MapPin, FileText, ArrowLeft, Loader2 } from 'lucide-react';
@@ -20,6 +21,12 @@ interface ProviderService {
   price?: number | string | null;
   priceType?: string | null;
   category?: { name?: string };
+}
+
+/** Identifiant de la demande déjà en attente (réponse 409 BOOKING_DUPLICATE). */
+function duplicateId(error: unknown): string | undefined {
+  const id = (error as { response?: { data?: { bookingId?: unknown } } } | null)?.response?.data?.bookingId;
+  return typeof id === 'string' ? id : undefined;
 }
 
 export default function BookingNew() {
@@ -52,7 +59,8 @@ export default function BookingNew() {
     watch,
     setValue,
     formState: { errors },
-  } = useForm<BookingForm>();
+  } = useForm<BookingForm>({ mode: 'onTouched' });
+  const descriptionLength = (watch('description') ?? '').trim().length;
   const selectedServiceId = watch('serviceId');
   const activeService = providerServices.find((service) => service.id === selectedServiceId) ?? selectedService;
   const activeServicePrice = activeService?.price !== null && activeService?.price !== undefined
@@ -125,11 +133,12 @@ export default function BookingNew() {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
           {/* Service */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            <label htmlFor="booking-service" className="text-sm font-medium text-gray-700 dark:text-gray-300">
               Service
               <span className="text-red-500 ml-0.5" aria-hidden="true">*</span>
             </label>
             <select
+              id="booking-service"
               className={`input ${errors.serviceId ? 'input-error' : ''}`}
               {...register('serviceId', { required: 'Le service est obligatoire' })}
             >
@@ -155,17 +164,26 @@ export default function BookingNew() {
 
           {/* Date & time */}
           <div className="flex flex-col gap-1.5">
-            <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
-              <Calendar className="w-4 h-4 text-green-600 dark:text-green-400" />
+            <label htmlFor="booking-date" className="flex items-center gap-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
+              <Calendar className="w-4 h-4 text-green-600 dark:text-green-400" aria-hidden="true" />
               Date et heure
               <span className="text-red-500 ml-0.5" aria-hidden="true">*</span>
             </label>
             <input
+              id="booking-date"
               type="datetime-local"
               min={minDate}
+              aria-invalid={Boolean(errors.scheduledAt)}
+              aria-describedby="booking-date-help"
               className={`input ${errors.scheduledAt ? 'input-error' : ''}`}
-              {...register('scheduledAt', { required: 'La date est obligatoire' })}
+              {...register('scheduledAt', {
+                required: 'Choisissez une date et une heure.',
+                validate: (v) => !v || new Date(v).getTime() > Date.now() || 'La date doit être dans le futur.',
+              })}
             />
+            <p id="booking-date-help" className="text-xs text-gray-500 dark:text-gray-400">
+              Proposez un créneau : le prestataire l’accepte ou le refuse, vous êtes prévenu dans tous les cas.
+            </p>
             {errors.scheduledAt && (
               <p className="text-xs text-red-600 dark:text-red-400" role="alert">
                 {errors.scheduledAt.message}
@@ -177,28 +195,41 @@ export default function BookingNew() {
           <div className="relative">
             <Input
               label="Adresse d'intervention"
-              placeholder="Ex: 12 rue des Fleurs, Dakar"
+              placeholder="Quartier, rue, point de repère…"
+              helperText="Visible uniquement par le prestataire que vous réservez."
               error={errors.address?.message}
-              {...register('address', { required: "L'adresse est obligatoire" })}
+              {...register('address', {
+                required: "Indiquez le lieu de l'intervention.",
+                minLength: { value: 5, message: 'Adresse trop courte (5 caractères minimum).' },
+              })}
             />
             <MapPin className="absolute right-3 top-[34px] w-4 h-4 text-gray-400 pointer-events-none" />
           </div>
 
           {/* Description */}
           <div className="flex flex-col gap-1.5">
-            <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
-              <FileText className="w-4 h-4 text-green-600 dark:text-green-400" />
+            <label htmlFor="booking-description" className="flex items-center gap-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
+              <FileText className="w-4 h-4 text-green-600 dark:text-green-400" aria-hidden="true" />
               Description
+              <span className="text-red-500 ml-0.5" aria-hidden="true">*</span>
             </label>
             <textarea
+              id="booking-description"
               rows={4}
-              placeholder="Décrivez votre besoin..."
+              maxLength={1000}
+              placeholder="Ex. : fuite sous l’évier de la cuisine depuis hier, accès par la cour."
+              aria-invalid={Boolean(errors.description)}
+              aria-describedby="booking-description-help"
               className={`input resize-none ${errors.description ? 'input-error' : ''}`}
               {...register('description', {
-                required: 'La description est obligatoire',
-                minLength: { value: 10, message: 'Minimum 10 caractères' },
+                required: 'Décrivez votre besoin.',
+                minLength: { value: 10, message: 'Ajoutez quelques détails (10 caractères minimum).' },
               })}
             />
+            <p id="booking-description-help" className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
+              <span>Précisez le problème, l’accès et le matériel éventuel : le prestataire répond plus vite.</span>
+              <span aria-live="polite">{descriptionLength}/1000</span>
+            </p>
             {errors.description && (
               <p className="text-xs text-red-600 dark:text-red-400" role="alert">
                 {errors.description.message}
@@ -208,9 +239,12 @@ export default function BookingNew() {
 
           {/* Error */}
           {mutation.isError && (
-            <p className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-4 py-3 rounded-xl">
-              Une erreur s'est produite. Veuillez réessayer.
-            </p>
+            <div role="alert" className="text-sm text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-4 py-3 rounded-xl">
+              <p>{getApiErrorMessage(mutation.error, 'La demande n’a pas pu être envoyée. Réessayez.')}</p>
+              {getApiErrorCode(mutation.error) === 'BOOKING_DUPLICATE' && duplicateId(mutation.error) && (
+                <Link to={`/bookings/${duplicateId(mutation.error)}`} className="mt-1 inline-block font-medium underline">Voir ma demande en cours</Link>
+              )}
+            </div>
           )}
 
           {/* Submit */}

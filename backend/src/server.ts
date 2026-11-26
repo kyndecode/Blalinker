@@ -4,14 +4,15 @@
  */
 import http from 'http';
 import { Server as SocketIOServer } from 'socket.io';
-import bcrypt from 'bcryptjs';
 import { app } from './app';
 import { env, getCorsOrigins } from './config/env';
 import { logger } from './config/logger';
 import { prisma } from './config/database';
 import { redis } from './config/redis';
-import { verifyAccessToken } from './utils/jwt.util';
-import { isTokenRevoked } from './utils/jwt.util';
+import { ensureBootstrapAdmin } from './config/bootstrapAdmin';
+import { isEmailConfigured } from './config/email';
+import { isSmsConfigured } from './utils/sms.util';
+import { registerSocketHandlers } from './realtime/socketHandlers';
 
 const httpServer = http.createServer(app);
 
@@ -26,120 +27,14 @@ export const io = new SocketIOServer(httpServer, {
   pingInterval: 25_000,
 });
 
-// Auth WebSocket via JWT
-io.use(async (socket, next) => {
-  const token = socket.handshake.auth.token as string;
-  if (!token) return next(new Error('Token manquant'));
+// Authentification et événements temps réel (validation, propriété, machine d'états partagée).
+registerSocketHandlers(io);
 
-  if (await isTokenRevoked(token)) return next(new Error('Token révoqué'));
-
-  try {
-    const payload = verifyAccessToken(token);
-    socket.data.user = payload;
-    next();
-  } catch {
-    next(new Error('Token invalide'));
-  }
-});
-
-io.on('connection', (socket) => {
-  const { userId, role } = socket.data.user as { userId: string; role: string };
-  logger.debug(`WebSocket connecté: ${userId} (${role})`);
-
-  // Rejoindre la salle personnelle (notifications)
-  socket.join(`user:${userId}`);
-
-  // ── Booking GPS tracking ──────────────────────────────────
-  socket.on('join_booking', async ({ bookingId }: { bookingId: string }) => {
-    const booking = await prisma.booking.findFirst({
-      where: {
-        id: bookingId,
-        OR: [{ clientId: userId }, { providerId: userId }],
-      },
-    });
-    if (booking) socket.join(`booking:${bookingId}`);
-  });
-
-  // Le prestataire émet sa position (throttle 5s via Redis)
-  socket.on('location_update', async (data: {
-    bookingId: string;
-    lat: number; lng: number;
-    heading?: number; speed?: number;
-  }) => {
-    if (role !== 'provider') return;
-    if (data.lat < -90 || data.lat > 90 || data.lng < -180 || data.lng > 180) return;
-
-    const throttleKey = `location_throttle:${userId}`;
-    const throttled = await redis.get(throttleKey);
-
-    if (!throttled) {
-      await redis.setex(throttleKey, 5, '1');
-      await prisma.location.create({
-        data: {
-          userId,
-          bookingId: data.bookingId,
-          latitude:  data.lat,
-          longitude: data.lng,
-          heading:   data.heading,
-          speed:     data.speed,
-        },
-      });
-    }
-
-    // Calculer l'ETA approximatif
-    const booking = await prisma.booking.findUnique({ where: { id: data.bookingId } });
-    let etaMinutes: number | null = null;
-
-    if (booking?.clientLat && booking?.clientLng) {
-      const distKm = haversineKm(
-        data.lat, data.lng,
-        Number(booking.clientLat), Number(booking.clientLng)
-      );
-      etaMinutes = Math.ceil(distKm / 25 * 60); // ~25 km/h en ville
-    }
-
-    io.to(`booking:${data.bookingId}`).emit('provider_location', {
-      lat: data.lat,
-      lng: data.lng,
-      heading: data.heading,
-      etaMinutes,
-      timestamp: Date.now(),
-    });
-  });
-
-  // Changement de statut de booking
-  socket.on('booking_status_update', async ({ bookingId, status }: { bookingId: string; status: string }) => {
-    const allowed = role === 'provider'
-      ? ['in_progress', 'completed']
-      : ['validated'];
-
-    if (!allowed.includes(status)) return;
-
-    try {
-      const booking = await prisma.booking.update({
-        where: {
-          id: bookingId,
-          ...(role === 'provider' ? { providerId: userId } : { clientId: userId }),
-        },
-        data: {
-          status: status as 'in_progress' | 'completed' | 'validated',
-          ...(status === 'in_progress' && { startedAt: new Date() }),
-          ...(status === 'completed'   && { completedAt: new Date() }),
-          ...(status === 'validated'   && { validatedAt: new Date() }),
-        },
-      });
-
-      io.to(`booking:${bookingId}`).emit('booking_status', {
-        status: booking.status,
-        updatedAt: new Date(),
-      });
-    } catch {
-      socket.emit('error', { message: 'Mise à jour du statut échouée' });
-    }
-  });
-
-  socket.on('disconnect', () => {
-    logger.debug(`WebSocket déconnecté: ${userId}`);
+// Filet de sécurité : une promesse rejetée oubliée (gestionnaire asynchrone, tâche de fond)
+// est journalisée au lieu d'arrêter toute l'API (comportement par défaut de Node ≥ 15).
+process.on('unhandledRejection', (reason) => {
+  logger.error('Promesse rejetée non gérée', {
+    error: reason instanceof Error ? { message: reason.message, stack: reason.stack } : String(reason),
   });
 });
 
@@ -150,6 +45,13 @@ async function bootstrap() {
     logger.info('PostgreSQL connecté');
 
     await ensureSystemData();
+
+    // Canaux de notification (une seule ligne au démarrage, aucun secret).
+    logger.info(
+      `Notifications : e-mail ${isEmailConfigured() ? `Brevo (expéditeur ${env.BREVO_FROM_EMAIL})` : 'DÉSACTIVÉ (BREVO_API_KEY absente)'}`
+      + ` | SMS ${isSmsConfigured() ? 'Twilio' : 'non configuré (OTP par e-mail uniquement)'}`
+      + ` | MFA connexion ${env.MFA_ENABLED ? 'actif' : 'désactivé'}`,
+    );
 
     // Redis est en lazyConnect : il a pu déjà être ouvert par le rate-limiter.
     // On ne (re)connecte que si le client est encore en attente.
@@ -171,43 +73,9 @@ async function bootstrap() {
 }
 
 async function ensureSystemData() {
-  const adminEmail = env.ADMIN_EMAIL.toLowerCase();
-
-  // Sécurité : on ne crée le compte admin QUE s'il n'existe pas, et UNIQUEMENT si
-  // un mot de passe est fourni via l'environnement. On ne réécrit JAMAIS un compte
-  // existant (sinon tout changement de mot de passe est écrasé à chaque redémarrage,
-  // et un déploiement pourrait réimposer un mot de passe connu).
-  if (env.ADMIN_PASSWORD) {
-    const existingAdmin = await prisma.user.findUnique({
-      where: { email: adminEmail },
-      select: { id: true },
-    });
-
-    if (!existingAdmin) {
-      const passwordHash = await bcrypt.hash(env.ADMIN_PASSWORD, 12);
-      await prisma.user.create({
-        data: {
-          email: adminEmail,
-          passwordHash,
-          role: 'super_admin',
-          status: 'active',
-          mfaEnabled: true,
-          profile: {
-            create: {
-              firstName: 'Super',
-              lastName: 'Admin',
-              country: 'SN',
-              idVerified: true,
-              idVerifiedAt: new Date(),
-            },
-          },
-        },
-      });
-      logger.info(`Compte admin bootstrap cree: ${adminEmail}`);
-    }
-  } else {
-    logger.warn('ADMIN_PASSWORD non configurée : bootstrap du compte admin ignoré.');
-  }
+  // Premier super-administrateur : jamais créé si un super-administrateur actif
+  // existe déjà (voir config/bootstrapAdmin.ts).
+  await ensureBootstrapAdmin();
 
   const categoriesCount = await prisma.category.count();
   if (categoriesCount === 0) {
@@ -236,14 +104,3 @@ process.on('SIGTERM', async () => {
 
 bootstrap();
 
-// ─── Utilitaire distance Haversine ────────────────────────────
-function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371;
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-  const a = Math.sin(dLat/2)**2 +
-            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-            Math.sin(dLng/2)**2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-}
-function toRad(deg: number) { return deg * Math.PI / 180; }

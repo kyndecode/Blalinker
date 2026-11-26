@@ -21,7 +21,7 @@ export const createContactSchema = z.object({
 }).superRefine((data, ctx) => {
   if (!isValidE164ForCountry(data.phone, data.countryCode)) {
     ctx.addIssue({
-      code: z.ZodIssueCode.custom,
+      code: 'custom',
       path: ['phone'],
       message: `Numéro invalide pour ${data.countryCode}`,
     });

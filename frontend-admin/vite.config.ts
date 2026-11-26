@@ -1,3 +1,4 @@
+/// <reference types="vitest" />
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
@@ -15,5 +16,12 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false, // Pas de sourcemap en prod pour l'admin
+  },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: './src/test/setup.ts',
+    // Machines lentes / CI chargée : la saisie simulée (user-event) peut dépasser 5 s.
+    testTimeout: 15_000,
   },
 });

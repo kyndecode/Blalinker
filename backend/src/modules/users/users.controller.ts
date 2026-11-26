@@ -42,6 +42,10 @@ export const usersController = {
         country: user.profile?.country ?? '',
         avatarUrl: user.profile?.avatarUrl ?? '',
         isVerified: user.profile?.idVerified ?? false,
+        // Permissions de l'équipe (pour afficher le menu de l'administration) ; jamais pour les clients.
+        ...(user.role === 'admin' || user.role === 'super_admin'
+          ? { permissions: Array.isArray(user.permissions) ? user.permissions : [] }
+          : {}),
       });
     } catch {
       return res.status(500).json({ error: 'Erreur serveur' });

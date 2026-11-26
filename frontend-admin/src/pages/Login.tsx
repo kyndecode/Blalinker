@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -22,46 +22,92 @@ type AdminAuthUser = {
 
 type AuthResponse = {
   mfaRequired?: boolean;
+  mfaMethod?: 'totp';
   tempToken?: string;
   accessToken?: string;
   refreshToken?: string;
   user?: AdminAuthUser;
 };
 
+/**
+ * Étapes du second facteur :
+ * - email-otp  : code envoyé automatiquement par e-mail (comptes sans application) ;
+ * - totp       : code de l'application d'authentification ;
+ * - totp-email : secours, code demandé par e-mail ;
+ * - recovery   : code de récupération à usage unique.
+ */
+type MfaStep = 'email-otp' | 'totp' | 'totp-email' | 'recovery';
+
+const METHOD_BY_STEP: Record<MfaStep, 'totp' | 'email' | 'recovery' | undefined> = {
+  'email-otp': undefined, // comportement historique : pas de méthode envoyée
+  totp: 'totp',
+  'totp-email': 'email',
+  recovery: 'recovery',
+};
+
 function isAdminRole(role: string | undefined): role is 'admin' | 'super_admin' {
   return role === 'admin' || role === 'super_admin';
 }
 
-function getFriendlyError(err: unknown): string {
+/** Au-delà de ce délai, on signale que le serveur est peut-être en train de démarrer. */
+const SLOW_REQUEST_HINT_MS = 8_000;
+
+export function getFriendlyError(err: unknown): string {
   if (typeof navigator !== 'undefined' && !navigator.onLine) {
-    return 'Connection problem. Check your network.';
+    return 'Pas de connexion Internet. Vérifiez votre réseau.';
   }
 
   const e = err as {
     code?: string;
-    response?: { data?: { error?: string; message?: string } };
+    response?: { status?: number; data?: { error?: string; message?: string } };
     message?: string;
   };
 
   if (!e.response) {
-    return 'Connection problem. Check your network.';
+    if (e.code === 'ECONNABORTED' || e.code === 'ETIMEDOUT') {
+      return 'Le serveur ne répond pas encore (démarrage en cours). Réessayez dans une minute.';
+    }
+    if (e.message && !e.code) {
+      return e.message; // erreur levée par l'interface elle-même (ex. accès refusé)
+    }
+    return "Impossible de joindre l'API. Vérifiez votre connexion puis réessayez.";
   }
 
-  return e.response.data?.error ?? e.response.data?.message ?? e.message ?? 'Identifiants incorrects';
+  return e.response.data?.error ?? e.response.data?.message ?? 'Identifiants incorrects';
 }
+
+const inputClass = `w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white
+  placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent`;
+const primaryButton = `w-full py-3 bg-green-600 hover:bg-green-700 disabled:opacity-50
+  text-white font-semibold rounded-lg transition-colors`;
+const linkButton = 'w-full py-2 text-sm text-gray-300 hover:text-white transition-colors underline-offset-2 hover:underline';
 
 export default function AdminLogin() {
   const navigate = useNavigate();
   const setTokens = useAdminAuthStore((s) => s.setTokens);
 
   const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
   const [loading, setLoading] = useState(false);
+  const [slow, setSlow] = useState(false);
   const [otpCode, setOtpCode] = useState('');
-  const [mfaState, setMfaState] = useState<{ required: boolean; tempToken: string; email: string }>({
-    required: false,
-    tempToken: '',
-    email: '',
-  });
+  const [mfa, setMfa] = useState<{ step: MfaStep; tempToken: string; email: string } | null>(null);
+  const [cooldown, setCooldown] = useState(0);
+
+  useEffect(() => {
+    if (!loading) {
+      setSlow(false);
+      return;
+    }
+    const timer = setTimeout(() => setSlow(true), SLOW_REQUEST_HINT_MS);
+    return () => clearTimeout(timer);
+  }, [loading]);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = setTimeout(() => setCooldown((c) => c - 1), 1_000);
+    return () => clearTimeout(timer);
+  }, [cooldown]);
 
   const {
     register,
@@ -71,6 +117,12 @@ export default function AdminLogin() {
   } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
+
+  const goToStep = (step: MfaStep) => {
+    setMfa((m) => (m ? { ...m, step } : m));
+    setOtpCode('');
+    setError('');
+  };
 
   const completeSession = async (payload: AuthResponse, fallbackEmail: string) => {
     if (!payload.accessToken || !payload.refreshToken) {
@@ -103,12 +155,21 @@ export default function AdminLogin() {
       email: user.email ?? fallbackEmail,
     });
 
-    navigate('/dashboard');
+    // Administrateur sans application d'authentification : page de configuration.
+    let setupRequired = false;
+    try {
+      const status = await api.get('/auth/mfa/status');
+      setupRequired = Boolean((status?.data as { setupRequired?: boolean } | undefined)?.setupRequired);
+    } catch {
+      // l'état MFA est indicatif : en cas d'échec, on ouvre le tableau de bord
+    }
+    navigate(setupRequired ? '/securite' : '/dashboard');
   };
 
   const onSubmit = async (data: FormData) => {
     setLoading(true);
     setError('');
+    setInfo('');
 
     try {
       const res = await api.post<AuthResponse>('/auth/login', data);
@@ -126,7 +187,8 @@ export default function AdminLogin() {
           return;
         }
 
-        setMfaState({ required: true, tempToken: auth.tempToken, email: data.email });
+        setOtpCode('');
+        setMfa({ step: auth.mfaMethod === 'totp' ? 'totp' : 'email-otp', tempToken: auth.tempToken, email: data.email });
         return;
       }
 
@@ -140,22 +202,57 @@ export default function AdminLogin() {
 
   const onVerifyMfa = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!mfa) return;
     setLoading(true);
     setError('');
 
     try {
+      const method = METHOD_BY_STEP[mfa.step];
       const res = await api.post<AuthResponse>('/auth/login/verify-mfa', {
-        tempToken: mfaState.tempToken,
+        tempToken: mfa.tempToken,
         otpCode: otpCode.trim(),
+        ...(method ? { method } : {}),
       });
 
-      await completeSession(res.data, mfaState.email || getValues('email'));
+      await completeSession(res.data, mfa.email || getValues('email'));
     } catch (err: unknown) {
       setError(getFriendlyError(err));
     } finally {
       setLoading(false);
     }
   };
+
+  const requestEmailCode = async () => {
+    if (!mfa) return;
+    setLoading(true);
+    setError('');
+    setInfo('');
+
+    try {
+      const res = await api.post<{ sentTo: string; cooldownSeconds: number }>('/auth/login/mfa/email', {
+        tempToken: mfa.tempToken,
+      });
+      goToStep('totp-email');
+      setInfo(`Code envoyé à ${res.data.sentTo}. Valable 10 minutes.`);
+      setCooldown(res.data.cooldownSeconds ?? 60);
+    } catch (err: unknown) {
+      const retryAfter = (err as { response?: { data?: { retryAfter?: number } } }).response?.data?.retryAfter;
+      if (retryAfter) setCooldown(retryAfter);
+      setError(getFriendlyError(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const backToCredentials = () => {
+    setMfa(null);
+    setOtpCode('');
+    setError('');
+    setInfo('');
+  };
+
+  const isRecovery = mfa?.step === 'recovery';
+  const codeReady = isRecovery ? otpCode.replace(/[^A-Za-z0-9]/g, '').length === 10 : otpCode.length === 6;
 
   return (
     <div className="min-h-screen bg-[#0f1829] flex items-center justify-center px-4">
@@ -169,7 +266,7 @@ export default function AdminLogin() {
         </div>
 
         <div className="bg-[#1a2744] rounded-2xl p-8 shadow-2xl border border-white/10">
-          {!mfaState.required ? (
+          {!mfa ? (
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-1">Email administrateur</label>
@@ -177,10 +274,8 @@ export default function AdminLogin() {
                   type="email"
                   autoComplete="username"
                   {...register('email')}
-                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white
-                             placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-green-500
-                             focus:border-transparent"
-                  placeholder="admin@blalinker.com"
+                  className={inputClass}
+                  placeholder="vous@exemple.com"
                 />
                 {errors.email && <p className="text-red-400 text-sm mt-1">{errors.email.message}</p>}
               </div>
@@ -191,71 +286,125 @@ export default function AdminLogin() {
                   type="password"
                   autoComplete="current-password"
                   {...register('password')}
-                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white
-                             placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-green-500
-                             focus:border-transparent"
+                  className={inputClass}
                   placeholder="••••••••••••"
                 />
                 {errors.password && <p className="text-red-400 text-sm mt-1">{errors.password.message}</p>}
               </div>
 
               {error && (
-                <div className="bg-red-900/40 border border-red-700 rounded-lg px-4 py-3 text-red-300 text-sm">
+                <div role="alert" className="bg-red-900/40 border border-red-700 rounded-lg px-4 py-3 text-red-300 text-sm">
                   {error}
                 </div>
               )}
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-3 bg-green-600 hover:bg-green-700 disabled:opacity-50
-                           text-white font-semibold rounded-lg transition-colors"
-              >
+              {slow && (
+                <p role="status" className="text-xs text-gray-400">
+                  Le serveur se réveille (cela peut prendre jusqu'à une minute). Ne relancez pas la connexion.
+                </p>
+              )}
+
+              <button type="submit" disabled={loading} className={primaryButton}>
                 {loading ? 'Connexion...' : 'Se connecter'}
               </button>
             </form>
           ) : (
             <form onSubmit={onVerifyMfa} className="space-y-5">
               <div>
-                <p className="text-sm text-gray-300 mb-2">Code OTP administrateur (6 chiffres)</p>
+                {mfa.step === 'totp' && (
+                  <>
+                    <p className="text-sm text-gray-300 mb-2">Code de votre application d'authentification</p>
+                    <p className="text-xs text-gray-500 mb-2">Google Authenticator ou Microsoft Authenticator : 6 chiffres.</p>
+                  </>
+                )}
+                {(mfa.step === 'email-otp' || mfa.step === 'totp-email') && (
+                  <p className="text-sm text-gray-300 mb-2">Code OTP administrateur (6 chiffres)</p>
+                )}
+                {isRecovery && (
+                  <p className="text-sm text-gray-300 mb-2">Code de récupération (XXXXX-XXXXX)</p>
+                )}
+
                 <input
                   value={otpCode}
-                  onChange={(event) => setOtpCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
-                  inputMode="numeric"
-                  maxLength={6}
+                  onChange={(event) =>
+                    setOtpCode(
+                      isRecovery
+                        ? event.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 11)
+                        : event.target.value.replace(/\D/g, '').slice(0, 6),
+                    )
+                  }
+                  inputMode={isRecovery ? 'text' : 'numeric'}
+                  autoComplete="one-time-code"
+                  aria-label={isRecovery ? 'Code de récupération' : 'Code à 6 chiffres'}
+                  maxLength={isRecovery ? 11 : 6}
                   autoFocus
-                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white
-                             placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-green-500
-                             focus:border-transparent tracking-[0.5em] text-center"
-                  placeholder="000000"
+                  className={`${inputClass} ${isRecovery ? 'tracking-widest' : 'tracking-[0.5em]'} text-center`}
+                  placeholder={isRecovery ? 'XXXXX-XXXXX' : '000000'}
                 />
-                <p className="text-xs text-gray-400 mt-2">Code envoyé sur {mfaState.email}</p>
+
+                {mfa.step === 'email-otp' && (
+                  <>
+                    <p className="text-xs text-gray-400 mt-2">Code envoyé sur {mfa.email}</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Si vous avez reçu plusieurs e-mails, seul le code du plus récent est valide (10 minutes).
+                      Pensez à vérifier les courriers indésirables.
+                    </p>
+                  </>
+                )}
+                {mfa.step === 'totp-email' && (
+                  <p className="text-xs text-gray-500 mt-2">
+                    Seul le code du plus récent e-mail est valide. Pensez à vérifier les courriers indésirables.
+                  </p>
+                )}
               </div>
 
+              {info && (
+                <div role="status" className="bg-green-900/30 border border-green-700 rounded-lg px-4 py-3 text-green-300 text-sm">
+                  {info}
+                </div>
+              )}
+
               {error && (
-                <div className="bg-red-900/40 border border-red-700 rounded-lg px-4 py-3 text-red-300 text-sm">
+                <div role="alert" className="bg-red-900/40 border border-red-700 rounded-lg px-4 py-3 text-red-300 text-sm">
                   {error}
                 </div>
               )}
 
-              <button
-                type="submit"
-                disabled={loading || otpCode.length !== 6}
-                className="w-full py-3 bg-green-600 hover:bg-green-700 disabled:opacity-50
-                           text-white font-semibold rounded-lg transition-colors"
-              >
+              <button type="submit" disabled={loading || !codeReady} className={primaryButton}>
                 {loading ? 'Verification...' : 'Verifier le code'}
               </button>
 
-              <button
-                type="button"
-                onClick={() => {
-                  setMfaState({ required: false, tempToken: '', email: '' });
-                  setOtpCode('');
-                  setError('');
-                }}
-                className="w-full py-2 text-sm text-gray-300 hover:text-white transition-colors"
-              >
+              {mfa.step === 'totp' && (
+                <>
+                  <button type="button" onClick={requestEmailCode} disabled={loading || cooldown > 0} className={linkButton}>
+                    {cooldown > 0
+                      ? `Je n'ai pas accès à mon application d'authentification (patientez ${cooldown} s)`
+                      : "Je n'ai pas accès à mon application d'authentification"}
+                  </button>
+                  <button type="button" onClick={() => goToStep('recovery')} className={linkButton}>
+                    Utiliser un code de récupération
+                  </button>
+                </>
+              )}
+
+              {mfa.step === 'totp-email' && (
+                <>
+                  <button type="button" onClick={requestEmailCode} disabled={loading || cooldown > 0} className={linkButton}>
+                    {cooldown > 0 ? `Renvoyer un code (dans ${cooldown} s)` : 'Renvoyer un code'}
+                  </button>
+                  <button type="button" onClick={() => goToStep('totp')} className={linkButton}>
+                    Utiliser l'application d'authentification
+                  </button>
+                </>
+              )}
+
+              {isRecovery && (
+                <button type="button" onClick={() => goToStep('totp')} className={linkButton}>
+                  Utiliser l'application d'authentification
+                </button>
+              )}
+
+              <button type="button" onClick={backToCredentials} className={linkButton}>
                 Retour à la connexion
               </button>
             </form>

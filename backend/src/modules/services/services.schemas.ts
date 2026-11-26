@@ -15,7 +15,7 @@ export const listServicesQuerySchema = z.object({
 }).superRefine((value, ctx) => {
   if (value.minPrice !== undefined && value.maxPrice !== undefined && value.minPrice > value.maxPrice) {
     ctx.addIssue({
-      code: z.ZodIssueCode.custom,
+      code: 'custom',
       path: ['minPrice'],
       message: 'minPrice ne peut pas être supérieur à maxPrice',
     });
@@ -25,7 +25,7 @@ export const listServicesQuerySchema = z.object({
   const hasLng = value.lng !== undefined;
   if (hasLat !== hasLng) {
     ctx.addIssue({
-      code: z.ZodIssueCode.custom,
+      code: 'custom',
       path: hasLat ? ['lng'] : ['lat'],
       message: 'lat et lng doivent être fournis ensemble',
     });

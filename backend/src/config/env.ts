@@ -43,6 +43,8 @@ const envSchema = z.object({
   // Application
   NODE_ENV:     z.enum(['development', 'staging', 'production', 'test']).default('development'),
   PORT:         z.coerce.number().default(3000),
+  // Relais (proxys) placés devant l'API : détermine l'IP réelle du client (limites, journal).
+  TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(5).default(1),
   APP_URL:      z.preprocess((v) => normalizeUrl(v, 'http://localhost:3000'), z.string().url()),
   CORS_ORIGIN:  z.string().default('http://localhost:5173'),
 
@@ -65,8 +67,10 @@ const envSchema = z.object({
   TWILIO_PHONE_NUMBER: optionalStringEnv(),
 
   // Email transactionnel (Brevo / ex-Sendinblue)
+  // L'expéditeur doit être validé dans Brevo (Senders) : contact@blalinker.com est
+  // la seule boîte existante du domaine.
   BREVO_API_KEY:    optionalStringEnv(),
-  BREVO_FROM_EMAIL: z.string().email().default('noreply@blalinker.com'),
+  BREVO_FROM_EMAIL: z.string().email().default('contact@blalinker.com'),
   BREVO_FROM_NAME:  z.string().default('BLA Services'),
 
   // Stockage fichiers (Cloudinary)
@@ -97,7 +101,19 @@ const envSchema = z.object({
     return !(s === 'false' || s === '0' || s === 'no' || s === 'off');
   }, z.boolean()),
 
+  // TOTP obligatoire pour l'administration : si true, un compte admin sans
+  // application d'authentification configurée ne peut plus utiliser /admin
+  // (la page de configuration /auth/mfa reste accessible). false par défaut pour
+  // ne rien imposer avant la validation du nouveau mécanisme.
+  ADMIN_TOTP_REQUIRED: z.preprocess((v) => {
+    if (v === undefined || v === null || v === '') return false;
+    const s = String(v).trim().toLowerCase();
+    return s === 'true' || s === '1' || s === 'yes' || s === 'on';
+  }, z.boolean()),
+
   // Auth sociale
+  // En production, la connexion Google est refusée si GOOGLE_CLIENT_ID est absent
+  // (sinon l'audience du jeton ne peut pas être vérifiée).
   GOOGLE_CLIENT_ID: optionalStringEnv(),
 
   // Anti-bot — Cloudflare Turnstile (si défini, la vérification captcha est exigée)
@@ -109,10 +125,14 @@ const envSchema = z.object({
 
   // Monitoring
   SENTRY_DSN: optionalStringEnv(),
+  // Jeton exigé pour lire /metrics en production (Authorization: Bearer …). Absent → /metrics fermé (404).
+  METRICS_TOKEN: optionalStringEnv(),
 
-  // Admin seed — AUCUN mot de passe par défaut (un défaut connu = compte super_admin compromis).
-  // Si ADMIN_PASSWORD est absent, le bootstrap admin est simplement ignoré au démarrage.
-  ADMIN_EMAIL:    z.string().email().default('admin@blalinker.com'),
+  // Admin — AUCUN mot de passe par défaut (un défaut connu = compte super_admin compromis).
+  // ADMIN_EMAIL : boîte qui reçoit les demandes de contact, et adresse du premier
+  // super-administrateur. ADMIN_PASSWORD ne sert qu'à créer ce premier compte, et
+  // uniquement s'il n'existe AUCUN super-administrateur actif (config/bootstrapAdmin.ts).
+  ADMIN_EMAIL:    z.string().email().default('contact@blalinker.com'),
   ADMIN_PASSWORD: z.preprocess(
     (value) => normalizeOptionalEnvValue(value),
     z.string().min(8, 'ADMIN_PASSWORD doit faire au moins 8 caractères').optional()
@@ -143,23 +163,26 @@ export const env = {
 };
 export type Env = typeof env;
 
-const DEFAULT_CORS_ORIGINS = [
-  'http://localhost:5173',
-  'http://localhost:5174',
+const PRODUCTION_CORS_ORIGINS = [
   'https://blalinker.com',
   'https://www.blalinker.com',
   'https://admin.blalinker.com',
 ];
+/** Serveurs de développement : jamais autorisés par défaut en production (cookies d'authentification). */
+const DEVELOPMENT_CORS_ORIGINS = ['http://localhost:5173', 'http://localhost:5174'];
 
 function normalizeCorsOrigin(origin: string): string {
   return origin.trim().replace(/\/+$/, '');
 }
 
-export function getCorsOrigins(rawOrigins: string = env.CORS_ORIGIN): string[] {
+export function getCorsOrigins(rawOrigins: string = env.CORS_ORIGIN, nodeEnv: string = env.NODE_ENV): string[] {
   const explicitOrigins = rawOrigins
     .split(',')
     .map(normalizeCorsOrigin)
     .filter(Boolean);
+  const defaults = nodeEnv === 'production'
+    ? PRODUCTION_CORS_ORIGINS
+    : [...DEVELOPMENT_CORS_ORIGINS, ...PRODUCTION_CORS_ORIGINS];
 
-  return Array.from(new Set([...DEFAULT_CORS_ORIGINS, ...explicitOrigins]));
+  return Array.from(new Set([...defaults, ...explicitOrigins]));
 }

@@ -1,5 +1,10 @@
 # Déploiement, CI/CD & Monitoring — BLA
 
+> **Document de conception d'origine, non suivi en production.** Docker, Nginx et le
+> déploiement par SSH décrits ci-dessous ne sont pas utilisés par la production actuelle ;
+> leurs fichiers ont été retirés du dépôt (26/11/2026). Déploiement réel : Render (API, branche `main`) et Vercel (site et
+> administration). Procédure à jour : [MISE-EN-PRODUCTION.md](../MISE-EN-PRODUCTION.md).
+
 ## 1. Infrastructure de déploiement
 
 ```

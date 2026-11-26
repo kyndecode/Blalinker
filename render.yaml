@@ -58,17 +58,20 @@ services:
       - key: JWT_REFRESH_EXPIRY
         value: 30d
 
-      # Compte admin (mot de passe fort, jamais commité)
+      # Compte admin
+      # ADMIN_EMAIL : adresse du super-administrateur ET boîte qui reçoit les demandes
+      # de contact (même boîte, cohérence). ADMIN_PASSWORD ne sert qu'à créer le
+      # premier compte, jamais si un super-administrateur actif existe déjà.
       - key: ADMIN_EMAIL
-        sync: false
+        value: contact@blalinker.com
       - key: ADMIN_PASSWORD
         sync: false
 
-      # Email transactionnel — Brevo
+      # Email transactionnel — Brevo (expéditeur validé dans Brevo > Senders)
       - key: BREVO_API_KEY
         sync: false
       - key: BREVO_FROM_EMAIL
-        value: noreply@blalinker.com
+        value: contact@blalinker.com
       - key: BREVO_FROM_NAME
         value: BLA Services
 
@@ -108,9 +111,14 @@ services:
       - key: STRIPE_PUBLIC_KEY
         sync: false
 
-      # MFA/OTP à la connexion (défaut true ; mettre false dans le dashboard
-      # pour se connecter sans OTP en cas de souci de délivrabilité e-mail)
+      # MFA/OTP à la connexion (défaut true). false = secours ponctuel en cas de panne
+      # d'e-mail pour les clients et prestataires ; un administrateur ayant configuré son
+      # application d'authentification doit TOUJOURS saisir son code, même avec false.
       - key: MFA_ENABLED
+        sync: false
+
+      # Lecture de /metrics en production (Authorization: Bearer …). Absent → /metrics fermé.
+      - key: METRICS_TOKEN
         sync: false
 
       # Auth sociale

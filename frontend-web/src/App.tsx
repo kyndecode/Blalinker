@@ -1,15 +1,19 @@
-import { type ReactNode, lazy, Suspense, useEffect, useState } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { lazy, Suspense, useEffect, useState } from 'react';
+import { Routes, Route } from 'react-router-dom';
 import { useAuthStore } from './store/authStore';
 import { useNetworkStatus } from './hooks/useNetworkStatus';
 import { useTranslation } from 'react-i18next';
-import api from './services/api';
+import api, { shouldLogoutAfterRefreshError, useServerStatus } from './services/api';
+import { clearLocalSession, endLocalSession, subscribeAuthSync } from './services/session';
+import { flushPendingLogout } from './services/logout';
+import RequireAuth from './components/auth/RequireAuth';
 
-// Layout (chargé immédiatement — présent sur toutes les pages)
+// Layout (chargé immédiatement : présent sur toutes les pages)
 import Header from './components/layout/Header';
 import Footer from './components/layout/Footer';
+import AnnouncementBar from './components/content/AnnouncementBar';
 
-// Pages — chargées à la demande (code-splitting) pour alléger le bundle initial.
+// Pages : chargées à la demande (code-splitting) pour alléger le bundle initial.
 const Home            = lazy(() => import('./pages/Home/Home'));
 const Contact         = lazy(() => import('./pages/Contact/Contact'));
 const AboutPage       = lazy(() => import('./pages/About/AboutPage'));
@@ -29,7 +33,9 @@ const BookingsList    = lazy(() => import('./pages/Booking/BookingsList'));
 const BookingNew      = lazy(() => import('./pages/Booking/BookingNew'));
 const BookingDetail   = lazy(() => import('./pages/Booking/BookingDetail'));
 const ProfilePage     = lazy(() => import('./pages/Profile/ProfilePage'));
+const NotificationsPage = lazy(() => import('./pages/Notifications/NotificationsPage'));
 const NotFound        = lazy(() => import('./pages/NotFound/NotFound'));
+const ContentPage     = lazy(() => import('./pages/Content/ContentPage'));
 
 function PageFallback() {
   return (
@@ -39,11 +45,6 @@ function PageFallback() {
   );
 }
 
-function RequireAuth({ children }: { children: ReactNode }) {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
-}
-
 export default function App() {
   const isOnline = useNetworkStatus();
   const { t }    = useTranslation();
@@ -51,8 +52,14 @@ export default function App() {
   const user = useAuthStore((state) => state.user);
   const setTokens = useAuthStore((state) => state.setTokens);
   const setUser = useAuthStore((state) => state.setUser);
-  const logout = useAuthStore((state) => state.logout);
   const [authReady, setAuthReady] = useState(false);
+
+  // Déconnexion faite dans un autre onglet : cet onglet se déconnecte aussi (sans rediffuser).
+  useEffect(() => subscribeAuthSync(() => clearLocalSession()), []);
+
+  // Déconnexion restée en attente (serveur injoignable au moment du clic) : terminée ici.
+  useEffect(() => { void flushPendingLogout(); }, []);
+  const serverSlow = useServerStatus((s) => s.slowRequests > 0);
 
   useEffect(() => {
     let cancelled = false;
@@ -77,8 +84,10 @@ export default function App() {
           email: me.data.email || undefined,
           phone: me.data.phone || undefined,
         });
-      } catch {
-        logout();
+      } catch (error) {
+        // Session refusée (401/403) → déconnexion. Serveur en réveil ou réseau coupé :
+        // la session est conservée et sera renouvelée à la prochaine requête.
+        if (shouldLogoutAfterRefreshError(error)) endLocalSession();
       } finally {
         if (!cancelled) setAuthReady(true);
       }
@@ -88,7 +97,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [accessToken, user, setTokens, setUser, logout]);
+  }, [accessToken, user, setTokens, setUser]);
 
   if (!authReady) {
     return (
@@ -107,7 +116,13 @@ export default function App() {
         </div>
       )}
 
+      <AnnouncementBar />
       <Header />
+      {serverSlow && (
+        <div role="status" aria-live="polite" className="bg-amber-100 px-4 py-2 text-center text-sm text-amber-900 dark:bg-amber-900/40 dark:text-amber-100">
+          Le serveur démarre, la réponse peut prendre jusqu’à une minute. Merci de ne pas recliquer.
+        </div>
+      )}
 
       <main className={`flex-1 ${!isOnline ? 'mt-10' : ''}`}>
         <Suspense fallback={<PageFallback />}>
@@ -127,6 +142,7 @@ export default function App() {
           <Route path="/terms"        element={<TermsPage />} />
           <Route path="/search"       element={<SearchPage />} />
           <Route path="/provider/:id" element={<ProviderProfile />} />
+          <Route path="/page/:slug"   element={<ContentPage />} />
 
           {/* Authentifiées */}
           <Route path="/dashboard"    element={<RequireAuth><Dashboard /></RequireAuth>} />
@@ -134,8 +150,9 @@ export default function App() {
           <Route path="/bookings/new" element={<RequireAuth><BookingNew /></RequireAuth>} />
           <Route path="/bookings/:id" element={<RequireAuth><BookingDetail /></RequireAuth>} />
           <Route path="/profile"      element={<RequireAuth><ProfilePage /></RequireAuth>} />
+          <Route path="/notifications" element={<RequireAuth><NotificationsPage /></RequireAuth>} />
 
-          {/* 404 — affiche une vraie page plutôt qu'une redirection silencieuse */}
+          {/* 404 : affiche une vraie page plutôt qu'une redirection silencieuse */}
           <Route path="*" element={<NotFound />} />
         </Routes>
         </Suspense>

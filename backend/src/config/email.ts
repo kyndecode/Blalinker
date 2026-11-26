@@ -6,8 +6,12 @@
 import axios from 'axios';
 import { env } from './env';
 import { logger } from './logger';
+import { maskEmail } from '../utils/mask.util';
 
 const BREVO_API_URL = 'https://api.brevo.com/v3/smtp/email';
+
+/** Délai maximal d'un appel à Brevo (sans délai, une panne Brevo bloquerait la requête). */
+export const BREVO_TIMEOUT_MS = 10_000;
 
 interface EmailPayload {
   to:       string;
@@ -17,17 +21,85 @@ interface EmailPayload {
   text?:    string;
 }
 
+export type EmailFailureKind =
+  | 'ip_not_authorized'
+  | 'invalid_api_key'
+  | 'invalid_sender'
+  | 'insufficient_credits'
+  | 'rate_limited'
+  | 'rejected'
+  | 'provider_error'
+  | 'timeout'
+  | 'network';
+
+export interface EmailFailure {
+  kind: EmailFailureKind;
+  status?: number;
+  providerMessage?: string;
+  /** Message technique pour les échecs sans réponse HTTP (ex. ENOTFOUND). Jamais d'en-tête ni de clé. */
+  detail?: string;
+}
+
+/** Action à mener selon la cause, écrite dans le journal (aucun secret). */
+export const EMAIL_FAILURE_HINTS: Record<EmailFailureKind, string> = {
+  ip_not_authorized:
+    'Adresse IP du serveur non autorisée par Brevo : autoriser les plages sortantes Render (Connect > Outbound) dans Brevo > Security > Authorized IPs.',
+  invalid_api_key: 'Clé API Brevo refusée (absente, invalide ou révoquée) : vérifier BREVO_API_KEY.',
+  invalid_sender: 'Expéditeur refusé par Brevo : vérifier que BREVO_FROM_EMAIL figure dans Brevo > Senders.',
+  insufficient_credits: "Crédits d'envoi Brevo épuisés.",
+  rate_limited: 'Trop de requêtes vers Brevo (limite atteinte).',
+  rejected: 'Requête refusée par Brevo (voir le message du fournisseur).',
+  provider_error: 'Erreur interne Brevo (réessayer plus tard).',
+  timeout: `Brevo n'a pas répondu en ${BREVO_TIMEOUT_MS / 1000} s.`,
+  network: 'Brevo injoignable (réseau ou DNS).',
+};
+
+/** Identifie la cause d'un échec d'appel à l'API Brevo. */
+export function classifyBrevoError(err: unknown): EmailFailure {
+  const e = err as {
+    code?: string;
+    message?: string;
+    response?: { status?: number; data?: { code?: string; message?: string } };
+  };
+  const detail = typeof e?.message === 'string' ? e.message.slice(0, 200) : undefined;
+  if (e?.code === 'ECONNABORTED' || e?.code === 'ETIMEDOUT') return { kind: 'timeout', detail };
+
+  const status = e?.response?.status;
+  if (!status) return { kind: 'network', detail };
+
+  const rawMessage = e.response?.data?.message;
+  const providerMessage = typeof rawMessage === 'string' ? rawMessage.slice(0, 300) : undefined;
+  const message = providerMessage ?? '';
+
+  if (status === 401 && /ip address/i.test(message)) return { kind: 'ip_not_authorized', status, providerMessage };
+  if (status === 401) return { kind: 'invalid_api_key', status, providerMessage };
+  if (status === 400 && /sender/i.test(message)) return { kind: 'invalid_sender', status, providerMessage };
+  if (status === 402) return { kind: 'insufficient_credits', status, providerMessage };
+  if (status === 429) return { kind: 'rate_limited', status, providerMessage };
+  if (status >= 500) return { kind: 'provider_error', status, providerMessage };
+  return { kind: 'rejected', status, providerMessage };
+}
+
+/** Le canal e-mail est-il configuré (clé Brevo présente) ? */
+export function isEmailConfigured(): boolean {
+  return Boolean(env.BREVO_API_KEY);
+}
+
 export async function sendEmail(payload: EmailPayload): Promise<boolean> {
   if (!env.BREVO_API_KEY) {
     const isTestRuntime = process.env.NODE_ENV === 'test' || typeof process.env.JEST_WORKER_ID !== 'undefined';
     if (env.NODE_ENV === 'production' && !isTestRuntime) {
-      logger.warn('[EMAIL] BREVO_API_KEY manquante en production, envoi annulé');
+      logger.error('[EMAIL] BREVO_API_KEY absente en production : e-mail non envoyé', {
+        to: maskEmail(payload.to),
+        subject: payload.subject,
+      });
       return false;
     }
-    logger.debug(`[EMAIL DEV] À: ${payload.to} | Sujet: ${payload.subject}`);
+    logger.debug(`[EMAIL DEV] À: ${maskEmail(payload.to)} | Sujet: ${payload.subject}`);
     return true;
   }
 
+  const startedAt = Date.now();
   try {
     await axios.post(
       BREVO_API_URL,
@@ -39,6 +111,7 @@ export async function sendEmail(payload: EmailPayload): Promise<boolean> {
         textContent:  payload.text ?? stripHtml(payload.html),
       },
       {
+        timeout: BREVO_TIMEOUT_MS,
         headers: {
           'api-key':     env.BREVO_API_KEY,
           'Content-Type':'application/json',
@@ -46,11 +119,21 @@ export async function sendEmail(payload: EmailPayload): Promise<boolean> {
         },
       }
     );
-    logger.info(`Email envoyé à ${payload.to} (${payload.subject})`);
+    logger.info('Email envoyé', { to: maskEmail(payload.to), subject: payload.subject, durationMs: Date.now() - startedAt });
     return true;
   } catch (err: unknown) {
-    const e = err as { response?: { data?: unknown }; message?: string };
-    logger.error('Erreur envoi email Brevo:', e?.response?.data ?? e?.message);
+    const failure = classifyBrevoError(err);
+    // Jamais la clé ni le contenu du message : seulement la cause et l'action à mener.
+    logger.error('Erreur envoi email Brevo', {
+      kind: failure.kind,
+      status: failure.status,
+      hint: EMAIL_FAILURE_HINTS[failure.kind],
+      providerMessage: failure.providerMessage,
+      detail: failure.detail,
+      to: maskEmail(payload.to),
+      subject: payload.subject,
+      durationMs: Date.now() - startedAt,
+    });
     return false;
   }
 }
@@ -87,7 +170,7 @@ function baseTemplate(content: string): string {
     ${content}
     <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0">
     <p style="color:#9ca3af;font-size:11px;text-align:center;margin:0">
-      © ${new Date().getFullYear()} BLA — Ne répondez pas à cet email.<br>
+      © ${new Date().getFullYear()} BLA. Ne répondez pas à cet e-mail.<br>
       Si vous n'avez pas demandé cet email, ignorez-le.
     </p>
   </div>
@@ -110,7 +193,7 @@ export const emailTemplates = {
       </div>
       <p style="color:#6b7280;font-size:13px">
         ⏱ Ce code expire dans <strong>10 minutes</strong>.<br>
-        🔒 Ne le partagez jamais — BLA ne vous le demandera jamais par téléphone.
+        🔒 Ne le partagez jamais : BLA ne vous le demandera jamais par téléphone.
       </p>
     `),
   }),
@@ -147,7 +230,7 @@ export const emailTemplates = {
 
   /** Réservation acceptée (client) */
   bookingAccepted: (providerName: string, scheduledAt?: Date) => ({
-    subject: `✅ Votre réservation a été acceptée — BLA`,
+    subject: `✅ Votre réservation a été acceptée | BLA`,
     html: baseTemplate(`
       <h2 style="color:#111827;font-size:20px;margin:0 0 12px">Bonne nouvelle !</h2>
       <p style="color:#4b5563;font-size:15px;line-height:1.6">
@@ -162,7 +245,7 @@ export const emailTemplates = {
 
   /** Paiement confirmé */
   paymentConfirmed: (amount: number, currency: string, providerName: string) => ({
-    subject: `💰 Paiement confirmé — ${amount.toLocaleString('fr-SN')} ${currency}`,
+    subject: `💰 Paiement confirmé : ${amount.toLocaleString('fr-SN')} ${currency}`,
     html: baseTemplate(`
       <h2 style="color:#111827;font-size:20px;margin:0 0 12px">Paiement confirmé</h2>
       <div style="background:#f0fdf4;border-radius:12px;padding:20px;margin:16px 0">
@@ -178,7 +261,7 @@ export const emailTemplates = {
 
   /** Identité validée par l'admin */
   identityVerified: (firstName: string) => ({
-    subject: '✅ Votre identité a été vérifiée — BLA',
+    subject: '✅ Votre identité a été vérifiée | BLA',
     html: baseTemplate(`
       <h2 style="color:#111827;font-size:20px;margin:0 0 12px">Identité vérifiée !</h2>
       <p style="color:#4b5563;font-size:15px;line-height:1.6">
@@ -194,7 +277,7 @@ export const emailTemplates = {
 
   /** Alerte de sécurité */
   securityAlert: (firstName: string, city: string, device: string) => ({
-    subject: '⚠️ Connexion depuis un nouvel appareil — BLA',
+    subject: '⚠️ Connexion depuis un nouvel appareil | BLA',
     html: baseTemplate(`
       <h2 style="color:#dc2626;font-size:20px;margin:0 0 12px">⚠️ Alerte de sécurité</h2>
       <p style="color:#4b5563;font-size:15px;line-height:1.6">

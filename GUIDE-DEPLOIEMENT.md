@@ -300,10 +300,10 @@ openssl rand -hex 32  # → ENCRYPTION_KEY
 | `JWT_ACCESS_EXPIRY` | Durée jeton accès | — | Render | `15m` |
 | `JWT_REFRESH_EXPIRY` | Durée jeton refresh | — | Render | `30d` |
 | `ENCRYPTION_KEY` | Chiffrement données | OpenSSL | Render | `3a80…` (64 hex) |
-| `ADMIN_EMAIL` | Compte admin créé au boot | toi | Render | `admin@exemple.com` *(un seul email)* |
-| `ADMIN_PASSWORD` | Mot de passe admin | toi (fort) | Render | `••••••••` |
+| `ADMIN_EMAIL` | Adresse du super-admin + réception des demandes de contact | toi | Render | `contact@blalinker.com` |
+| `ADMIN_PASSWORD` | Création du premier super-admin uniquement (ignoré si un super-admin actif existe) | toi (fort) | Render | `••••••••` |
 | `BREVO_API_KEY` | Envoi e-mails | Brevo → SMTP & API | Render | `xkeysib-…` |
-| `BREVO_FROM_EMAIL` | Expéditeur | toi | Render | `noreply@blalinker.com` |
+| `BREVO_FROM_EMAIL` | Expéditeur (validé dans Brevo > Senders) | toi | Render | `contact@blalinker.com` |
 | `BREVO_FROM_NAME` | Nom expéditeur | toi | Render | `BLA Services` |
 | `STRIPE_SECRET_KEY` | Paiement carte | Stripe | Render | `sk_test_…` / `sk_live_…` |
 | `STRIPE_PUBLIC_KEY` | Clé publique | Stripe | Render | `pk_test_…` |

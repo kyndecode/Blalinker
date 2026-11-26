@@ -1,13 +1,17 @@
 ﻿import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../../store/authStore';
 import { useThemeStore } from '../../store/themeStore';
 import api from '../../services/api';
+import { logout as logoutSession } from '../../services/logout';
+import { setFlashNotice } from '../../utils/flashNotice';
 import Logo from '../common/Logo';
+import NotificationBell from '../notifications/NotificationBell';
 
 const LANGUAGES = [
-  { code: 'fr', shortLabel: 'FR', label: 'Francais' },
+  { code: 'fr', shortLabel: 'FR', label: 'Français' },
   { code: 'en', shortLabel: 'EN', label: 'English' },
 ];
 
@@ -23,7 +27,7 @@ function useClickOutside(ref: React.RefObject<HTMLElement>, cb: () => void) {
 
 export default function Header() {
   const { t, i18n }    = useTranslation();
-  const { isAuthenticated, user, logout } = useAuthStore();
+  const { isAuthenticated, user } = useAuthStore();
   const { isDark, toggle: toggleTheme }   = useThemeStore();
   const navigate   = useNavigate();
   const location   = useLocation();
@@ -37,12 +41,19 @@ export default function Header() {
   useClickOutside(userMenuRef, () => setUserMenu(false));
   useClickOutside(searchRef,   () => setSearchOpen(false));
 
-  const handleLogout = async () => {
-    try { await api.post('/auth/logout'); } catch { /* ignore */ }
-    logout();
-    navigate('/login');
+  /**
+   * Déconnexion : interface mise à jour immédiatement (session locale effacée, cache vidé,
+   * autres onglets prévenus), fermeture côté serveur en arrière-plan (renvoyée au prochain
+   * chargement si l'API ne répond pas). Retour à la connexion avec une confirmation.
+   */
+  const handleLogout = () => {
     setUserMenu(false);
     setMenuOpen(false);
+    // Message transmis par sessionStorage : le garde de la page privée en cours redirige aussi
+    // vers /login (sans état de navigation), et l'emporterait sur un message passé en « state ».
+    setFlashNotice(t('auth.logged_out'));
+    navigate('/login', { replace: true });
+    void logoutSession();
   };
 
   const handleSearch = (e: React.FormEvent) => {
@@ -69,11 +80,25 @@ export default function Header() {
     ...(isAuthenticated ? [{ to: '/dashboard', label: t('nav.dashboard') }] : []),
   ];
 
-  const firstName =
-    (user?.email ? user.email.split('@')[0] : null) ??
-    (user?.phone ?? t('nav.my_account'));
-
-  const initial = (user?.email || user?.phone || 'U').slice(0, 1).toUpperCase();
+  // Identité affichée : profil du compte connecté (jamais rien hors session).
+  const { data: me } = useQuery({
+    queryKey: ['session-me'],
+    queryFn: () => api.get('/users/me').then((r) => r.data as {
+      firstName?: string; lastName?: string; email?: string; phone?: string; avatarUrl?: string;
+    }),
+    enabled: isAuthenticated,
+    staleTime: 5 * 60_000,
+  });
+  const fullName = [me?.firstName, me?.lastName].filter(Boolean).join(' ').trim();
+  const contactLine = me?.email || me?.phone || user?.email || user?.phone || '';
+  const initial = (me?.firstName || contactLine || t('nav.my_account')).slice(0, 1).toUpperCase();
+  const avatar = me?.avatarUrl
+    ? <img src={me.avatarUrl} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
+    : (
+      <span className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center text-white text-sm font-bold shrink-0" aria-hidden="true">
+        {initial}
+      </span>
+    );
 
   return (
     <header className="sticky top-0 z-50 bg-[#1a2744] shadow-lg transition-colors">
@@ -85,13 +110,13 @@ export default function Header() {
             <Logo size="sm" variant="white" />
           </Link>
 
-          {/* Navigation â€” Desktop */}
+          {/* Navigation : Desktop */}
           <nav className="hidden lg:flex items-center gap-1 flex-1 justify-center">
             {navLinks.map((link) => (
               <Link
                 key={link.to}
                 to={link.to}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                className={`px-3 xl:px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
                   isActive(link.to)
                     ? 'bg-white/15 text-white'
                     : 'text-white/70 hover:text-white hover:bg-white/10'
@@ -102,7 +127,7 @@ export default function Header() {
             ))}
           </nav>
 
-          {/* Actions â€” Desktop */}
+          {/* Actions : Desktop */}
           <div className="hidden lg:flex items-center gap-2">
 
             {/* Recherche rapide */}
@@ -149,9 +174,10 @@ export default function Header() {
               className="text-xs border border-white/20 rounded-lg bg-white/10 text-white/80 px-2 py-1.5 cursor-pointer focus:outline-none"
               aria-label={t('common.language')}
             >
+              {/* Libellé court dans l'en-tête (place limitée entre 1024 et 1280 px) ; nom complet au survol. */}
               {LANGUAGES.map((l) => (
-                <option key={l.code} value={l.code} className="text-gray-900 bg-white">
-                  {l.shortLabel} - {l.label}
+                <option key={l.code} value={l.code} title={l.label} className="text-gray-900 bg-white">
+                  {l.shortLabel}
                 </option>
               ))}
             </select>
@@ -159,16 +185,17 @@ export default function Header() {
             {/* Auth */}
             {isAuthenticated ? (
               <div className="flex items-center gap-2">
+                <NotificationBell />
                 {/* Avatar + nom */}
                 <div className="relative" ref={userMenuRef}>
                   <button
                     onClick={() => setUserMenu(!userMenu)}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl hover:bg-white/10 transition-colors"
+                    aria-haspopup="menu"
+                    aria-expanded={userMenu}
+                    className="flex items-center gap-2 px-2 xl:px-3 py-1.5 rounded-xl hover:bg-white/10 transition-colors"
                   >
-                    <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center text-white text-sm font-bold shrink-0">
-                      {initial}
-                    </div>
-                    <span className="text-sm font-medium text-white/90 max-w-[100px] truncate">{firstName}</span>
+                    {avatar}
+                    <span className="text-sm font-medium text-white/90 whitespace-nowrap">{t('nav.my_account')}</span>
                     <svg className={`w-4 h-4 text-white/50 transition-transform ${userMenu ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
@@ -176,10 +203,13 @@ export default function Header() {
 
                   {userMenu && (
                     <div className="absolute right-0 top-12 w-52 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl py-1.5 z-50">
-                      <div className="px-4 py-2.5 border-b border-gray-100 dark:border-gray-700">
-                        <p className="text-xs text-gray-500 dark:text-gray-400">{t('auth.logged_as')}</p>
-                        <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{user?.email || user?.phone}</p>
-                      </div>
+                      {(fullName || contactLine) && (
+                        <div className="px-4 py-2.5 border-b border-gray-100 dark:border-gray-700" data-testid="account-identity">
+                          <p className="text-xs text-gray-500 dark:text-gray-400">{t('auth.logged_as')}</p>
+                          {fullName && <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{fullName}</p>}
+                          {contactLine && <p className="text-xs text-gray-600 dark:text-gray-300 truncate">{contactLine}</p>}
+                        </div>
+                      )}
                       <Link to="/dashboard" onClick={() => setUserMenu(false)} className="flex items-center gap-2.5 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-green-50 dark:hover:bg-green-500/10 hover:text-green-700 dark:hover:text-green-400 transition-colors">
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7h18M3 12h18M3 17h18"/></svg>
                         {t('nav.dashboard')}
@@ -198,13 +228,6 @@ export default function Header() {
                   )}
                 </div>
 
-                {/* Bouton DÃ©connexion visible */}
-                <button
-                  onClick={handleLogout}
-                  className="px-4 py-1.5 rounded-lg border border-white/30 text-sm font-medium text-white/80 hover:bg-white/10 hover:text-white transition-colors"
-                >
-                  {t('nav.logout')}
-                </button>
               </div>
             ) : (
               <div className="flex items-center gap-2">
@@ -218,16 +241,14 @@ export default function Header() {
             )}
           </div>
 
-          {/* Mobile â€” droite */}
+          {/* Mobile : droite */}
           <div className="flex lg:hidden items-center gap-2">
-            {isAuthenticated && (
-              <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center text-white text-sm font-bold">
-                {initial}
-              </div>
-            )}
+            {isAuthenticated && <NotificationBell variant="mobile" />}
+            {isAuthenticated && avatar}
             <button
               onClick={toggleTheme}
               className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10"
+              aria-label={isDark ? t('theme.light') : t('theme.dark')}
             >
               {isDark
                 ? <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
@@ -282,6 +303,12 @@ export default function Header() {
 
           {isAuthenticated ? (
             <>
+              {(fullName || contactLine) && (
+                <div className="px-3 pt-2 pb-1 border-t border-white/10 mt-2">
+                  <p className="text-xs text-white/60">{t('auth.logged_as')}</p>
+                  <p className="text-sm font-medium text-white truncate">{fullName || contactLine}</p>
+                </div>
+              )}
               <Link to="/profile" onClick={() => setMenuOpen(false)} className="block px-3 py-2 rounded-lg text-sm text-white/70 hover:bg-white/10 hover:text-white">{t('nav.profile')}</Link>
               <button onClick={handleLogout} className="block w-full text-left px-3 py-2 rounded-lg text-sm text-red-400 hover:bg-red-500/10">{t('nav.logout')}</button>
             </>

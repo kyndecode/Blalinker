@@ -49,10 +49,6 @@ Thumbs.db
 # Prisma
 backend/prisma/migrations/dev/
 
-# Docker volumes
-postgres_data/
-redis_data/
-
 # Expo / React Native
 mobile/.expo/
 mobile/android/

@@ -36,9 +36,17 @@ export function clearRefreshCookie(res: Response): void {
   res.clearCookie(REFRESH_COOKIE_NAME, opts);
 }
 
-/** Lit le refresh token depuis le cookie (web) ou le corps de la requête (mobile). */
+/**
+ * Lit le refresh token : cookie (web) ou corps de la requête (mobile, administration).
+ * Le cookie n'est lu QU'AVEC l'en-tête `X-Auth-Mode: cookie` : un en-tête personnalisé impose
+ * une vérification CORS préalable, qu'un site tiers ne peut pas passer. Sans cela, un simple
+ * formulaire d'un autre site (cookie SameSite=None) pouvait forcer une rotation du jeton et
+ * déconnecter le visiteur.
+ */
 export function getRefreshToken(req: Request): string | undefined {
-  const fromCookie = (req as Request & { cookies?: Record<string, string> }).cookies?.[REFRESH_COOKIE_NAME];
+  const fromCookie = isCookieAuthMode(req)
+    ? (req as Request & { cookies?: Record<string, string> }).cookies?.[REFRESH_COOKIE_NAME]
+    : undefined;
   const fromBody = (req.body as { refreshToken?: string } | undefined)?.refreshToken;
   return fromCookie || fromBody || undefined;
 }

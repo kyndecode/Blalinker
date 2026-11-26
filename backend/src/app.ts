@@ -5,11 +5,14 @@
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
+import multer from 'multer';
+import { timingSafeEqual } from 'crypto';
 import * as Sentry from '@sentry/node';
 import client from 'prom-client';
 import { env, getCorsOrigins } from './config/env';
 import { applySecurityMiddlewares, requestLogger } from './middlewares/security.middleware';
 import { requestId } from './middlewares/requestId.middleware';
+import { responseSanitizer } from './middlewares/responseSanitizer.middleware';
 import { openApiSpec } from './config/openapi';
 import { logger } from './config/logger';
 import { prisma } from './config/database';
@@ -30,6 +33,8 @@ import notificationsRoutes from './modules/notifications/notifications.routes';
 import reportsRoutes    from './modules/reports/reports.routes';
 import uploadsRoutes    from './modules/uploads/uploads.routes';
 import payoutsRoutes    from './modules/payouts/payouts.routes';
+import siteRoutes       from './modules/site/site.routes';
+import searchRoutes     from './modules/search/search.routes';
 
 export const app = express();
 
@@ -50,7 +55,9 @@ metricsRegistry.setDefaultLabels({ app: 'bla-backend' });
 client.collectDefaultMetrics({ register: metricsRegistry });
 
 // ─── Middlewares de base ──────────────────────────────────────
-app.set('trust proxy', 1); // Nécessaire derrière Nginx
+// Nombre de relais de confiance devant l'API (Render). Si l'historique des connexions
+// n'affiche que des IP internes (10.x), augmenter TRUST_PROXY_HOPS d'une unité.
+app.set('trust proxy', env.TRUST_PROXY_HOPS);
 const corsOrigins = getCorsOrigins();
 
 app.use(cors({
@@ -60,12 +67,16 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-request', 'X-Admin-Request', 'X-Auth-Mode'],
 }));
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// Corps limités à 1 Mo : aucune route n'en attend davantage (les fichiers passent par multer).
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(cookieParser());
 
 // ─── Observabilité ────────────────────────────────────────────
 app.use(requestId);
+
+// ─── Confidentialité : aucun secret dans une réponse JSON ─────
+app.use(responseSanitizer);
 
 // ─── Sécurité ─────────────────────────────────────────────────
 applySecurityMiddlewares(app);
@@ -101,10 +112,20 @@ app.get('/health', async (_req, res) => {
   });
 });
 
-// Endpoint métriques Prometheus
-app.get('/metrics', async (_req, res) => {
+// Endpoint métriques Prometheus. En production : fermé (404) sauf jeton METRICS_TOKEN
+// (Authorization: Bearer …) — les métriques du processus n'ont pas à être publiques.
+function metricsAllowed(req: express.Request): boolean {
+  if (env.NODE_ENV !== 'production') return true;
+  if (!env.METRICS_TOKEN) return false;
+  const given = Buffer.from(String(req.headers.authorization ?? '').replace(/^Bearer\s+/i, ''));
+  const expected = Buffer.from(env.METRICS_TOKEN);
+  return given.length === expected.length && timingSafeEqual(given, expected);
+}
+
+app.get('/metrics', async (req, res) => {
+  if (!metricsAllowed(req)) return res.status(404).json({ error: 'Route introuvable', code: 'NOT_FOUND' });
   res.set('Content-Type', metricsRegistry.contentType);
-  res.end(await metricsRegistry.metrics());
+  return res.end(await metricsRegistry.metrics());
 });
 
 // Contrat OpenAPI (importable dans Swagger UI / Postman)
@@ -129,6 +150,8 @@ app.use(`${API}/notifications`, notificationsRoutes);
 app.use(`${API}/reports`,       reportsRoutes);
 app.use(`${API}/uploads`,       uploadsRoutes);
 app.use(`${API}/payouts`,       payoutsRoutes);
+app.use(`${API}/site`,          siteRoutes);
+app.use(`${API}/search`,        searchRoutes);
 
 // ─── 404 ──────────────────────────────────────────────────────
 app.use((_req, res) => {
@@ -140,7 +163,25 @@ if (env.SENTRY_DSN) {
   app.use(Sentry.Handlers.errorHandler());
 }
 
+/** Erreurs dues à la requête elle-même : réponse 4xx explicite (pas une « erreur interne »). */
+export function clientErrorResponse(err: unknown): { status: number; error: string; code: string } | null {
+  if (err instanceof multer.MulterError) {
+    return err.code === 'LIMIT_FILE_SIZE'
+      ? { status: 413, error: 'Fichier trop volumineux.', code: 'FILE_TOO_LARGE' }
+      : { status: 400, error: 'Envoi de fichier invalide.', code: 'INVALID_UPLOAD' };
+  }
+  const type = (err as { type?: string } | null)?.type;
+  if (type === 'entity.parse.failed') return { status: 400, error: 'Corps de requête JSON invalide.', code: 'INVALID_JSON' };
+  if (type === 'entity.too.large') return { status: 413, error: 'Requête trop volumineuse.', code: 'PAYLOAD_TOO_LARGE' };
+  return null;
+}
+
 app.use((err: Error, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  const clientError = clientErrorResponse(err);
+  if (clientError) {
+    logger.warn('Requête refusée', { requestId: req.id, code: clientError.code });
+    return res.status(clientError.status).json({ error: clientError.error, code: clientError.code, requestId: req.id });
+  }
   logger.error('Erreur non gérée:', { requestId: req.id, message: err.message, stack: err.stack });
   res.status(500).json({
     error: env.NODE_ENV === 'production'

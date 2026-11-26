@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import ManagedPage from '../../components/content/ManagedPage';
 
 const TERMS_SECTION_KEYS = [
   'scope',
@@ -11,7 +12,7 @@ const TERMS_SECTION_KEYS = [
   'law',
 ] as const;
 
-export default function TermsPage() {
+function TermsPageBuiltin() {
   const { t } = useTranslation();
 
   return (
@@ -37,4 +38,9 @@ export default function TermsPage() {
       </div>
     </div>
   );
+}
+
+/** Version publiée depuis l'administration, sinon texte intégré. */
+export default function TermsPage() {
+  return <ManagedPage slug="terms" fallback={<TermsPageBuiltin />} />;
 }

@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import ServiceEditDialog from '../../components/provider/ServiceEditDialog';
+import { ConfirmDialog } from '../../components/booking/BookingDialogs';
+import { getApiErrorMessage } from '../../utils/apiError';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -102,6 +105,10 @@ export default function ProfilePage() {
   const [locMsg, setLocMsg] = useState('');
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [kycUploading, setKycUploading] = useState(false);
+  const [editingService, setEditingService] = useState<ProviderService | null>(null);
+  const [deletingService, setDeletingService] = useState<ProviderService | null>(null);
+  const [serviceDialogBusy, setServiceDialogBusy] = useState(false);
+  const [serviceDialogError, setServiceDialogError] = useState<string | null>(null);
   const [kycMsg, setKycMsg] = useState('');
   const [balance, setBalance] = useState<{ available: number; held: number; pendingWithdrawal: number; currency: string } | null>(null);
   const [payouts, setPayouts] = useState<Array<{ id: string; amount: number; currency: string; status: string; createdAt: string }>>([]);
@@ -389,38 +396,35 @@ export default function ProfilePage() {
     }
   };
 
-  const editService = async (service: ProviderService) => {
-    const title = window.prompt('Titre du service', service.title) ?? '';
-    if (!title.trim()) return;
-    const description = window.prompt('Description du service', service.description ?? '') ?? '';
-    const priceRaw = window.prompt('Prix (XOF)', service.price ? String(service.price) : '') ?? '';
-    const price = Number(priceRaw);
-    if (!Number.isFinite(price) || price <= 0) {
-      setServiceError('Prix invalide');
-      return;
-    }
+  // Modification et suppression via des fenêtres accessibles (plus d'invites du navigateur).
+  const editService = (service: ProviderService) => { setServiceDialogError(null); setEditingService(service); };
+  const removeService = (service: ProviderService) => { setServiceDialogError(null); setDeletingService(service); };
 
+  const saveService = async (values: { title: string; description?: string; price: number }) => {
+    if (!editingService) return;
+    setServiceDialogBusy(true);
     try {
-      await api.put(`/providers/me/services/${service.id}`, {
-        title: title.trim(),
-        description: description.trim() || undefined,
-        price,
-      });
+      await api.put(`/providers/me/services/${editingService.id}`, values);
+      setEditingService(null);
       await loadProviderData();
     } catch (error: unknown) {
-      const e = error as { response?: { data?: { error?: string } } };
-      setServiceError(e?.response?.data?.error || 'Impossible de modifier le service');
+      setServiceDialogError(getApiErrorMessage(error, 'Impossible de modifier le service'));
+    } finally {
+      setServiceDialogBusy(false);
     }
   };
 
-  const removeService = async (service: ProviderService) => {
-    if (!window.confirm(`Supprimer le service "${service.title}" ?`)) return;
+  const confirmRemoveService = async () => {
+    if (!deletingService) return;
+    setServiceDialogBusy(true);
     try {
-      await api.delete(`/providers/me/services/${service.id}`);
+      await api.delete(`/providers/me/services/${deletingService.id}`);
+      setDeletingService(null);
       await loadProviderData();
     } catch (error: unknown) {
-      const e = error as { response?: { data?: { error?: string } } };
-      setServiceError(e?.response?.data?.error || 'Impossible de supprimer le service');
+      setServiceDialogError(getApiErrorMessage(error, 'Impossible de supprimer le service'));
+    } finally {
+      setServiceDialogBusy(false);
     }
   };
 
@@ -445,7 +449,7 @@ export default function ProfilePage() {
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
       <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Mon profil</h1>
 
-      <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-6 flex items-center gap-4">
+      <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 sm:p-6 flex flex-wrap items-center gap-4">
         {profile?.avatarUrl ? (
           <img src={profile.avatarUrl} alt="Avatar" className="w-20 h-20 rounded-full object-cover" />
         ) : (
@@ -453,23 +457,24 @@ export default function ProfilePage() {
             {initials}
           </div>
         )}
-        <div>
-          <p className="font-semibold text-gray-900 dark:text-white text-lg">
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold text-gray-900 dark:text-white text-lg break-words">
             {profile?.firstName} {profile?.lastName}
           </p>
           <div className="flex items-center gap-2 mt-1">
             <span className="badge badge-green">{roleLabel}</span>
-            {profile?.isVerified && <span className="badge badge-blue">Verifie</span>}
+            {profile?.isVerified && <span className="badge badge-blue">Vérifié</span>}
           </div>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 break-all">
             {profile?.email || profile?.phone || ''}
           </p>
         </div>
-        <label className="ml-auto shrink-0 cursor-pointer text-sm font-medium text-green-600 dark:text-green-400 hover:underline">
+        {/* Champ visuellement masqué mais atteignable au clavier (« hidden » le rendait inaccessible). */}
+        <label className="w-full sm:w-auto sm:ml-auto shrink-0 cursor-pointer text-sm font-medium text-green-600 dark:text-green-400 hover:underline focus-within:ring-2 focus-within:ring-green-500 rounded-lg px-1">
           <input
             type="file"
-            accept="image/*"
-            className="hidden"
+            accept="image/jpeg,image/png,image/webp"
+            className="sr-only"
             onChange={(e) => { if (e.target.files?.[0]) uploadAvatar(e.target.files[0]); }}
           />
           {avatarUploading ? 'Envoi…' : 'Changer la photo'}
@@ -697,8 +702,9 @@ export default function ProfilePage() {
 
             <div className="grid md:grid-cols-2 gap-3">
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Catégorie</label>
+                <label htmlFor="service-category" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Catégorie</label>
                 <select
+                  id="service-category"
                   value={serviceForm.categoryId}
                   onChange={(e) => setServiceForm((prev) => ({ ...prev, categoryId: e.target.value }))}
                   className="input"
@@ -739,8 +745,9 @@ export default function ProfilePage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Type de prix</label>
+                <label htmlFor="service-price-type" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Type de prix</label>
                 <select
+                  id="service-price-type"
                   value={serviceForm.priceType}
                   onChange={(e) => setServiceForm((prev) => ({ ...prev, priceType: e.target.value as ProviderServiceCreateInput['priceType'] }))}
                   className="input"
@@ -804,6 +811,11 @@ export default function ProfilePage() {
           </div>
         </>
       )}
+      <ServiceEditDialog service={editingService} busy={serviceDialogBusy} error={serviceDialogError}
+        onClose={() => setEditingService(null)} onSave={saveService} />
+      <ConfirmDialog open={Boolean(deletingService)} onClose={() => setDeletingService(null)} busy={serviceDialogBusy} error={serviceDialogError}
+        title="Supprimer le service" message={`« ${deletingService?.title ?? ''} » ne sera plus proposé aux clients.`}
+        confirmLabel="Supprimer" danger onConfirm={confirmRemoveService} />
     </div>
   );
 }

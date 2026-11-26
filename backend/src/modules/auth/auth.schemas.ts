@@ -43,12 +43,12 @@ export const registerSchema = z.object({
     .regex(/[a-z]/, 'Doit contenir au moins une lettre minuscule')
     .regex(/[0-9]/, 'Doit contenir au moins un chiffre'),
   role: z.enum(['client', 'provider'], {
-    errorMap: () => ({ message: 'Rôle doit être "client" ou "provider"' }),
+    error: 'Rôle doit être "client" ou "provider"',
   }),
 }).superRefine((data, ctx) => {
   if (!isValidE164ForCountry(data.phone, data.countryCode)) {
     ctx.addIssue({
-      code: z.ZodIssueCode.custom,
+      code: 'custom',
       path: ['phone'],
       message: `Numéro invalide pour ${data.countryCode}`,
     });
@@ -72,9 +72,32 @@ export const loginSchema = z.object({
   message: 'Phone ou email requis',
 });
 
+// Sans « method » (clients, prestataires, site, mobile) : code OTP à 6 chiffres,
+// exactement comme avant. « recovery » : code de récupération XXXXX-XXXXX.
 export const loginMfaSchema = z.object({
   tempToken: z.string().min(1),
-  otpCode: z.string().length(6).regex(/^\d{6}$/),
+  method: z.enum(['totp', 'email', 'recovery']).optional(),
+  otpCode: z.string().trim().min(6).max(16),
+}).superRefine((d, ctx) => {
+  if (d.method === 'recovery') {
+    if (!/^[A-Za-z0-9]{5}-?[A-Za-z0-9]{5}$/.test(d.otpCode)) {
+      ctx.addIssue({ code: 'custom', path: ['otpCode'], message: 'Code de récupération invalide (format XXXXX-XXXXX)' });
+    }
+  } else if (!/^\d{6}$/.test(d.otpCode)) {
+    ctx.addIssue({ code: 'custom', path: ['otpCode'], message: 'Le code doit faire 6 chiffres' });
+  }
+});
+
+export const mfaEmailFallbackSchema = z.object({
+  tempToken: z.string().min(1),
+});
+
+export const totpSetupSchema = z.object({
+  password: z.string().min(1, 'Mot de passe requis'),
+});
+
+export const totpCodeSchema = z.object({
+  code: z.string().trim().regex(/^\d{6}$/, 'Le code doit faire 6 chiffres'),
 });
 
 export const googleLoginSchema = z.object({

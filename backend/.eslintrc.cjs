@@ -17,7 +17,8 @@ module.exports = {
   },
   rules: {
     '@typescript-eslint/no-explicit-any': 'warn',
-    '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+    // Préfixe « _ » = variable volontairement ignorée (ex. retrait d'une clé par déstructuration).
+    '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
     '@typescript-eslint/no-require-imports': 'off',
     '@typescript-eslint/no-namespace': 'off',
     'no-console': 'off',

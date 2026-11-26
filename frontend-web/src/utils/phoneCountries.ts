@@ -2,7 +2,6 @@ export interface CountryOption {
   code: string;
   name: string;
   dialCode: string;
-  flag: string;
 }
 
 const COUNTRY_DIAL_CODES: Record<string, string> = {
@@ -59,12 +58,6 @@ const COUNTRY_PHONE_RULES: Record<string, PhoneLengthRule> = {
   US: { min: 10, max: 10, stripLeadingZero: false },
 };
 
-function toFlagEmoji(countryCode: string): string {
-  return countryCode
-    .toUpperCase()
-    .replace(/./g, (char) => String.fromCodePoint(127397 + char.charCodeAt(0)));
-}
-
 function getRegionCodes(): string[] {
   const fn = (Intl as unknown as { supportedValuesOf?: (key: string) => string[] }).supportedValuesOf;
   if (typeof fn === 'function') {
@@ -92,34 +85,49 @@ export function getCountryOptions(locale: string): CountryOption[] {
       code,
       name: displayNames.of(code) ?? code,
       dialCode: getDialCode(code),
-      flag: toFlagEmoji(code),
     }))
     .sort((a, b) => a.name.localeCompare(b.name, locale));
 }
 
-export function detectDefaultCountryCode(countries: CountryOption[]): string {
+/** Fuseau horaire → pays (Afrique de l'Ouest et principaux pays de la diaspora). */
+const TIMEZONE_COUNTRIES: Array<{ match: RegExp; countryCode: string }> = [
+  { match: /^Africa\/Abidjan$/i, countryCode: 'CI' },
+  { match: /^Africa\/Lome$/i, countryCode: 'TG' },
+  { match: /^Africa\/Bamako$/i, countryCode: 'ML' },
+  { match: /^Africa\/Ouagadougou$/i, countryCode: 'BF' },
+  { match: /^Africa\/Dakar$/i, countryCode: 'SN' },
+  { match: /^Africa\/Porto-Novo$/i, countryCode: 'BJ' },
+  { match: /^Africa\/Niamey$/i, countryCode: 'NE' },
+  { match: /^Africa\/Conakry$/i, countryCode: 'GN' },
+  { match: /^Africa\/Accra$/i, countryCode: 'GH' },
+  { match: /^Africa\/Lagos$/i, countryCode: 'NG' },
+  { match: /^Africa\/Douala$/i, countryCode: 'CM' },
+  { match: /^Europe\/Paris$/i, countryCode: 'FR' },
+  { match: /^Europe\/Brussels$/i, countryCode: 'BE' },
+  { match: /^Europe\/London$/i, countryCode: 'GB' },
+  { match: /^America\/(New_York|Chicago|Los_Angeles|Denver)$/i, countryCode: 'US' },
+  { match: /^America\/(Toronto|Montreal|Vancouver)$/i, countryCode: 'CA' },
+];
+
+/**
+ * Pays proposé par défaut : fuseau horaire de l'appareil (localisation réelle), puis
+ * région de la langue du navigateur, puis pays configurés dans l'administration
+ * (`preferred`). Le fuseau passe avant la langue : en Afrique de l'Ouest, beaucoup de
+ * navigateurs sont réglés en « fr-FR », ce qui proposait la France à tort.
+ * Aucun pays n'est présupposé : à défaut, chaîne vide (la personne choisit elle-même).
+ */
+export function detectDefaultCountryCode(countries: CountryOption[], preferred: string[] = []): string {
+  const available = (code: string | undefined) => Boolean(code && countries.some((country) => country.code === code));
+
+  let timeZone = '';
+  try { timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone ?? ''; } catch { timeZone = ''; }
+  const byTimezone = TIMEZONE_COUNTRIES.find((item) => item.match.test(timeZone))?.countryCode;
+  if (byTimezone && available(byTimezone)) return byTimezone;
+
   const languageRegion = navigator.language.split('-')[1]?.toUpperCase();
-  if (languageRegion && countries.some((country) => country.code === languageRegion)) {
-    return languageRegion;
-  }
+  if (languageRegion && available(languageRegion)) return languageRegion;
 
-  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const timezoneDefaults: Array<{ match: RegExp; countryCode: string }> = [
-    { match: /dakar/i, countryCode: 'SN' },
-    { match: /abidjan/i, countryCode: 'CI' },
-    { match: /bamako/i, countryCode: 'ML' },
-    { match: /ouagadougou/i, countryCode: 'BF' },
-    { match: /paris/i, countryCode: 'FR' },
-    { match: /london/i, countryCode: 'GB' },
-    { match: /new_york|los_angeles|chicago/i, countryCode: 'US' },
-  ];
-
-  const byTimezone = timezoneDefaults.find((item) => item.match.test(timeZone));
-  if (byTimezone && countries.some((country) => country.code === byTimezone.countryCode)) {
-    return byTimezone.countryCode;
-  }
-
-  return countries.some((country) => country.code === 'SN') ? 'SN' : (countries[0]?.code ?? 'US');
+  return preferred.find((code) => available(code)) ?? '';
 }
 
 function normalizeLocalDigits(rawValue: string, countryCode: string): string {

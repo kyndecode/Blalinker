@@ -11,9 +11,9 @@
     JWT_ACCESS_EXPIRY: '15m',
     JWT_REFRESH_EXPIRY: '30d',
     ENCRYPTION_KEY: 'a'.repeat(64),
-    BREVO_FROM_EMAIL: 'noreply@bla-app.com',
+    BREVO_FROM_EMAIL: 'contact@blalinker.com',
     BREVO_FROM_NAME: 'BLA Services',
-    ADMIN_EMAIL: 'admin@bla-app.com',
+    ADMIN_EMAIL: 'contact@blalinker.com',
     ADMIN_PASSWORD: 'BlaAdmin2024!',
     AI_SERVICE_URL: 'http://localhost:8000',
     MFA_ENABLED: true,
@@ -30,7 +30,9 @@ jest.mock('../../src/config/database', () => ({
       findFirst: jest.fn(),
       findMany: jest.fn().mockResolvedValue([]),
     },
-    otpCode: { create: jest.fn(), findFirst: jest.fn(), update: jest.fn(), deleteMany: jest.fn() },
+    otpCode: { updateMany: jest.fn().mockResolvedValue({ count: 0 }), create: jest.fn(), findFirst: jest.fn(), update: jest.fn(), deleteMany: jest.fn() },
+    profile: { upsert: jest.fn() },
+    providerProfile: { upsert: jest.fn() },
   },
 }));
 
@@ -53,6 +55,8 @@ jest.mock('../../src/config/email', () => ({
 
 jest.mock('../../src/utils/sms.util', () => ({
   sendSMS: jest.fn().mockResolvedValue(true),
+  // Configuration réelle actuelle : aucun fournisseur SMS.
+  isSmsConfigured: jest.fn().mockReturnValue(false),
 }));
 
 jest.mock('../../src/utils/jwt.util', () => ({
