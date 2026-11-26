@@ -40,6 +40,7 @@ jest.mock('../../src/utils/jwt.util', () => ({
 import request from 'supertest';
 import type { Express } from 'express';
 import type { PrismaClient } from '@prisma/client';
+import { countNotifications } from './notifications.helper';
 
 const url = process.env.TEST_DATABASE_URL;
 const describeDb = url ? describe : describe.skip;
@@ -190,7 +191,7 @@ describeDb('PostgreSQL réel — administration industrialisée (lot 3)', () => 
       const profile = await prisma.providerProfile.findUniqueOrThrow({ where: { userId: ids.provider } });
       expect(Number(profile.ratingAverage)).toBe(4);
       expect(profile.ratingCount).toBe(2);
-      expect(await prisma.notification.count({ where: { userId: ids.client, type: 'review.published' } })).toBe(2);
+      expect(await countNotifications(prisma, { userId: ids.client, type: 'review.published' }, 2)).toBe(2);
       const again = await request(app).post(api('/admin/reviews/bulk')).set(auth(ids.moderator)).send({ ids: reviewIds, action: 'approve' });
       expect(again.body).toEqual({ updated: 0, skipped: 2 });
     });

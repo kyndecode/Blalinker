@@ -40,6 +40,7 @@ jest.mock('../../src/utils/jwt.util', () => ({
 import request from 'supertest';
 import type { Express } from 'express';
 import type { PrismaClient } from '@prisma/client';
+import { countNotifications } from './notifications.helper';
 
 const url = process.env.TEST_DATABASE_URL;
 const describeDb = url ? describe : describe.skip;
@@ -61,7 +62,8 @@ describeDb('PostgreSQL réel — parcours métier (lot 1)', () => {
   };
   const auth = (userId: string) => ({ Authorization: `Bearer uid:${userId}` });
   const api = (path: string) => `/api/v1${path}`;
-  const notifs = (userId: string, type: string) => prisma.notification.count({ where: { userId, type } });
+  /** Nombre de notifications, en attendant qu'au moins `min` soient écrites (envoi en arrière-plan). */
+  const notifs = (userId: string, type: string, min = 1) => countNotifications(prisma, { userId, type }, min);
 
   beforeAll(async () => {
     process.env.DATABASE_URL = url;
@@ -180,9 +182,9 @@ describeDb('PostgreSQL réel — parcours métier (lot 1)', () => {
       expect(tx.releasedAt).not.toBeNull();
 
       for (const type of ['booking.accepted', 'booking.started', 'booking.completed']) {
-        expect(await prisma.notification.count({ where: { userId: ids.client, type, data: { path: ['bookingId'], equals: id } } })).toBe(1);
+        expect(await countNotifications(prisma, { userId: ids.client, type, data: { path: ['bookingId'], equals: id } })).toBe(1);
       }
-      expect(await prisma.notification.count({ where: { userId: ids.provider, type: 'booking.validated', data: { path: ['bookingId'], equals: id } } })).toBe(1);
+      expect(await countNotifications(prisma, { userId: ids.provider, type: 'booking.validated', data: { path: ['bookingId'], equals: id } })).toBe(1);
       // L'auteur d'une action n'est jamais notifié de sa propre action.
       expect(await prisma.notification.count({ where: { userId: ids.provider, type: 'booking.accepted' } })).toBe(0);
 
@@ -208,7 +210,7 @@ describeDb('PostgreSQL réel — parcours métier (lot 1)', () => {
       const cancelled = await put(`/bookings/${b}/cancel`, ids.client, { reason: 'Changement de programme' });
       expect(cancelled.status).toBe(200);
       expect(cancelled.body.cancellationReason).toBe('Changement de programme');
-      expect(await prisma.notification.count({ where: { userId: ids.provider, type: 'booking.cancelled', data: { path: ['bookingId'], equals: b } } })).toBe(1);
+      expect(await countNotifications(prisma, { userId: ids.provider, type: 'booking.cancelled', data: { path: ['bookingId'], equals: b } })).toBe(1);
     });
   });
 
@@ -228,7 +230,7 @@ describeDb('PostgreSQL réel — parcours métier (lot 1)', () => {
       expect(await prisma.report.count({ where: { bookingId: id, status: 'pending' } })).toBe(1);
       expect(await notifs(ids.provider, 'booking.disputed')).toBeGreaterThanOrEqual(1);
       expect(await notifs(ids.support, 'report.created')).toBeGreaterThanOrEqual(1);
-      expect(await notifs(ids.moderator, 'report.created')).toBe(0); // permission non détenue
+      expect(await notifs(ids.moderator, 'report.created', 0)).toBe(0); // permission non détenue
 
       // Plus de validation client ni de second litige une fois en litige.
       expect((await put(`/bookings/${id}/validate`, ids.client)).status).toBe(409);
