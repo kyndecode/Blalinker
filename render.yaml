@@ -15,7 +15,7 @@ services:
     name: bla-backend
     runtime: node
     region: frankfurt          # proche Afrique de l'Ouest
-    plan: free                 # passer à un plan payant pour éviter le spin-down
+    plan: free                 # réveil évité gratuitement : .github/workflows/keep-alive.yml
     rootDir: backend
     buildCommand: npm ci && npx prisma generate && npm run build
     # migrate deploy nécessite une connexion "Session pooler" Supabase (voir DATABASE_URL)
