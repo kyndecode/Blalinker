@@ -168,7 +168,7 @@ export default function ForgotPassword() {
         )}
 
         <div className="mt-6 pt-5 border-t border-gray-100 dark:border-gray-800 text-center">
-          <Link to="/login" className="text-sm text-green-600 dark:text-green-400 font-semibold hover:underline">
+          <Link to="/login" className="text-sm text-green-700 dark:text-green-400 font-semibold hover:underline">
             {t('auth.back_to_login', 'Retour à la connexion')}
           </Link>
         </div>

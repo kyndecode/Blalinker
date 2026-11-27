@@ -105,7 +105,7 @@ export default function BookingNew() {
       {/* Back */}
       <button
         onClick={() => navigate(providerId ? `/provider/${providerId}` : '/search')}
-        className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 transition-colors mb-6"
+        className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-green-700 dark:hover:text-green-400 transition-colors mb-6"
       >
         <ArrowLeft className="w-4 h-4" />
         Retour
@@ -165,7 +165,7 @@ export default function BookingNew() {
           {/* Date & time */}
           <div className="flex flex-col gap-1.5">
             <label htmlFor="booking-date" className="flex items-center gap-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
-              <Calendar className="w-4 h-4 text-green-600 dark:text-green-400" aria-hidden="true" />
+              <Calendar className="w-4 h-4 text-green-700 dark:text-green-400" aria-hidden="true" />
               Date et heure
               <span className="text-red-500 ml-0.5" aria-hidden="true">*</span>
             </label>
@@ -209,7 +209,7 @@ export default function BookingNew() {
           {/* Description */}
           <div className="flex flex-col gap-1.5">
             <label htmlFor="booking-description" className="flex items-center gap-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">
-              <FileText className="w-4 h-4 text-green-600 dark:text-green-400" aria-hidden="true" />
+              <FileText className="w-4 h-4 text-green-700 dark:text-green-400" aria-hidden="true" />
               Description
               <span className="text-red-500 ml-0.5" aria-hidden="true">*</span>
             </label>
@@ -251,7 +251,7 @@ export default function BookingNew() {
           <button
             type="submit"
             disabled={mutation.isPending || providerServices.length === 0}
-            className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 active:bg-green-800 disabled:opacity-60 text-white font-semibold py-3 rounded-xl transition-colors"
+            className="w-full flex items-center justify-center gap-2 bg-green-700 hover:bg-green-800 active:bg-green-900 disabled:opacity-60 text-white font-semibold py-3 rounded-xl transition-colors"
           >
             {mutation.isPending ? (
               <>

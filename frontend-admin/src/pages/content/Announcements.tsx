@@ -70,7 +70,7 @@ function Editor({ item, onClose }: { item: Announcement | 'new' | null; onClose:
         {save.isError && !Object.keys(errors).length && <p role="alert" className="text-sm text-red-400">{getApiErrorMessage(save.error)}</p>}
         <div className="flex justify-end gap-3">
           <button type="button" onClick={onClose} className="rounded-lg border border-white/15 px-4 py-2 text-sm">Annuler</button>
-          <button type="submit" disabled={save.isPending} className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{save.isPending ? 'Enregistrement…' : 'Enregistrer'}</button>
+          <button type="submit" disabled={save.isPending} className="rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{save.isPending ? 'Enregistrement…' : 'Enregistrer'}</button>
         </div>
       </form>
     </Modal>
@@ -99,7 +99,7 @@ export default function Announcements() {
           <h1 className="text-2xl font-bold text-white">Annonces et bannières</h1>
           <p className="text-sm text-gray-400">Affichées en haut du site pendant leur fenêtre de diffusion.</p>
         </div>
-        <button onClick={() => setEditing('new')} className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white"><Plus className="h-4 w-4" aria-hidden="true" /> Nouvelle annonce</button>
+        <button onClick={() => setEditing('new')} className="inline-flex items-center gap-2 rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white"><Plus className="h-4 w-4" aria-hidden="true" /> Nouvelle annonce</button>
       </div>
       {error && <p role="alert" className="text-sm text-red-400">{getApiErrorMessage(error)}</p>}
       {isLoading && <p className="text-sm text-gray-400">Chargement…</p>}
@@ -110,7 +110,7 @@ export default function Announcements() {
             <div className="flex flex-wrap items-start justify-between gap-2">
               <p className="text-white">{a.message}</p>
               <div className="flex gap-2">
-                {isLive(a) && <span className="rounded-full bg-green-600 px-2 py-0.5 text-xs text-white">En ligne</span>}
+                {isLive(a) && <span className="rounded-full bg-green-700 px-2 py-0.5 text-xs text-white">En ligne</span>}
                 <span className={`rounded-full px-2 py-0.5 text-xs ${STATUS_BADGE[a.status]?.cls ?? ''}`}>{STATUS_BADGE[a.status]?.label}</span>
               </div>
             </div>

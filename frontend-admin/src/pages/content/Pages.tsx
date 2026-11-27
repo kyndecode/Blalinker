@@ -77,7 +77,7 @@ function PageEditor({ pageId, onClose }: { pageId: string | 'new' | null; onClos
           <div role="tablist" aria-label="Édition ou aperçu" className="flex gap-1">
             {(['edit', 'preview'] as const).map((t) => (
               <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => setTab(t)}
-                className={`rounded-md px-3 py-1 text-xs ${tab === t ? 'bg-green-600 text-white' : 'text-gray-300 hover:bg-white/10'}`}>
+                className={`rounded-md px-3 py-1 text-xs ${tab === t ? 'bg-green-700 text-white' : 'text-gray-300 hover:bg-white/10'}`}>
                 {t === 'edit' ? 'Rédaction' : 'Aperçu'}
               </button>
             ))}
@@ -95,7 +95,7 @@ function PageEditor({ pageId, onClose }: { pageId: string | 'new' | null; onClos
           {save.isError && !Object.keys(errors).length && <p role="alert" className="text-sm text-red-400">{getApiErrorMessage(save.error)}</p>}
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onClose} className="rounded-lg border border-white/15 px-4 py-2 text-sm">Annuler</button>
-            <button type="submit" disabled={save.isPending} className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+            <button type="submit" disabled={save.isPending} className="rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
               {save.isPending ? 'Enregistrement…' : 'Enregistrer'}
             </button>
           </div>
@@ -131,7 +131,7 @@ export default function Pages() {
           <h1 className="text-2xl font-bold text-white">Pages du site</h1>
           <p className="text-sm text-gray-400">Sans page publiée, le site affiche son texte intégré.</p>
         </div>
-        <button onClick={() => setEditing('new')} className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700">
+        <button onClick={() => setEditing('new')} className="inline-flex items-center gap-2 rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white hover:bg-green-800">
           <Plus className="h-4 w-4" aria-hidden="true" /> Nouvelle page
         </button>
       </div>

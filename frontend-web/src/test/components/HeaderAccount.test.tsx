@@ -11,6 +11,7 @@ import Header from '../../components/layout/Header';
 import RequireAuth from '../../components/auth/RequireAuth';
 import { useAuthStore } from '../../store/authStore';
 import { queryClient } from '../../services/queryClient';
+import { tr, trRx } from '../tr';
 
 const { getMock, logoutMock } = vi.hoisted(() => ({ getMock: vi.fn(), logoutMock: vi.fn() }));
 vi.mock('../../services/api', () => ({ default: { get: getMock, post: vi.fn() }, api: { get: getMock } }));
@@ -35,12 +36,12 @@ beforeEach(() => {
 describe('visiteur non connecté', () => {
   it('« Se connecter » et « Créer un compte » ; aucun élément du compte', () => {
     renderHeader();
-    expect(screen.getAllByRole('link', { name: 'auth.login' }).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole('link', { name: 'auth.register' }).length).toBeGreaterThan(0);
-    expect(screen.queryByText('nav.my_account')).not.toBeInTheDocument();
-    expect(screen.queryByText('auth.logged_as')).not.toBeInTheDocument();
-    expect(screen.queryByText('nav.logout')).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'nav.dashboard' })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: tr('auth.login') }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: tr('auth.register') }).length).toBeGreaterThan(0);
+    expect(screen.queryByText(tr('nav.my_account'))).not.toBeInTheDocument();
+    expect(screen.queryByText(tr('auth.logged_as'))).not.toBeInTheDocument();
+    expect(screen.queryByText(tr('nav.logout'))).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: tr('nav.dashboard') })).not.toBeInTheDocument();
     expect(getMock).not.toHaveBeenCalledWith('/users/me');
   });
 });
@@ -55,35 +56,35 @@ describe('utilisateur connecté', () => {
     const user = userEvent.setup();
     renderHeader();
     // Aucun bouton de déconnexion dans la barre elle-même.
-    expect(screen.queryByText('nav.logout')).not.toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /nav\.my_account/ }));
+    expect(screen.queryByText(tr('nav.logout'))).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: trRx('nav.my_account') }));
     const identity = await screen.findByTestId('account-identity');
     expect(within(identity).getByText('Awa Koné')).toBeInTheDocument();
     expect(within(identity).getByText('awa@example.test')).toBeInTheDocument();
-    expect(screen.getAllByText('nav.logout')).toHaveLength(1);
-    expect(screen.getAllByRole('link', { name: /nav\.profile/ }).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(tr('nav.logout'))).toHaveLength(1);
+    expect(screen.getAllByRole('link', { name: trRx('nav.profile') }).length).toBeGreaterThan(0);
   });
 
   it('identité inconnue (profil indisponible) : pas de « Connecté en tant que » vide', async () => {
     getMock.mockRejectedValue(new Error('indisponible'));
     const user = userEvent.setup();
     renderHeader();
-    await user.click(screen.getByRole('button', { name: /nav\.my_account/ }));
+    await user.click(screen.getByRole('button', { name: trRx('nav.my_account') }));
     expect(screen.queryByTestId('account-identity')).not.toBeInTheDocument();
-    expect(screen.queryByText('auth.logged_as')).not.toBeInTheDocument();
+    expect(screen.queryByText(tr('auth.logged_as'))).not.toBeInTheDocument();
   });
 
   it('« Se déconnecter » : session terminée, retour à la connexion avec confirmation, menu de compte retiré', async () => {
     const user = userEvent.setup();
     renderHeader();
-    await user.click(screen.getByRole('button', { name: /nav\.my_account/ }));
-    await user.click(screen.getByRole('button', { name: /nav\.logout/ }));
+    await user.click(screen.getByRole('button', { name: trRx('nav.my_account') }));
+    await user.click(screen.getByRole('button', { name: trRx('nav.logout') }));
     expect(logoutMock).toHaveBeenCalledTimes(1);
     expect(vi.mocked(useNavigate)()).toHaveBeenCalledWith('/login', { replace: true });
-    expect(sessionStorage.getItem('bla_flash_notice')).toBe('auth.logged_out');
+    expect(sessionStorage.getItem('bla_flash_notice')).toBe(tr('auth.logged_out'));
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
-    expect(screen.queryByText('nav.my_account')).not.toBeInTheDocument();
-    expect(screen.getAllByRole('link', { name: 'auth.login' }).length).toBeGreaterThan(0);
+    expect(screen.queryByText(tr('nav.my_account'))).not.toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: tr('auth.login') }).length).toBeGreaterThan(0);
   });
 });
 

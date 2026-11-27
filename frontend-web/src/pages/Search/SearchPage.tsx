@@ -162,7 +162,7 @@ function MapSearch() {
     <div className="max-w-7xl mx-auto px-4 py-6">
       {activeParent && (
         <div className="flex items-center gap-2 mb-4 text-sm text-gray-500 dark:text-gray-400">
-          <button onClick={() => navigate('/search')} className="hover:text-green-600 dark:hover:text-green-400">
+          <button onClick={() => navigate('/search')} className="hover:text-green-700 dark:hover:text-green-400">
             {t('search.all_categories')}
           </button>
           <span>/</span>
@@ -187,8 +187,8 @@ function MapSearch() {
             onClick={() => setFilters((prev) => ({ ...prev, category_id: undefined, page: 1 }))}
             className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
               !filters.category_id
-                ? 'bg-green-600 text-white border-green-600'
-                : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:border-green-500 hover:text-green-600 dark:hover:text-green-400'
+                ? 'bg-green-700 text-white border-green-600'
+                : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:border-green-500 hover:text-green-700 dark:hover:text-green-400'
             }`}
           >
             {t('search.all')}
@@ -199,8 +199,8 @@ function MapSearch() {
               onClick={() => setFilters((prev) => ({ ...prev, category_id: subcategory.id, page: 1 }))}
               className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
                 filters.category_id === subcategory.id
-                  ? 'bg-green-600 text-white border-green-600'
-                  : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:border-green-500 hover:text-green-600 dark:hover:text-green-400'
+                  ? 'bg-green-700 text-white border-green-600'
+                  : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:border-green-500 hover:text-green-700 dark:hover:text-green-400'
               }`}
             >
               {subcategory.name}
@@ -341,7 +341,7 @@ function MapSearch() {
                       </p>
                       <div className="mt-2 flex gap-2">
                         <button
-                          className="text-xs px-2 py-1 rounded bg-green-600 text-white"
+                          className="text-xs px-2 py-1 rounded bg-green-700 text-white"
                           onClick={() => navigate(`/provider/${provider.id}`)}
                         >
                           {t('provider.contact')}
@@ -383,7 +383,7 @@ function MapSearch() {
             <p className="text-sm text-gray-600 dark:text-gray-400">
               {data.meta.total === 0
                 ? t('search.no_results')
-                : t('search.results_plural', { count: data.meta.total })}
+                : t('search.results', { count: data.meta.total })}
             </p>
           )}
 

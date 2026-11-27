@@ -231,7 +231,7 @@ export default function BookingDetail() {
                 <li key={step.status} className="flex items-center flex-1 last:flex-none" aria-current={i === currentStep ? 'step' : undefined}>
                   <span
                     title={step.label}
-                    className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${done ? 'bg-green-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-500'} ${i === currentStep ? 'ring-2 ring-green-400 ring-offset-2 dark:ring-offset-gray-800' : ''}`}
+                    className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${done ? 'bg-green-700 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-500'} ${i === currentStep ? 'ring-2 ring-green-400 ring-offset-2 dark:ring-offset-gray-800' : ''}`}
                   >
                     {done ? <CheckCircle className="w-4 h-4" aria-hidden="true" /> : i + 1}
                     <span className="sr-only">{step.label}{done ? ' (fait)' : ''}</span>
@@ -258,25 +258,25 @@ export default function BookingDetail() {
         <dl className="space-y-3">
           {scheduledAt && (
             <div>
-              <dt className="flex items-center gap-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide"><Calendar className="w-4 h-4 text-green-600 dark:text-green-400 shrink-0" aria-hidden="true" />Date</dt>
+              <dt className="flex items-center gap-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide"><Calendar className="w-4 h-4 text-green-700 dark:text-green-400 shrink-0" aria-hidden="true" />Date</dt>
               <dd className="pl-7 text-sm text-gray-800 dark:text-gray-200 capitalize">{scheduledAt}</dd>
             </div>
           )}
           {booking.clientAddress && (
             <div>
-              <dt className="flex items-center gap-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide"><MapPin className="w-4 h-4 text-green-600 dark:text-green-400 shrink-0" aria-hidden="true" />Lieu de la mission</dt>
+              <dt className="flex items-center gap-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide"><MapPin className="w-4 h-4 text-green-700 dark:text-green-400 shrink-0" aria-hidden="true" />Lieu de la mission</dt>
               <dd className="pl-7 text-sm text-gray-800 dark:text-gray-200">{booking.clientAddress}</dd>
             </div>
           )}
           {booking.description && (
             <div>
-              <dt className="flex items-center gap-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide"><FileText className="w-4 h-4 text-green-600 dark:text-green-400 shrink-0" aria-hidden="true" />Description</dt>
+              <dt className="flex items-center gap-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide"><FileText className="w-4 h-4 text-green-700 dark:text-green-400 shrink-0" aria-hidden="true" />Description</dt>
               <dd className="pl-7 text-sm text-gray-800 dark:text-gray-200 leading-relaxed">{booking.description}</dd>
             </div>
           )}
           {booking.amount != null && (
             <div>
-              <dt className="flex items-center gap-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide"><Wallet className="w-4 h-4 text-green-600 dark:text-green-400 shrink-0" aria-hidden="true" />Montant</dt>
+              <dt className="flex items-center gap-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide"><Wallet className="w-4 h-4 text-green-700 dark:text-green-400 shrink-0" aria-hidden="true" />Montant</dt>
               <dd className="pl-7 text-sm font-semibold text-gray-800 dark:text-gray-200">
                   {Number(booking.amount).toLocaleString('fr-FR')} {booking.currency || 'XOF'}
                   {paymentStatus && <span className="ml-2 font-normal text-gray-600 dark:text-gray-300">· {PAYMENT_LABELS[paymentStatus] ?? paymentStatus}</span>}
@@ -292,7 +292,7 @@ export default function BookingDetail() {
                 <button
                   onClick={() => pay.mutate()}
                   disabled={pay.isPending}
-                  className="w-full rounded-xl bg-green-600 py-2.5 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-60"
+                  className="w-full rounded-xl bg-green-700 py-2.5 text-sm font-semibold text-white hover:bg-green-800 disabled:opacity-60"
                 >
                   {pay.isPending ? 'Redirection…' : 'Payer en ligne'}
                 </button>
@@ -322,13 +322,13 @@ export default function BookingDetail() {
                 <button
                   key={b.key}
                   onClick={() => openDialog(b.key)}
-                  className={`flex-1 rounded-xl py-2.5 text-sm font-semibold ${b.danger ? 'border border-red-300 dark:border-red-800 text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20' : 'bg-green-600 text-white hover:bg-green-700'}`}
+                  className={`flex-1 rounded-xl py-2.5 text-sm font-semibold ${b.danger ? 'border border-red-300 dark:border-red-800 text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20' : 'bg-green-700 text-white hover:bg-green-800'}`}
                 >
                   {b.label}
                 </button>
               ))}
               {canReview && (
-                <button onClick={() => openDialog('review')} className="flex-1 rounded-xl bg-green-600 py-2.5 text-sm font-semibold text-white hover:bg-green-700">
+                <button onClick={() => openDialog('review')} className="flex-1 rounded-xl bg-green-700 py-2.5 text-sm font-semibold text-white hover:bg-green-800">
                   Noter la prestation
                 </button>
               )}

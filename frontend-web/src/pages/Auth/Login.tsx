@@ -188,7 +188,7 @@ export default function Login() {
               {...register('password')}
             />
             <div className="flex justify-end mt-1.5">
-              <Link to="/forgot-password" className="text-xs text-green-600 dark:text-green-400 hover:underline">
+              <Link to="/forgot-password" className="text-xs text-green-700 dark:text-green-400 hover:underline">
                 {t('auth.forgot_password')}
               </Link>
             </div>
@@ -213,7 +213,7 @@ export default function Login() {
         <div className="mt-6 pt-5 border-t border-gray-100 dark:border-gray-800 text-center">
           <p className="text-sm text-gray-500 dark:text-gray-400">
             {t('auth.no_account')}{' '}
-            <Link to="/register" className="text-green-600 dark:text-green-400 font-semibold hover:underline">
+            <Link to="/register" className="text-green-700 dark:text-green-400 font-semibold hover:underline">
               {t('auth.register')}
             </Link>
           </p>

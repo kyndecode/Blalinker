@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import Home from '../../pages/Home/Home';
+import { tr } from '../tr';
 
 const { getMock } = vi.hoisted(() => ({ getMock: vi.fn() }));
 vi.mock('../../services/api', () => ({ default: { get: getMock } }));
@@ -61,7 +62,7 @@ describe('Accueil — aucun chiffre ni témoignage inventé', () => {
     await waitFor(() => expect(calledWith('/site/stats') && calledWith('/site/testimonials')).toBe(true));
     expect(screen.queryByTestId('home-stats')).not.toBeInTheDocument();
     expect(screen.queryByTestId('home-testimonials')).not.toBeInTheDocument();
-    expect(screen.getByText('home.categories_title')).toBeInTheDocument();
+    expect(screen.getByText(tr('home.categories_title'))).toBeInTheDocument();
   });
 
   it('affiche uniquement les indicateurs réels renvoyés par le serveur', async () => {
@@ -73,8 +74,8 @@ describe('Accueil — aucun chiffre ni témoignage inventé', () => {
     const section = await screen.findByTestId('home-stats');
     expect(section).toHaveTextContent('24');
     expect(section).toHaveTextContent('4,6/5');
-    expect(section).toHaveTextContent('home.stats_verified_providers');
-    expect(section).not.toHaveTextContent('home.stats_completed_missions'); // non renvoyé = non affiché
+    expect(section).toHaveTextContent(tr('home.stats_verified_providers'));
+    expect(section).not.toHaveTextContent(tr('home.stats_completed_missions')); // non renvoyé = non affiché
   });
 
   it('affiche les avis réels approuvés (nom abrégé, ville, note)', async () => {
@@ -94,7 +95,7 @@ describe('Accueil — contenus administrables', () => {
     mockApi([], [], { '/site/countries': { items: [{ code: 'XA', name: 'Pays A', dialCode: '+999', currency: 'XOF', defaultLocale: 'fr' }] } });
     renderHome();
     await waitFor(() => expect(calledWith('/site/testimonials')).toBe(true));
-    expect(screen.getByTestId('home-countries')).toHaveTextContent('home.available_in');
+    expect(screen.getByTestId('home-countries')).toHaveTextContent(tr('home.available_in'));
     expect(screen.queryByText(/Pays A|Togo|Burkina|Mali|Côte d/)).not.toBeInTheDocument();
     expect(calledWith('/site/countries')).toBe(false);
   });
@@ -106,8 +107,9 @@ describe('Accueil — contenus administrables', () => {
     });
     renderHome();
     expect(await screen.findByRole('button', { name: /Électricité/ })).toBeInTheDocument();
-    expect(screen.getByText('Dépannage')).toBeInTheDocument();
-    expect(screen.queryByText('home.categories.batiment.label')).not.toBeInTheDocument();
+    // Les catégories intégrées contiennent aussi « Électricité » : attendre celles de l'API.
+    expect(await screen.findByText('Dépannage')).toBeInTheDocument();
+    expect(screen.queryByText(tr('home.categories.batiment.label'))).not.toBeInTheDocument();
     expect(await screen.findByRole('heading', { level: 1, name: 'Des pros vérifiés près de chez vous' })).toBeInTheDocument();
   });
 });

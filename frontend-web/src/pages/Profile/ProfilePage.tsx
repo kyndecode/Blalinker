@@ -470,7 +470,7 @@ export default function ProfilePage() {
           </p>
         </div>
         {/* Champ visuellement masqué mais atteignable au clavier (« hidden » le rendait inaccessible). */}
-        <label className="w-full sm:w-auto sm:ml-auto shrink-0 cursor-pointer text-sm font-medium text-green-600 dark:text-green-400 hover:underline focus-within:ring-2 focus-within:ring-green-500 rounded-lg px-1">
+        <label className="w-full sm:w-auto sm:ml-auto shrink-0 cursor-pointer text-sm font-medium text-green-700 dark:text-green-400 hover:underline focus-within:ring-2 focus-within:ring-green-500 rounded-lg px-1">
           <input
             type="file"
             accept="image/jpeg,image/png,image/webp"

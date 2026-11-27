@@ -91,7 +91,7 @@ export default function Dashboard() {
       {/* Welcome */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          {getGreeting()}, <span className="text-green-600 dark:text-green-400">{displayName}</span> 👋
+          {getGreeting()}, <span className="text-green-700 dark:text-green-400">{displayName}</span> 👋
         </h1>
         <p className="text-gray-500 dark:text-gray-400 mt-1">
           {isProvider ? 'Gérez vos missions et développez votre activité' : 'Bienvenue sur votre espace BLA Services'}
@@ -123,7 +123,7 @@ export default function Dashboard() {
           <h2 id="recent-title" className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
             {isProvider ? 'Dernières missions' : 'Dernières réservations'}
           </h2>
-          <Link to="/bookings" className="text-sm text-green-600 dark:text-green-400 hover:underline font-medium">
+          <Link to="/bookings" className="text-sm text-green-700 dark:text-green-400 hover:underline font-medium">
             Voir tout →
           </Link>
         </div>

@@ -47,7 +47,7 @@ function FaqEditor({ item, onClose }: { item: FaqItem | 'new' | null; onClose: (
         {save.isError && !Object.keys(errors).length && <p role="alert" className="text-sm text-red-400">{getApiErrorMessage(save.error)}</p>}
         <div className="flex justify-end gap-3">
           <button type="button" onClick={onClose} className="rounded-lg border border-white/15 px-4 py-2 text-sm">Annuler</button>
-          <button type="submit" disabled={save.isPending} className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{save.isPending ? 'Enregistrement…' : 'Enregistrer'}</button>
+          <button type="submit" disabled={save.isPending} className="rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{save.isPending ? 'Enregistrement…' : 'Enregistrer'}</button>
         </div>
       </form>
     </Modal>
@@ -81,7 +81,7 @@ export default function Faq() {
           <select aria-label="Langue" value={locale} onChange={(e) => setLocale(e.target.value)} className="rounded-lg border border-white/10 bg-[#1a2744] px-3 py-2 text-sm text-white">
             {LOCALES.map((l) => <option key={l.value} value={l.value}>{l.label}</option>)}
           </select>
-          <button onClick={() => setEditing('new')} className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white"><Plus className="h-4 w-4" aria-hidden="true" /> Ajouter</button>
+          <button onClick={() => setEditing('new')} className="inline-flex items-center gap-2 rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white"><Plus className="h-4 w-4" aria-hidden="true" /> Ajouter</button>
         </div>
       </div>
       {error && <p role="alert" className="text-sm text-red-400">{getApiErrorMessage(error)}</p>}
@@ -95,7 +95,7 @@ export default function Faq() {
               <span className={`rounded-full px-2 py-0.5 text-xs ${STATUS_BADGE[q.status]?.cls ?? ''}`}>{STATUS_BADGE[q.status]?.label}</span>
             </div>
             <p className="mt-1 line-clamp-2 text-sm text-gray-300">{q.answer}</p>
-            <p className="mt-1 text-xs text-gray-500">{q.category ? `${q.category} · ` : ''}ordre {q.sortOrder}</p>
+            <p className="mt-1 text-xs text-gray-400">{q.category ? `${q.category} · ` : ''}ordre {q.sortOrder}</p>
             <div className="mt-2 flex gap-2">
               <button onClick={() => setEditing(q)} className="rounded-lg border border-white/15 px-3 py-1 text-xs">Modifier</button>
               <button onClick={() => { remove.reset(); setDeleting(q); }} className="rounded-lg border border-red-500/40 px-3 py-1 text-xs text-red-300">Supprimer</button>

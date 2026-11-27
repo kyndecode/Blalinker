@@ -22,7 +22,7 @@ type SetupData = {
 
 const card = 'bg-white rounded-xl border border-gray-200 p-6 shadow-sm';
 const input = 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500';
-const primary = 'px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-medium rounded-lg';
+const primary = 'px-4 py-2 bg-green-700 hover:bg-green-800 disabled:opacity-50 text-white font-medium rounded-lg';
 
 function RecoveryCodes({ codes, onDone }: { codes: string[]; onDone: () => void }) {
   const [saved, setSaved] = useState(false);
@@ -151,7 +151,7 @@ export default function Security() {
   return (
     <div className="max-w-2xl space-y-6">
       <div className="flex items-center gap-3">
-        <KeyRound className="w-7 h-7 text-green-600" />
+        <KeyRound className="w-7 h-7 text-green-700" />
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Sécurité du compte</h1>
           <p className="text-gray-500 text-sm">Validation en deux étapes par application d'authentification</p>

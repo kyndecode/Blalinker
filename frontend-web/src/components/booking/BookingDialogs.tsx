@@ -26,7 +26,7 @@ function DialogButtons({ onClose, busy, disabled, submitLabel, danger }: { onClo
         type="submit"
         disabled={busy || disabled}
         aria-busy={busy}
-        className={`flex-1 rounded-xl py-2.5 text-sm font-semibold text-white disabled:opacity-60 ${danger ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}
+        className={`flex-1 rounded-xl py-2.5 text-sm font-semibold text-white disabled:opacity-60 ${danger ? 'bg-red-600 hover:bg-red-700' : 'bg-green-700 hover:bg-green-800'}`}
       >
         {busy ? 'Envoi…' : submitLabel}
       </button>

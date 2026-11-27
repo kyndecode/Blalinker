@@ -371,7 +371,7 @@ export default function Register() {
         <div className="mt-6 pt-5 border-t border-gray-100 dark:border-gray-800 text-center">
           <p className="text-sm text-gray-500 dark:text-gray-400">
             {t('auth.already_account')}{' '}
-            <Link to="/login" className="text-green-600 dark:text-green-400 font-semibold hover:underline">
+            <Link to="/login" className="text-green-700 dark:text-green-400 font-semibold hover:underline">
               {t('auth.login')}
             </Link>
           </p>

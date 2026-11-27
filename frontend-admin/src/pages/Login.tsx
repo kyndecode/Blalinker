@@ -77,8 +77,8 @@ export function getFriendlyError(err: unknown): string {
 }
 
 const inputClass = `w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white
-  placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent`;
-const primaryButton = `w-full py-3 bg-green-600 hover:bg-green-700 disabled:opacity-50
+  placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent`;
+const primaryButton = `w-full py-3 bg-green-700 hover:bg-green-800 disabled:opacity-50
   text-white font-semibold rounded-lg transition-colors`;
 const linkButton = 'w-full py-2 text-sm text-gray-300 hover:text-white transition-colors underline-offset-2 hover:underline';
 
@@ -258,7 +258,7 @@ export default function AdminLogin() {
     <div className="min-h-screen bg-[#0f1829] flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-green-600 rounded-2xl mb-4">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-green-700 rounded-2xl mb-4">
             <Shield className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-white">BLA Administration</h1>
@@ -314,7 +314,7 @@ export default function AdminLogin() {
                 {mfa.step === 'totp' && (
                   <>
                     <p className="text-sm text-gray-300 mb-2">Code de votre application d'authentification</p>
-                    <p className="text-xs text-gray-500 mb-2">Google Authenticator ou Microsoft Authenticator : 6 chiffres.</p>
+                    <p className="text-xs text-gray-400 mb-2">Google Authenticator ou Microsoft Authenticator : 6 chiffres.</p>
                   </>
                 )}
                 {(mfa.step === 'email-otp' || mfa.step === 'totp-email') && (
@@ -345,14 +345,14 @@ export default function AdminLogin() {
                 {mfa.step === 'email-otp' && (
                   <>
                     <p className="text-xs text-gray-400 mt-2">Code envoyé sur {mfa.email}</p>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-gray-400 mt-1">
                       Si vous avez reçu plusieurs e-mails, seul le code du plus récent est valide (10 minutes).
                       Pensez à vérifier les courriers indésirables.
                     </p>
                   </>
                 )}
                 {mfa.step === 'totp-email' && (
-                  <p className="text-xs text-gray-500 mt-2">
+                  <p className="text-xs text-gray-400 mt-2">
                     Seul le code du plus récent e-mail est valide. Pensez à vérifier les courriers indésirables.
                   </p>
                 )}
@@ -411,7 +411,7 @@ export default function AdminLogin() {
           )}
         </div>
 
-        <p className="text-center text-gray-600 text-xs mt-6">BLA Admin - Acces non autorise interdit</p>
+        <p className="text-center text-gray-400 text-xs mt-6">BLA Admin - Accès non autorisé interdit</p>
       </div>
     </div>
   );

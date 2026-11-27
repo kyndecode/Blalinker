@@ -71,7 +71,7 @@ export default function Media() {
             className="w-full rounded-lg border border-white/10 bg-[#0f1b33] px-3 py-2 text-sm text-white" />
         </div>
         <input ref={input} type="file" accept={ACCEPT} className="sr-only" id="media-file" onChange={(e) => onFile(e.target.files?.[0])} />
-        <label htmlFor="media-file" className={`inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white ${upload.isPending ? 'pointer-events-none opacity-50' : ''}`}>
+        <label htmlFor="media-file" className={`inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-green-700 px-4 py-2 text-sm font-semibold text-white ${upload.isPending ? 'pointer-events-none opacity-50' : ''}`}>
           <Upload className="h-4 w-4" aria-hidden="true" /> {upload.isPending ? 'Envoi…' : 'Ajouter une image'}
         </label>
       </div>
@@ -87,7 +87,7 @@ export default function Media() {
               <input id={`alt-${m.id}`} defaultValue={m.alt ?? ''} maxLength={200} placeholder="Description"
                 onBlur={(e) => { if (e.target.value !== (m.alt ?? '')) updateAlt.mutate({ id: m.id, value: e.target.value }); }}
                 className="w-full rounded border border-white/10 bg-[#0f1b33] px-2 py-1 text-xs text-white" />
-              <p className="text-[11px] text-gray-500">{m.bytes ? `${Math.round(m.bytes / 1024)} Ko · ` : ''}{new Date(m.createdAt).toLocaleDateString('fr-FR')}</p>
+              <p className="text-[11px] text-gray-400">{m.bytes ? `${Math.round(m.bytes / 1024)} Ko · ` : ''}{new Date(m.createdAt).toLocaleDateString('fr-FR')}</p>
               <div className="flex gap-2">
                 <button onClick={() => copy(m.url)} className="flex-1 rounded border border-white/15 px-2 py-1 text-xs">Copier l’adresse</button>
                 <button onClick={() => { remove.reset(); setDeleting(m); }} className="rounded border border-red-500/40 px-2 py-1 text-xs text-red-300">Retirer</button>

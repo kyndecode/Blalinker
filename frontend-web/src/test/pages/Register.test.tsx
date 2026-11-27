@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import Register from '../../pages/Auth/Register';
+import { trRx } from '../tr';
 
 const { postMock, getMock } = vi.hoisted(() => ({
   postMock: vi.fn(),
@@ -41,13 +42,13 @@ describe('Register page', () => {
     postMock.mockResolvedValue({ data: { message: 'ok' } });
     renderRegister();
 
-    await user.type(screen.getByLabelText(/auth.first_name/i), 'Awa');
-    await user.type(screen.getByLabelText(/auth.last_name/i), 'Ndiaye');
-    await user.selectOptions(screen.getByLabelText(/auth.phone_country/i), 'SN');
-    await user.type(screen.getByPlaceholderText(/auth.phone_local_placeholder/i), '0771234567');
-    await user.type(screen.getByLabelText(/auth.email/i), 'new-user@example.com');
-    await user.type(screen.getByLabelText(/auth.password/i), 'Secret123');
-    await user.click(screen.getByRole('button', { name: /auth.register_submit/i }));
+    await user.type(screen.getByLabelText(trRx('auth.first_name')), 'Awa');
+    await user.type(screen.getByLabelText(trRx('auth.last_name')), 'Ndiaye');
+    await user.selectOptions(screen.getByLabelText(trRx('auth.phone_country')), 'SN');
+    await user.type(screen.getByPlaceholderText(trRx('auth.phone_local_placeholder')), '0771234567');
+    await user.type(screen.getByLabelText(trRx('auth.email')), 'new-user@example.com');
+    await user.type(screen.getByLabelText(trRx('auth.password')), 'Secret123');
+    await user.click(screen.getByRole('button', { name: trRx('auth.register_submit') }));
 
     await waitFor(() => {
       expect(postMock).toHaveBeenCalledWith('/auth/register', {
@@ -67,13 +68,13 @@ describe('Register page', () => {
     postMock.mockResolvedValue({ data: { message: 'ok' } });
     renderRegister();
 
-    await user.type(screen.getByLabelText(/auth.first_name/i), 'John');
-    await user.type(screen.getByLabelText(/auth.last_name/i), 'Doe');
-    await user.selectOptions(screen.getByLabelText(/auth.phone_country/i), 'US');
-    await user.type(screen.getByPlaceholderText(/auth.phone_local_placeholder/i), '4155550101');
-    await user.type(screen.getByLabelText(/auth.email/i), 'john@example.com');
-    await user.type(screen.getByLabelText(/auth.password/i), 'Secret123');
-    await user.click(screen.getByRole('button', { name: /auth.register_submit/i }));
+    await user.type(screen.getByLabelText(trRx('auth.first_name')), 'John');
+    await user.type(screen.getByLabelText(trRx('auth.last_name')), 'Doe');
+    await user.selectOptions(screen.getByLabelText(trRx('auth.phone_country')), 'US');
+    await user.type(screen.getByPlaceholderText(trRx('auth.phone_local_placeholder')), '4155550101');
+    await user.type(screen.getByLabelText(trRx('auth.email')), 'john@example.com');
+    await user.type(screen.getByLabelText(trRx('auth.password')), 'Secret123');
+    await user.click(screen.getByRole('button', { name: trRx('auth.register_submit') }));
 
     await waitFor(() => {
       expect(postMock).toHaveBeenCalledWith('/auth/register', expect.objectContaining({
@@ -98,13 +99,13 @@ describe('Register page', () => {
 
     renderRegister();
 
-    await user.type(screen.getByLabelText(/auth.first_name/i), 'Awa');
-    await user.type(screen.getByLabelText(/auth.last_name/i), 'Ndiaye');
-    await user.selectOptions(screen.getByLabelText(/auth.phone_country/i), 'SN');
-    await user.type(screen.getByPlaceholderText(/auth.phone_local_placeholder/i), '0771234567');
-    await user.type(screen.getByLabelText(/auth.email/i), 'new-user@example.com');
-    await user.type(screen.getByLabelText(/auth.password/i), 'Secret123');
-    await user.click(screen.getByRole('button', { name: /auth.register_submit/i }));
+    await user.type(screen.getByLabelText(trRx('auth.first_name')), 'Awa');
+    await user.type(screen.getByLabelText(trRx('auth.last_name')), 'Ndiaye');
+    await user.selectOptions(screen.getByLabelText(trRx('auth.phone_country')), 'SN');
+    await user.type(screen.getByPlaceholderText(trRx('auth.phone_local_placeholder')), '0771234567');
+    await user.type(screen.getByLabelText(trRx('auth.email')), 'new-user@example.com');
+    await user.type(screen.getByLabelText(trRx('auth.password')), 'Secret123');
+    await user.click(screen.getByRole('button', { name: trRx('auth.register_submit') }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Format téléphone invalide');
   });

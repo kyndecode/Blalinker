@@ -145,7 +145,7 @@ export default function BookingsList() {
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 truncate">
                     {contactName}
                   </p>
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     {booking.scheduledAt
                       ? new Date(booking.scheduledAt).toLocaleString('fr-FR')
                       : new Date(booking.createdAt).toLocaleString('fr-FR')}

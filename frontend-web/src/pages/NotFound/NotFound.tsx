@@ -6,7 +6,7 @@ export default function NotFound() {
 
   return (
     <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4">
-      <p className="text-6xl font-extrabold text-green-600">404</p>
+      <p className="text-6xl font-extrabold text-green-700">404</p>
       <h1 className="mt-4 text-2xl font-bold text-gray-900 dark:text-gray-100">
         {t('notFound.title', 'Page introuvable')}
       </h1>
@@ -15,7 +15,7 @@ export default function NotFound() {
       </p>
       <Link
         to="/"
-        className="mt-6 inline-flex items-center rounded-lg bg-green-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-green-700"
+        className="mt-6 inline-flex items-center rounded-lg bg-green-700 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-green-800"
       >
         {t('notFound.backHome', "Retour à l'accueil")}
       </Link>

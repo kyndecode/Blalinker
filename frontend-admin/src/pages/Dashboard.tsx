@@ -38,7 +38,7 @@ function StatCard({ icon: Icon, label, value, sub, color, trend }: {
       </div>
       <p className="text-2xl font-extrabold text-white mb-1">{value}</p>
       <p className="text-gray-400 text-xs font-medium">{label}</p>
-      {sub && <p className="text-gray-600 text-xs mt-1">{sub}</p>}
+      {sub && <p className="text-gray-400 text-xs mt-1">{sub}</p>}
     </div>
   );
 }
@@ -50,7 +50,7 @@ function MiniBar({ value, max, color }: { value: number; max: number; color: str
       <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
         <div className={`h-full rounded-full ${color} transition-all duration-500`} style={{ width: `${pct}%` }} />
       </div>
-      <span className="text-xs text-gray-500 w-8 text-right">{pct}%</span>
+      <span className="text-xs text-gray-400 w-8 text-right">{pct}%</span>
     </div>
   );
 }
@@ -75,7 +75,7 @@ export default function Dashboard() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-extrabold text-white">{greeting} 👋</h1>
-          <p className="text-gray-500 text-sm mt-1">
+          <p className="text-gray-400 text-sm mt-1">
             {now.toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
           </p>
         </div>
@@ -102,9 +102,9 @@ export default function Dashboard() {
             <StatCard icon={Briefcase}     label="Prestataires"         value={data.providers.total}
               sub={`${data.providers.pendingApproval} en attente approbation`} color="bg-purple-600" />
             <StatCard icon={CalendarCheck} label="Réservations"         value={data.bookings.total}
-              sub={`${data.bookings.today} aujourd'hui`}                  color="bg-green-600" />
+              sub={`${data.bookings.today} aujourd'hui`}                  color="bg-green-700" />
             <StatCard icon={Clock}         label="Missions en cours"    value={data.bookings.inProgress}
-              sub="Temps réel"                                            color="bg-orange-600"  />
+              sub="Temps réel"                                            color="bg-orange-700"  />
             <StatCard icon={DollarSign}    label="Paiements encaissés (mois)" value={`${data.revenue.thisMonth.toLocaleString('fr-FR')} ${data.revenue.currency}`}
               sub={data.commissions ? `Commissions : ${data.commissions.thisMonth.toLocaleString('fr-FR')} ${data.commissions.currency}` : undefined} color="bg-emerald-600" />
             <StatCard icon={AlertTriangle} label="Signalements"         value={data.reports.open}
@@ -121,7 +121,7 @@ export default function Dashboard() {
               <h3 className="text-white font-semibold text-sm mb-5">Répartition réservations</h3>
               <div className="space-y-4">
                 {[
-                  { label: 'En cours',    value: data.bookings.inProgress, max: data.bookings.total, color: 'bg-orange-500' },
+                  { label: 'En cours',    value: data.bookings.inProgress, max: data.bookings.total, color: 'bg-orange-700' },
                   { label: 'Terminées',   value: data.bookings.completed,  max: data.bookings.total, color: 'bg-green-500'  },
                   { label: "Aujourd'hui", value: data.bookings.today,      max: data.bookings.total, color: 'bg-blue-500'   },
                 ].map((row) => (
@@ -161,17 +161,17 @@ export default function Dashboard() {
               <h3 className="text-white font-semibold text-sm mb-5">Finances</h3>
               <div className="space-y-5">
                 <div>
-                  <p className="text-gray-500 text-xs mb-1">Paiements encaissés ce mois</p>
+                  <p className="text-gray-400 text-xs mb-1">Paiements encaissés ce mois</p>
                   <p className="text-3xl font-extrabold text-white">{data.revenue.thisMonth.toLocaleString('fr-FR')}</p>
-                  <p className="text-gray-500 text-xs">{data.revenue.currency}</p>
+                  <p className="text-gray-400 text-xs">{data.revenue.currency}</p>
                 </div>
                 <div className="pt-4 border-t border-white/10">
-                  <p className="text-gray-500 text-xs mb-1">Paiements encaissés (cumul)</p>
+                  <p className="text-gray-400 text-xs mb-1">Paiements encaissés (cumul)</p>
                   <p className="text-xl font-bold text-green-400">{data.revenue.total.toLocaleString('fr-FR')} {data.revenue.currency}</p>
                 </div>
                 {data.commissions && (
                   <div className="pt-4 border-t border-white/10">
-                    <p className="text-gray-500 text-xs mb-1">Commissions du mois (enregistrées)</p>
+                    <p className="text-gray-400 text-xs mb-1">Commissions du mois (enregistrées)</p>
                     <p className="text-xl font-bold text-amber-400">{data.commissions.thisMonth.toLocaleString('fr-FR')} {data.commissions.currency}</p>
                   </div>
                 )}
@@ -182,7 +182,7 @@ export default function Dashboard() {
         </>
       ) : (
         <div className="bg-[#1a2744] rounded-2xl p-8 border border-white/[0.08] text-center">
-          <p className="text-gray-500 text-sm">Données non disponibles. Vérifiez la connexion API.</p>
+          <p className="text-gray-400 text-sm">Données non disponibles. Vérifiez la connexion API.</p>
         </div>
       )}
     </div>
