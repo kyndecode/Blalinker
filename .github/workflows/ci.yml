@@ -113,6 +113,30 @@ jobs:
           directory: ./backend/coverage
 
   # ────────────────────────────────────────────────────────
+  #  Build Backend, à l'identique de Render
+  # ────────────────────────────────────────────────────────
+  build-backend:
+    name: Build Backend (comme Render)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      # NODE_ENV=production comme sur Render : npm ci n'installe pas les dépendances de
+      # développement. Un type ou un outil de compilation rangé en devDependencies casse le
+      # déploiement alors que les tests passent (incident du 27/11/2026 : @types/qrcode).
+      - name: Build de production (commande de build Render)
+        run: cd backend && npm ci && npx prisma generate && npm run build
+        env:
+          NODE_ENV: production
+
+  # ────────────────────────────────────────────────────────
   #  Tests Frontend Web
   # ────────────────────────────────────────────────────────
   test-frontend:
