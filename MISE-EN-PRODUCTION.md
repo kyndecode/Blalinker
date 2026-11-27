@@ -44,11 +44,12 @@ Le dépôt local est configuré pour s'identifier en `kyndecode` (configuration 
 |---|---|---|
 | `ADMIN_EMAIL` | `contact@blalinker.com` | le code de démarrage actuellement en ligne pourrait sinon recréer un compte super-administrateur ; le nouveau code ne le fait plus |
 | `GOOGLE_CLIENT_ID` | même valeur que `VITE_GOOGLE_CLIENT_ID` sur Vercel | sans elle, la connexion Google est refusée en production |
-| `ADMIN_TOTP_REQUIRED` | ne pas définir pour l'instant | à activer une fois l'application d'authentification configurée par l'équipe |
-| `CLOUDINARY_*` | déjà présentes (vérifier) | pièces d'identité protégées, médiathèque |
+| `ADMIN_TOTP_REQUIRED` | `true` depuis le 27/11/2026 | un administrateur sans application d'authentification est conduit à la configurer dès sa connexion (code e-mail), puis accède à l'administration |
+| `ADMIN_PASSWORD` | à **supprimer** | ne sert qu'à créer le tout premier super-administrateur, qui existe déjà : inutile, et c'est un mot de passe en clair qui traîne |
+| `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | **absentes au 27/11/2026 : à créer** (compte Cloudinary gratuit, voir point 2 quater) | sans elles, tout envoi de fichier répond « Stockage de fichiers non configuré » : pièces d'identité des prestataires (donc aucune validation possible), photos de profil, médiathèque |
 | Commande de démarrage | doit contenir `prisma migrate deploy` (jamais `db push`) | applique les migrations additives |
 | `TRUST_PROXY_HOPS` | ne pas définir au départ (défaut 1) ; si l'historique des connexions n'affiche que des IP en 10.x, mettre 2 | IP réelle des clients (limites de fréquence, journal) |
-| Offre (*Settings → Instance Type*) | offre payante recommandée (au moins *Starter*) | l'offre gratuite s'endort après 15 min : réveil mesuré à 32 s le 2026-11-25, d'où les écrans qui « moulinent » |
+| Offre (*Settings → Instance Type*) | *Free* (pas de budget) | l'offre gratuite s'endort après 15 min (réveil mesuré à 32 s) : compensé gratuitement, voir point 2 quater |
 | `MFA_ENABLED` | ne pas définir (défaut : actif) ; jamais `false` durablement | interrupteur de secours pour une panne d'e-mail. Depuis le nouveau code, un administrateur ayant configuré son application d'authentification doit **toujours** saisir son code, même avec `false` |
 | `METRICS_TOKEN` | facultatif | `/metrics` est fermé en production (404) ; ne définir ce jeton que si un outil de supervision doit lire les métriques (`Authorization: Bearer …`) |
 | `CORS_ORIGIN` | `https://www.blalinker.com,https://blalinker.com,https://admin.blalinker.com` | les origines `localhost` ne sont plus acceptées par défaut en production ; ajouter ici une adresse de prévisualisation si nécessaire |
@@ -90,6 +91,17 @@ automatique de Supabase (clé `anon`).
    Variante plus simple si l'API automatique ne sert à rien : *Settings → API → Exposed schemas*,
    retirer `public`.
 4. Vérifier ensuite `GET https://api.blalinker.com/health` → `200` (le backend lit toujours la base).
+
+## 2 quater. Fonctionner sans abonnement payant
+
+| Besoin | Solution gratuite |
+|---|---|
+| Service endormi après 15 min (réveil de 30 s) | Tâche GitHub Actions `.github/workflows/keep-alive.yml` : appel de `/health` toutes les 10 min de 05:00 à 23:59 UTC. Environ 590 h par mois, sous le quota gratuit Render de 750 h **pour tout le compte** : garder l'ancien service `bla-backend.onrender.com` suspendu et ne pas créer d'autre service gratuit qui tourne en continu. |
+| Être prévenu d'une panne | Compte gratuit [UptimeRobot](https://uptimerobot.com) : moniteur HTTP(s) sur `https://api.blalinker.com/health`, toutes les 5 min, alerte par e-mail. Il garde aussi le service éveillé. |
+| Stockage des fichiers | Compte gratuit [Cloudinary](https://cloudinary.com) (sans carte bancaire) : *Settings → API Keys* donne le nom du cloud, la clé et le secret, à copier dans les 3 variables `CLOUDINARY_*` de Render (*Save, rebuild, and deploy*). Les pièces d'identité sont stockées en accès « authenticated » (jamais publiques). |
+| Base Supabase mise en pause après 7 jours sans activité | Évité par l'appel régulier à `/health`, qui interroge la base. |
+| Sauvegardes (non incluses dans l'offre gratuite Supabase) | Export manuel `pg_dump` (point 1) au moins une fois par mois et avant chaque mise en production, conservé hors du dépôt et hors de tout dossier synchronisé. Ne jamais automatiser l'export dans GitHub Actions : sur un dépôt public, les fichiers produits seraient téléchargeables. |
+| Shell Render (réservé aux offres payantes) | Les scripts de maintenance se lancent depuis le poste de confiance, voir point 7. |
 
 ## 3. Brevo
 
@@ -155,11 +167,27 @@ Ne jamais insérer de données de test en production : le jeu de diagnostic
 
 ## 7. Après la mise en ligne
 
-1. Pièces d'identité déposées avant la protection : depuis un shell sécurisé disposant des
-   variables de production (shell Render par exemple) :
-   `npm run kyc:protect-documents` (simulation), puis `npm run kyc:protect-documents -- --confirm`.
-2. Équipe : configurer l'application d'authentification (page « Mon compte »), puis
-   envisager `ADMIN_TOTP_REQUIRED=true`.
+1. Pièces d'identité déposées avant la protection. D'abord compter, en lecture seule
+   (Supabase → *SQL Editor*) :
+
+   ```sql
+   SELECT count(*) AS documents FROM profiles WHERE id_card_url IS NOT NULL;
+   ```
+
+   - `0` (cas attendu : Cloudinary n'était pas configuré, aucun envoi n'a pu aboutir) : rien à faire.
+   - Sinon, depuis le poste de confiance (pas de Shell Render sur l'offre gratuite), dans
+     `backend/`, en définissant les variables **dans le terminal uniquement** (jamais dans un
+     fichier du dépôt), puis en fermant le terminal :
+
+     ```powershell
+     $env:DATABASE_URL = "<adresse Supabase, port 5432>"
+     $env:CLOUDINARY_CLOUD_NAME = "<nom>"; $env:CLOUDINARY_API_KEY = "<clé>"; $env:CLOUDINARY_API_SECRET = "<secret>"
+     npm run kyc:protect-documents                 # simulation
+     npm run kyc:protect-documents -- --confirm    # exécution
+     ```
+2. Équipe : chaque administrateur configure son application d'authentification (page
+   « Mon compte » ; imposé à la connexion depuis `ADMIN_TOTP_REQUIRED=true`) et conserve
+   ses codes de récupération hors ligne.
 3. Contenus : pays desservis, paramètres (coordonnées, réseaux), pages légales et FAQ
    depuis l'administration (le site garde ses textes intégrés tant que rien n'est publié).
 

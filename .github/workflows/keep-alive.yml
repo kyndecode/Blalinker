@@ -1,0 +1,48 @@
+##############################################################
+# Maintien en éveil de l'API (offre gratuite Render)
+#
+# Sur l'offre gratuite, Render endort le service après 15 minutes sans requête :
+# le visiteur suivant attend environ 30 secondes (réveil mesuré à 32 s le 25/11/2026).
+# Un appel à /health toutes les 10 minutes le garde éveillé, et entretient au passage
+# l'activité de la base Supabase (mise en pause après 7 jours d'inactivité sur l'offre
+# gratuite), puisque /health interroge la base.
+#
+# Plage horaire : 05:00 à 23:59 UTC (6 h à 1 h à Lagos, Douala ou Kinshasa ; 5 h à minuit à
+# Abidjan et Dakar). Le service dort la nuit, ce qui garde une marge sur le quota
+# gratuit de Render (750 heures par mois pour tout le compte) : environ 590 heures par mois.
+#
+# Gratuit sur un dépôt public. Les tâches planifiées GitHub peuvent prendre quelques
+# minutes de retard aux heures chargées ; elles sont désactivées automatiquement après
+# 60 jours sans activité sur le dépôt (les réactiver dans l'onglet Actions).
+##############################################################
+
+name: Maintien en éveil de l'API
+
+on:
+  schedule:
+    - cron: '*/10 5-23 * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: keep-alive
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    name: Appel de /health
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      # Le réveil peut prendre jusqu'à une minute : délai généreux, quelques essais.
+      # Jamais en échec : un incident ne doit pas produire un courriel toutes les 10 minutes
+      # (la surveillance avec alerte est confiée à un service dédié, voir MISE-EN-PRODUCTION.md).
+      - name: Appel de https://api.blalinker.com/health
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 90 --retry 2 --retry-delay 15 --retry-all-errors \
+            https://api.blalinker.com/health || true)
+          echo "Réponse de l'API : ${code:-aucune}"
+          if [ "$code" != "200" ]; then
+            echo "::warning::L'API n'a pas répondu 200 (réponse : ${code:-aucune})."
+          fi
