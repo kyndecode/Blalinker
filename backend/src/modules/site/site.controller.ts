@@ -8,6 +8,7 @@ import { prisma } from '../../config/database';
 import { redis } from '../../config/redis';
 import { logger } from '../../config/logger';
 import { env } from '../../config/env';
+import { isCloudinaryConfigured } from '../../config/cloudinary';
 
 /** Seuils d'affichage : en dessous, l'indicateur est masqué plutôt qu'affiché faible. */
 export const PUBLIC_STATS_THRESHOLDS = {
@@ -137,10 +138,15 @@ export function publicCapabilities() {
 }
 
 export const siteController = {
-  /** GET /site/health — état réel de l'API (base + cache), sans détail d'environnement */
+  /**
+   * GET /site/health — état réel de l'API (base + cache), sans détail d'environnement.
+   * `storage` : stockage de fichiers configuré (Cloudinary) ; sans lui, aucun envoi de pièce
+   * d'identité ni de photo n'est possible. Indicateur seul (vrai/faux), aucune valeur exposée ;
+   * il n'influe pas sur le code de réponse (le reste de l'API fonctionne).
+   */
   async health(_req: Request, res: Response) {
     const [db, cache] = await Promise.allSettled([prisma.$queryRaw`SELECT 1`, redis.ping()]);
-    const checks = { database: db.status === 'fulfilled', cache: cache.status === 'fulfilled' };
+    const checks = { database: db.status === 'fulfilled', cache: cache.status === 'fulfilled', storage: isCloudinaryConfigured() };
     res.set('Cache-Control', 'no-store');
     return res.status(checks.database ? 200 : 503).json({ status: checks.database && checks.cache ? 'ok' : 'degraded', checks });
   },

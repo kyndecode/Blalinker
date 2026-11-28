@@ -128,3 +128,17 @@ describe('cache Redis : jamais bloquant', () => {
     expect(res.statusCode).toBe(503);
   });
 });
+
+describe('GET /site/health : état vérifiable de l’extérieur', () => {
+  it('indique si le stockage de fichiers (Cloudinary) est configuré, sans exposer de valeur', async () => {
+    Object.assign(prismaMock, { $queryRaw: jest.fn().mockResolvedValue([1]) });
+    Object.assign(redisMock, { ping: jest.fn().mockResolvedValue('PONG') });
+    const res = mockRes();
+    await siteController.health({} as Request, res);
+    expect(res.statusCode).toBe(200);
+    const expected = Boolean(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET);
+    expect(res.body).toEqual({ status: 'ok', checks: { database: true, cache: true, storage: expected } });
+    // Uniquement des booléens : aucune valeur de configuration n'est renvoyée.
+    expect(Object.values((res.body as { checks: Record<string, unknown> }).checks).every((v) => typeof v === 'boolean')).toBe(true);
+  });
+});
