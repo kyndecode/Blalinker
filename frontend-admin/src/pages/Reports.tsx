@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import AccessDenied, { isForbidden } from '../components/AccessDenied';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
@@ -46,6 +46,10 @@ function DisputeDialog({ report, onClose }: { report: AdminReport | null; onClos
   const toast = useToast();
   const [outcome, setOutcome] = useState<'validate' | 'cancel'>('validate');
   const [note, setNote] = useState('');
+  // Bouton toujours actif : un envoi incomplet explique quoi faire et place le focus sur le champ.
+  const [tried, setTried] = useState(false);
+  const noteRef = useRef<HTMLTextAreaElement>(null);
+  const noteError = tried && note.trim().length < 5 ? 'Justifiez la décision (5 caractères minimum).' : null;
   const paid = report?.booking?.transaction?.status === 'completed' || report?.booking?.transaction?.status === 'processing';
   const resolve = useMutation({
     mutationFn: () => api.post(`/admin/bookings/${report!.booking!.id}/resolve-dispute`, { outcome, note: note.trim() }).then((r) => r.data),
@@ -65,7 +69,15 @@ function DisputeDialog({ report, onClose }: { report: AdminReport | null; onClos
       title="Arbitrer le litige"
       description={<>Les deux parties sont prévenues de la décision. Réservation {paid ? <strong>payée</strong> : 'non payée'}.</>}
     >
-      <form onSubmit={(e) => { e.preventDefault(); if (note.trim().length >= 5) resolve.mutate(); }} className="space-y-3">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (note.trim().length < 5) { setTried(true); noteRef.current?.focus(); return; }
+          if (!resolve.isPending) resolve.mutate();
+        }}
+        className="space-y-3"
+        noValidate
+      >
         <fieldset className="space-y-2">
           <legend className="mb-1 text-sm font-medium text-gray-200">Décision</legend>
           <label className="flex items-start gap-2 text-sm">
@@ -79,14 +91,14 @@ function DisputeDialog({ report, onClose }: { report: AdminReport | null; onClos
         </fieldset>
         <div>
           <label htmlFor="dispute-note" className="mb-1 block text-sm font-medium text-gray-200">Justification (journalisée)</label>
-          <textarea id="dispute-note" rows={3} maxLength={500} value={note} onChange={(e) => setNote(e.target.value)}
+          <textarea id="dispute-note" ref={noteRef} aria-invalid={Boolean(noteError)} aria-describedby="dispute-note-help" rows={3} maxLength={500} value={note} onChange={(e) => setNote(e.target.value)}
             className="w-full rounded-lg border border-white/10 bg-[#0f1b33] px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-green-500" />
-          <p className="mt-1 text-xs text-gray-400">5 caractères minimum.</p>
+          <p id="dispute-note-help" role={noteError ? 'alert' : undefined} className={`mt-1 text-xs ${noteError ? 'text-red-400' : 'text-gray-400'}`}>{noteError ?? '5 caractères minimum.'}</p>
         </div>
         {resolve.isError && <p role="alert" className="text-sm text-red-400">{getApiErrorMessage(resolve.error)}</p>}
         <div className="flex gap-3">
           <button type="button" onClick={onClose} className="flex-1 rounded-lg border border-white/15 py-2 text-sm">Annuler</button>
-          <button type="submit" disabled={resolve.isPending || note.trim().length < 5} className="flex-1 rounded-lg bg-green-700 py-2 text-sm font-semibold text-white disabled:opacity-50">
+          <button type="submit" disabled={resolve.isPending} className="flex-1 rounded-lg bg-green-700 py-2 text-sm font-semibold text-white disabled:opacity-50">
             {resolve.isPending ? 'Traitement…' : 'Confirmer la décision'}
           </button>
         </div>
@@ -166,7 +178,7 @@ export default function Reports() {
               {open && (
                 <div className="mt-3 flex flex-wrap gap-2">
                   {disputed && (
-                    <button onClick={() => setArbitrating(r)} className="rounded-lg bg-orange-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-orange-700">Arbitrer le litige</button>
+                    <button onClick={() => setArbitrating(r)} className="rounded-lg bg-orange-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-orange-800">Arbitrer le litige</button>
                   )}
                   {r.status === 'pending' && (
                     <button onClick={() => update.mutate({ id: r.id, next: 'reviewed' })} className="rounded-lg border border-white/15 px-3 py-1.5 text-xs text-gray-200 hover:bg-white/5">Prendre en charge</button>
