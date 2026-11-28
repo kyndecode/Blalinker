@@ -15,6 +15,7 @@ import {
   PERMISSIONS,
 } from '../../config/permissions';
 import type { CreateAdminInput, UpdateAdminInput, ResetAdminPasswordInput } from './team.schemas';
+import { disconnectUser } from '../../realtime/socketRegistry';
 
 const ADMIN_ROLES = ['admin', 'super_admin'] as const;
 
@@ -149,6 +150,7 @@ export const teamController = {
       // Membre suspendu : ses sessions sont fermées immédiatement.
       if (data.status === 'suspended') {
         await prisma.userSession.deleteMany({ where: { userId: id } });
+        disconnectUser(id);
       }
 
       await auditFromReq(req, 'admin.team.update', { entity: 'user', entityId: id, oldData: target, newData: update });
@@ -186,6 +188,7 @@ export const teamController = {
         prisma.user.update({ where: { id }, data: { deletedAt: new Date(), status: 'suspended' } }),
         prisma.userSession.deleteMany({ where: { userId: id } }),
       ]);
+      disconnectUser(id);
 
       await auditFromReq(req, 'admin.team.delete', { entity: 'user', entityId: id });
       return res.json({ message: 'Membre supprimé' });
@@ -210,6 +213,7 @@ export const teamController = {
       }
 
       const { count } = await prisma.userSession.deleteMany({ where: { userId: id } });
+      disconnectUser(id);
       await auditFromReq(req, 'admin.team.force_logout', { entity: 'user', entityId: id, newData: { sessionsRevoked: count, result: 'success' } });
       return res.json({ message: 'Sessions révoquées' });
     } catch (err) {
@@ -238,6 +242,7 @@ export const teamController = {
       ];
       if (data.forceLogout) ops.push(prisma.userSession.deleteMany({ where: { userId: id } }));
       await Promise.all(ops);
+      if (data.forceLogout) disconnectUser(id);
 
       await auditFromReq(req, 'admin.team.reset_password', { entity: 'user', entityId: id });
       return res.json({ message: 'Mot de passe réinitialisé' });

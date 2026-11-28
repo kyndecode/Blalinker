@@ -15,6 +15,7 @@ import { redis } from '../config/redis';
 import { logger } from '../config/logger';
 import { verifyAccessToken, isTokenRevoked } from '../utils/jwt.util';
 import { BOOKING_TRANSITIONS, runBookingTransition } from '../modules/bookings/bookings.controller';
+import { sessionRoom, setSocketServer, userRoom } from './socketRegistry';
 
 const bookingIdSchema = z.string().uuid();
 export const joinBookingSchema = z.object({ bookingId: bookingIdSchema });
@@ -71,6 +72,7 @@ export async function authenticateSocket(socket: Socket, next: (err?: Error) => 
     if (await isTokenRevoked(token)) return next(new Error('Token révoqué'));
     const payload = verifyAccessToken(token);
     socket.data.user = { userId: payload.userId, role: payload.role } satisfies SocketUser;
+    socket.data.sessionId = payload.sessionId;
     return next();
   } catch {
     return next(new Error('Token invalide'));
@@ -87,14 +89,16 @@ export function haversineKm(lat1: number, lng1: number, lat2: number, lng2: numb
 }
 
 export function registerSocketHandlers(io: Server) {
+  setSocketServer(io);
   io.use(authenticateSocket);
 
   io.on('connection', (socket) => {
     const { userId, role } = socket.data.user as SocketUser;
     logger.debug(`WebSocket connecté: ${userId} (${role})`);
 
-    // Salle personnelle (notifications)
-    socket.join(`user:${userId}`);
+    // Salle personnelle (notifications) et salle de session (révocation à la déconnexion).
+    socket.join(userRoom(userId));
+    if (typeof socket.data.sessionId === 'string') socket.join(sessionRoom(socket.data.sessionId));
 
     // Suivi d'une réservation : uniquement le client ou le prestataire de cette réservation.
     socket.on('join_booking', safeHandler('join_booking', socket, async (raw: unknown) => {

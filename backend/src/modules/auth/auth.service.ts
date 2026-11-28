@@ -24,6 +24,7 @@ import { maskEmail, maskPhone } from '../../utils/mask.util';
 import { writeAudit } from '../../utils/audit.util';
 import { mfaService, isAdminRole } from './mfa.service';
 import type { RegisterInput, LoginInput, ResendOtpInput, GoogleLoginInput } from './auth.schemas';
+import { disconnectSession, disconnectUser } from '../../realtime/socketRegistry';
 
 export type MfaMethod = 'totp' | 'email' | 'recovery';
 
@@ -581,6 +582,7 @@ export class AuthService {
       }
       // Jeton déjà utilisé hors de cette fenêtre : possible vol — révoquer toute la famille.
       await prisma.userSession.deleteMany({ where: { userId: payload.userId } });
+      disconnectUser(payload.userId);
       throw Object.assign(new Error('Session invalide. Reconnectez-vous.'), { status: 401 });
     }
 
@@ -592,6 +594,7 @@ export class AuthService {
     // est fermée (auparavant, un compte suspendu continuait à obtenir de nouveaux jetons).
     if (!user || user.deletedAt || user.status !== 'active') {
       await prisma.userSession.deleteMany({ where: { id: session.id } });
+      disconnectSession(session.id);
       const code = user?.status === 'banned' ? 'ACCOUNT_BANNED' : user?.status === 'suspended' ? 'ACCOUNT_SUSPENDED' : 'ACCOUNT_INACTIVE';
       throw Object.assign(new Error('Accès refusé : compte inactif ou suspendu.'), { status: 403, code });
     }
@@ -649,6 +652,7 @@ export class AuthService {
     const nowSec = Math.floor(Date.now() / 1000);
     for (const t of targets) {
       await prisma.userSession.deleteMany({ where: { id: t.sessionId, userId: t.userId } });
+      disconnectSession(t.sessionId);
       const ttl = Math.max(60, (t.exp ?? nowSec + 30 * 24 * 3600) - nowSec);
       try {
         await redis.setex(`session:closed:${t.sessionId}`, ttl, '1');

@@ -21,6 +21,7 @@ import { contactLabels } from '../contact/contact.controller';
 import { notifyUser, notifyUsers } from '../notifications/notifications.service';
 import { bookingWhere, sortOrder, transactionWhere, userWhere } from './insights.controller';
 import { isCloudinaryConfigured, parseCloudinaryUrl, signedDownloadUrl } from '../../config/cloudinary';
+import { disconnectUser } from '../../realtime/socketRegistry';
 
 type ContactRequestStatus = 'new' | 'read' | 'answered' | 'done' | 'closed';
 
@@ -474,6 +475,7 @@ export const adminController = {
         prisma.user.update({ where: { id }, data: { status } }),
         ...(revokeSessions ? [prisma.userSession.deleteMany({ where: { userId: id } })] : []),
       ]);
+      if (revokeSessions) disconnectUser(id);
       await auditFromReq(req, 'admin.user.status', {
         entity: 'user',
         entityId: id,
