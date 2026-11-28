@@ -7,7 +7,8 @@ const tr = (key: string, fallback: string) => {
   return value && value !== key ? value : fallback;
 };
 
-class Boundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+/** Filet de sécurité générique (aussi utilisé autour de toute l’application, sans réinitialisation). */
+export class AppErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
 
   static getDerivedStateFromError() {
@@ -41,5 +42,5 @@ class Boundary extends Component<{ children: ReactNode }, { failed: boolean }> {
  */
 export default function PageErrorBoundary({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
-  return <Boundary key={pathname}>{children}</Boundary>;
+  return <AppErrorBoundary key={pathname}>{children}</AppErrorBoundary>;
 }

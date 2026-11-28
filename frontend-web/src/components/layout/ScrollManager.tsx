@@ -36,7 +36,10 @@ export default function ScrollManager() {
 
   useEffect(() => {
     if (!hash) return undefined;
-    const id = decodeURIComponent(hash.slice(1));
+    // Ancre mal encodée (ex. « #%E0%A4%A ») : decodeURIComponent lève une erreur qui rendait tout
+    // le site blanc ; on garde alors l'ancre telle quelle.
+    let id = hash.slice(1);
+    try { id = decodeURIComponent(id); } catch { /* ancre conservée brute */ }
     const target = () => document.getElementById(id);
     const found = target();
     if (found) { scrollToSection(found); return undefined; }

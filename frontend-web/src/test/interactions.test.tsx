@@ -78,6 +78,8 @@ describe('session : connexion, renouvellement, expiration', () => {
   });
 
   it('renouvellements simultanés (démarrage de page exécuté deux fois, requêtes en 401) : UNE seule requête', async () => {
+    // Condition réelle : un renouvellement n'a lieu que pour un utilisateur connu (session existante).
+    useAuthStore.setState({ user: { id: 'u1', role: 'client' } } as never);
     let resolve!: (v: unknown) => void;
     const post = vi.spyOn(axios, 'post').mockReturnValue(new Promise((r) => { resolve = r; }) as never);
     const a = refreshAccessToken();
@@ -89,6 +91,7 @@ describe('session : connexion, renouvellement, expiration', () => {
   });
 
   it('course avec un autre onglet (409) : nouvel essai avec le cookie déjà remplacé, pas de déconnexion', async () => {
+    useAuthStore.setState({ user: { id: 'u1', role: 'client' } } as never);
     const post = vi.spyOn(axios, 'post')
       .mockRejectedValueOnce(httpError(409, { code: 'REFRESH_RACE' }))
       .mockResolvedValueOnce({ data: { accessToken: 'apres-course' } } as never);

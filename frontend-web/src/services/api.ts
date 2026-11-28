@@ -213,6 +213,17 @@ export function refreshAccessToken(): Promise<string> {
         return postRefresh();
       })
       .then((token) => {
+        // Déconnexion pendant le renouvellement : ne pas réinstaller la session dans le navigateur,
+        // et fermer côté serveur celle que ce renouvellement vient d'ouvrir (avant : l'utilisateur
+        // se retrouvait connecté après avoir cliqué sur « Se déconnecter »).
+        if (!useAuthStore.getState().user) {
+          void axios.post(`${getActiveApiBaseUrl()}/auth/logout`, {}, {
+            withCredentials: true,
+            timeout: WRITE_TIMEOUT_MS,
+            headers: { 'X-Auth-Mode': 'cookie', Authorization: `Bearer ${token}` },
+          }).catch(() => { /* fermeture au mieux : le jeton d'accès expire de toute façon */ });
+          throw Object.assign(new Error('Session terminée'), { response: { status: 401, data: { code: 'SESSION_CLOSED' } } });
+        }
         useAuthStore.getState().setTokens(token);
         return token;
       })
