@@ -515,7 +515,7 @@ export default function ProfilePage() {
           <Input label="Ville" placeholder="Dakar, Abidjan..." {...register('city')} />
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-              Bio <span className="text-gray-400 font-normal">(optionnel)</span>
+              Bio <span className="text-gray-500 dark:text-gray-400 font-normal">(optionnel)</span>
             </label>
             <textarea {...register('bio')} rows={3} placeholder="Décrivez votre profil..." className="input resize-none" />
             {errors.bio && <p className="text-red-500 text-xs mt-1">{errors.bio.message}</p>}

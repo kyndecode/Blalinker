@@ -154,7 +154,7 @@ export default function Security() {
         <KeyRound className="w-7 h-7 text-green-700" />
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Sécurité du compte</h1>
-          <p className="text-gray-500 text-sm">Validation en deux étapes par application d'authentification</p>
+          <p className="text-gray-400 text-sm">Validation en deux étapes par application d'authentification</p>
         </div>
       </div>
 
@@ -165,7 +165,7 @@ export default function Security() {
       {recoveryCodes ? (
         <RecoveryCodes codes={recoveryCodes} onDone={finish} />
       ) : !status ? (
-        <p className="text-gray-500">Chargement…</p>
+        <p className="text-gray-400">Chargement…</p>
       ) : status.totpEnabled ? (
         <>
           <div className={card}>
