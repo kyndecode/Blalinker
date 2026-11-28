@@ -1,7 +1,9 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
+import i18next from 'i18next';
 import { create } from 'zustand';
 import { useAuthStore } from '../store/authStore';
 import { endLocalSession } from './session';
+import { setFlashNotice } from '../utils/flashNotice';
 
 type RetryableRequestConfig = InternalAxiosRequestConfig & {
   _retry?: boolean;
@@ -168,18 +170,63 @@ api.interceptors.request.use((config: RetryableRequestConfig) => {
   return config;
 });
 
-let isRefreshing = false;
-let failedQueue: Array<{
-  resolve: (value: unknown) => void;
-  reject: (reason?: unknown) => void;
-}> = [];
+/**
+ * Routes publiques d'authentification : un 401 y signifie « identifiants ou code incorrects »,
+ * jamais « session expirée ». Avant, un mauvais mot de passe déclenchait un renouvellement de
+ * session, dont l'échec remplaçait le vrai message par « Refresh token manquant ».
+ */
+const PUBLIC_AUTH_PATHS = [
+  '/auth/login', '/auth/register', '/auth/verify-otp', '/auth/resend-otp', '/auth/google',
+  '/auth/forgot-password', '/auth/reset-password', '/auth/refresh-token', '/auth/logout',
+];
+export function isPublicAuthRequest(url: string | undefined): boolean {
+  return PUBLIC_AUTH_PATHS.some((p) => (url ?? '').includes(p));
+}
 
-function processQueue(error: Error | null, token: string | null) {
-  failedQueue.forEach((pending) => {
-    if (error) pending.reject(error);
-    else pending.resolve(token);
+let refreshInFlight: Promise<string> | null = null;
+
+function postRefresh(): Promise<string> {
+  return axios.post(
+    `${getActiveApiBaseUrl()}/auth/refresh-token`,
+    {},
+    // Le refresh token est dans un cookie HttpOnly : envoyé automatiquement grâce à
+    // withCredentials, sans être accessible au JavaScript.
+    { withCredentials: true, timeout: WRITE_TIMEOUT_MS, headers: { 'X-Auth-Mode': 'cookie' } },
+  ).then(({ data }) => {
+    if (!data?.accessToken) throw Object.assign(new Error('Session invalide'), { response: { status: 401, data: {} } });
+    return data.accessToken as string;
   });
-  failedQueue = [];
+}
+
+/**
+ * Renouvelle le jeton d'accès. UNE seule requête à la fois pour tout le site (démarrage de la
+ * page, requêtes simultanées en 401) : deux renouvellements parallèles avec le même cookie
+ * faisaient échouer l'un d'eux, et cet échec fermait la session que l'autre venait de restaurer.
+ * Course avec un autre onglet (409) : le cookie a déjà été remplacé, un nouvel essai suffit.
+ */
+export function refreshAccessToken(): Promise<string> {
+  if (!refreshInFlight) {
+    refreshInFlight = postRefresh()
+      .catch(async (error) => {
+        if ((error as AxiosError)?.response?.status !== 409) throw error;
+        await delay(300);
+        return postRefresh();
+      })
+      .then((token) => {
+        useAuthStore.getState().setTokens(token);
+        return token;
+      })
+      .finally(() => { refreshInFlight = null; });
+  }
+  return refreshInFlight;
+}
+
+/** Session refusée par le serveur : fin de session locale et message à l'écran de connexion. */
+function endExpiredSession() {
+  if (useAuthStore.getState().isAuthenticated || useAuthStore.getState().user) {
+    setFlashNotice(i18next.t('errors.session_expired'));
+  }
+  endLocalSession();
 }
 
 api.interceptors.response.use(
@@ -200,48 +247,25 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    if (error.response?.status === 401 && !originalRequest._retry && !isRefreshRequest) {
-      if (isRefreshing) {
-        return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject });
-        }).then((token) => {
-          originalRequest.headers.Authorization = `Bearer ${token}`;
-          originalRequest.baseURL = getActiveApiBaseUrl();
-          return api(originalRequest);
-        });
-      }
-
+    // 401 sur une route protégée, pour un utilisateur qui a une session : renouvellement puis
+    // nouvel essai. Jamais sur une route publique d'authentification (mauvais mot de passe).
+    if (
+      error.response?.status === 401 && !originalRequest._retry && !isRefreshRequest
+      && !isPublicAuthRequest(requestUrl) && useAuthStore.getState().user
+    ) {
       originalRequest._retry = true;
-      isRefreshing = true;
-
       try {
-        const { setTokens } = useAuthStore.getState();
-
-        // Le refresh token est dans un cookie HttpOnly : envoyé automatiquement
-        // grâce à withCredentials, sans être accessible au JavaScript.
-        const { data } = await axios.post(
-          `${getActiveApiBaseUrl()}/auth/refresh-token`,
-          {},
-          { withCredentials: true, timeout: WRITE_TIMEOUT_MS, headers: { 'X-Auth-Mode': 'cookie' } }
-        );
-
-        if (!data?.accessToken) {
-          endLocalSession();
-          return Promise.reject(error);
-        }
-
-        setTokens(data.accessToken);
-        processQueue(null, data.accessToken);
-        originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
+        const token = await refreshAccessToken();
+        originalRequest.headers.Authorization = `Bearer ${token}`;
         originalRequest.baseURL = getActiveApiBaseUrl();
         return api(originalRequest);
       } catch (refreshError) {
-        processQueue(refreshError as Error, null);
-        // Session refusée par le serveur → déconnexion ; panne passagère → session conservée.
-        if (shouldLogoutAfterRefreshError(refreshError)) endLocalSession();
+        // Session refusée par le serveur → déconnexion avec message ; panne passagère → session conservée.
+        if (shouldLogoutAfterRefreshError(refreshError)) {
+          endExpiredSession();
+          return Promise.reject(Object.assign(error, { sessionExpired: true }));
+        }
         return Promise.reject(refreshError);
-      } finally {
-        isRefreshing = false;
       }
     }
 

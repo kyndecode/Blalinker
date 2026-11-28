@@ -63,7 +63,21 @@
     "google_continue": "Continue with Google",
     "google_loading": "Google sign-in...",
     "google_unavailable": "Google sign-in is currently unavailable.",
-    "otp_not_password_hint": "You will receive a verification OTP code. Your password is never sent by email."
+    "otp_not_password_hint": "You will receive a verification OTP code. Your password is never sent by email.",
+    "reset_code_sent": "If an account matches, a reset code has been sent.",
+    "password_mismatch": "The two passwords do not match.",
+    "reset_success": "Password reset. You can now sign in.",
+    "forgot_subtitle": "Enter your email or phone number to receive a code.",
+    "reset_subtitle": "Enter the code you received and your new password.",
+    "send_code": "Send the code",
+    "new_password": "New password",
+    "confirm_password": "Confirm password",
+    "reset_password_action": "Reset password",
+    "resend_code": "Send a new code",
+    "back_to_login": "Back to sign in",
+    "otp_format": "Enter the 6-digit code you received.",
+    "phone_invalid_length": "Invalid number: {{length}} digits expected for this country.",
+    "phone_invalid": "The phone number does not match the expected format."
   },
   "search": {
     "title": "Find a Provider",
@@ -134,10 +148,26 @@
     "error": "Payment Failed"
   },
   "errors": {
-    "network": "Connection problem. Check your network.",
-    "server": "Server error. Please try again.",
-    "unauthorized": "Session expired. Please sign in again.",
-    "not_found": "Not found."
+    "network": "Cannot connect. Check your network and try again.",
+    "server": "Server error. Please try again in a moment.",
+    "unauthorized": "Incorrect credentials.",
+    "not_found": "Not found.",
+    "session_expired": "Your session has expired. Please sign in again.",
+    "timeout": "The server is taking too long to respond. Please try again in a moment.",
+    "forbidden": "You are not allowed to perform this action.",
+    "not_found_item": "This item does not exist or has been deleted.",
+    "conflict": "The information changed in the meantime. Reload the page and try again.",
+    "rate_limit": "Too many attempts. Please wait a few minutes before trying again.",
+    "validation": "Some information is incorrect. Please fix the highlighted fields.",
+    "unavailable": "The service is temporarily unavailable. Please try again in a moment.",
+    "generic": "An unexpected error occurred. Please try again.",
+    "required": "This field is required.",
+    "invalid_email": "Please enter a valid email address.",
+    "identifier_required": "Enter your email address or phone number.",
+    "password_required": "Enter your password.",
+    "page_title": "This page could not be displayed",
+    "page_text": "An unexpected error occurred. Reload the page; if the problem persists, go back to the home page.",
+    "page_reload": "Reload the page"
   },
   "offline": "Connection lost. Data may not be up to date.",
   "home": {

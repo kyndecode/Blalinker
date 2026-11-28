@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import ServiceEditDialog from '../../components/provider/ServiceEditDialog';
 import { ConfirmDialog } from '../../components/booking/BookingDialogs';
 import { getApiErrorMessage } from '../../utils/apiError';
+import { applyServerFieldErrors } from '../../utils/formErrors';
+import { FormMessage } from '../../components/common/FormMessage';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -11,13 +13,24 @@ import { Button } from '../../components/common/Button';
 import api from '../../services/api';
 
 const schema = z.object({
-  firstName: z.string().min(1, 'Requis'),
-  lastName: z.string().min(1, 'Requis'),
-  email: z.string().email('Email invalide').optional().or(z.literal('')),
+  firstName: z.string().trim().min(1, 'Indiquez votre prénom.'),
+  lastName: z.string().trim().min(1, 'Indiquez votre nom.'),
+  email: z.string().email('Veuillez saisir une adresse e-mail valide.').optional().or(z.literal('')),
   phone: z.string().optional(),
-  bio: z.string().max(500, 'Maximum 500 caractères').optional().or(z.literal('')),
+  bio: z.string().max(500, 'La présentation ne doit pas dépasser 500 caractères.').optional().or(z.literal('')),
   city: z.string().optional().or(z.literal('')),
 });
+
+/** Message d'une action de la page (sens indiqué par une icône, pas seulement la couleur). */
+type Notice = { tone: 'success' | 'error' | 'info'; text: string } | null;
+
+/** Taille maximale acceptée par le serveur pour un fichier (photo, pièce d'identité). */
+const MAX_UPLOAD_MB = 6;
+function tooLarge(file: File): string | null {
+  return file.size > MAX_UPLOAD_MB * 1024 * 1024
+    ? `Ce fichier est trop volumineux (${(file.size / 1024 / 1024).toFixed(1).replace('.', ',')} Mo). La taille maximale autorisée est de ${MAX_UPLOAD_MB} Mo.`
+    : null;
+}
 
 type FormData = z.infer<typeof schema>;
 
@@ -102,18 +115,19 @@ export default function ProfilePage() {
 
   const [providerLocation, setProviderLocation] = useState<{ latitude?: number; longitude?: number; address?: string }>({});
   const [locSaving, setLocSaving] = useState(false);
-  const [locMsg, setLocMsg] = useState('');
+  const [locMsg, setLocMsg] = useState<Notice>(null);
+  const [avatarMsg, setAvatarMsg] = useState<Notice>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [kycUploading, setKycUploading] = useState(false);
   const [editingService, setEditingService] = useState<ProviderService | null>(null);
   const [deletingService, setDeletingService] = useState<ProviderService | null>(null);
   const [serviceDialogBusy, setServiceDialogBusy] = useState(false);
   const [serviceDialogError, setServiceDialogError] = useState<string | null>(null);
-  const [kycMsg, setKycMsg] = useState('');
+  const [kycMsg, setKycMsg] = useState<Notice>(null);
   const [balance, setBalance] = useState<{ available: number; held: number; pendingWithdrawal: number; currency: string } | null>(null);
   const [payouts, setPayouts] = useState<Array<{ id: string; amount: number; currency: string; status: string; createdAt: string }>>([]);
   const [payoutBusy, setPayoutBusy] = useState(false);
-  const [payoutMsg, setPayoutMsg] = useState('');
+  const [payoutMsg, setPayoutMsg] = useState<Notice>(null);
 
   const [categories, setCategories] = useState<CategoryNode[]>([]);
   const [services, setServices] = useState<ProviderService[]>([]);
@@ -128,7 +142,7 @@ export default function ProfilePage() {
     priceType: 'fixed',
   });
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, reset, setError, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
 
@@ -198,8 +212,7 @@ export default function ProfilePage() {
         categoryId: prev.categoryId || firstCategory,
       }));
     } catch (error: unknown) {
-      const e = error as { response?: { data?: { error?: string } } };
-      const message = e?.response?.data?.error || 'Impossible de charger les données prestataire';
+      const message = getApiErrorMessage(error, 'Impossible de charger les données prestataire.');
       setProviderError(message);
       setServiceError(message);
     } finally {
@@ -237,11 +250,13 @@ export default function ProfilePage() {
     try {
       await api.patch('/users/me', data);
       setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
+      setTimeout(() => setSuccess(false), 6000);
       setProfile((prev) => ({ ...(prev || {}), ...data }));
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { error?: string } } };
-      setApiError(e?.response?.data?.error || 'Erreur lors de la mise à jour');
+      // Erreurs de validation du serveur : sous le champ ; sinon message général précis.
+      if (applyServerFieldErrors(err, setError, ['firstName', 'lastName', 'email', 'phone', 'bio', 'city']) === 0) {
+        setApiError(getApiErrorMessage(err, 'Le profil n’a pas pu être mis à jour. Réessayez.'));
+      }
     } finally {
       setSaving(false);
     }
@@ -263,69 +278,73 @@ export default function ProfilePage() {
         isAvailable: Boolean(providerProfile.isAvailable),
         bioPro: providerProfile.bioPro || undefined,
       });
-      setProviderSuccess('Profil prestataire mis à jour');
+      setProviderSuccess('Profil prestataire mis à jour.');
       await loadProviderData();
     } catch (error: unknown) {
-      const e = error as { response?: { data?: { error?: string } } };
-      setProviderError(e?.response?.data?.error || 'Erreur lors de la mise à jour prestataire');
+      setProviderError(getApiErrorMessage(error, 'Le profil prestataire n’a pas pu être mis à jour. Réessayez.'));
     } finally {
       setProviderSaving(false);
     }
   };
 
   const useMyGPS = () => {
-    setLocMsg('');
-    if (!('geolocation' in navigator)) { setLocMsg('Géolocalisation non disponible sur cet appareil.'); return; }
+    setLocMsg(null);
+    if (!('geolocation' in navigator)) { setLocMsg({ tone: 'error', text: 'La géolocalisation n’est pas disponible sur cet appareil.' }); return; }
     navigator.geolocation.getCurrentPosition(
       (pos) => setProviderLocation((p) => ({ ...p, latitude: pos.coords.latitude, longitude: pos.coords.longitude })),
-      () => setLocMsg('Impossible d\'obtenir votre position (autorisez la localisation).'),
+      () => setLocMsg({ tone: 'error', text: 'Impossible d’obtenir votre position : autorisez la localisation dans votre navigateur, puis réessayez.' }),
       { enableHighAccuracy: true, timeout: 10_000 },
     );
   };
 
   const saveLocation = async () => {
     if (providerLocation.latitude == null || providerLocation.longitude == null) {
-      setLocMsg('Définissez d\'abord votre position (bouton GPS).');
+      setLocMsg({ tone: 'error', text: 'Définissez d’abord votre position avec le bouton GPS.' });
       return;
     }
     setLocSaving(true);
-    setLocMsg('');
+    setLocMsg(null);
     try {
       await api.put('/providers/me/profile', {
         latitude: providerLocation.latitude,
         longitude: providerLocation.longitude,
         address: providerLocation.address || undefined,
       });
-      setLocMsg('Position enregistrée ✓ Vous êtes désormais visible dans la recherche.');
+      setLocMsg({ tone: 'success', text: 'Position enregistrée. Vous êtes désormais visible dans la recherche.' });
     } catch (error: unknown) {
-      const e = error as { response?: { data?: { error?: string } } };
-      setLocMsg(e?.response?.data?.error || 'Erreur lors de l\'enregistrement de la position.');
+      setLocMsg({ tone: 'error', text: getApiErrorMessage(error, 'La position n’a pas pu être enregistrée. Réessayez.') });
     } finally {
       setLocSaving(false);
     }
   };
 
   const uploadAvatar = async (file: File) => {
+    // Avant : toute erreur était ignorée, le bouton semblait ne rien faire.
+    const sizeError = tooLarge(file);
+    if (sizeError) { setAvatarMsg({ tone: 'error', text: sizeError }); return; }
+    setAvatarMsg(null);
     setAvatarUploading(true);
     try {
       const r = await api.postForm('/uploads/avatar', { file });
       setProfile((prev) => ({ ...(prev || {}), avatarUrl: r.data.url }));
-    } catch {
-      /* ignore */
+      setAvatarMsg({ tone: 'success', text: 'Votre photo de profil a été mise à jour.' });
+    } catch (error: unknown) {
+      setAvatarMsg({ tone: 'error', text: getApiErrorMessage(error, 'La photo n’a pas pu être envoyée. Réessayez.') });
     } finally {
       setAvatarUploading(false);
     }
   };
 
   const uploadKyc = async (file: File) => {
+    const sizeError = tooLarge(file);
+    if (sizeError) { setKycMsg({ tone: 'error', text: sizeError }); return; }
     setKycUploading(true);
-    setKycMsg('');
+    setKycMsg(null);
     try {
       const r = await api.postForm('/uploads/id-card', { file });
-      setKycMsg(r.data.message || 'Document envoyé. En attente de vérification.');
+      setKycMsg({ tone: 'success', text: r.data.message || 'Votre document a été transmis. Il est en attente de vérification par notre équipe.' });
     } catch (error: unknown) {
-      const e = error as { response?: { data?: { error?: string } } };
-      setKycMsg(e?.response?.data?.error || 'Échec du téléversement.');
+      setKycMsg({ tone: 'error', text: getApiErrorMessage(error, 'Le document n’a pas pu être envoyé. Réessayez.') });
     } finally {
       setKycUploading(false);
     }
@@ -333,14 +352,13 @@ export default function ProfilePage() {
 
   const requestPayout = async () => {
     setPayoutBusy(true);
-    setPayoutMsg('');
+    setPayoutMsg(null);
     try {
       await api.post('/payouts/me/request', {});
-      setPayoutMsg('Demande de retrait envoyée. Elle sera traitée par notre équipe.');
+      setPayoutMsg({ tone: 'success', text: 'Votre demande de retrait a été envoyée. Elle sera traitée par notre équipe.' });
       await loadProviderData();
     } catch (error: unknown) {
-      const e = error as { response?: { data?: { error?: string } } };
-      setPayoutMsg(e?.response?.data?.error || 'Aucun montant disponible au retrait.');
+      setPayoutMsg({ tone: 'error', text: getApiErrorMessage(error, 'La demande de retrait n’a pas pu être envoyée. Réessayez.') });
     } finally {
       setPayoutBusy(false);
     }
@@ -348,13 +366,13 @@ export default function ProfilePage() {
 
   const createService = async () => {
     if (!serviceForm.categoryId || !serviceForm.title.trim()) {
-      setServiceError('Catégorie et titre sont requis');
+      setServiceError('Choisissez une catégorie et indiquez un titre pour le service.');
       return;
     }
 
     const numericPrice = Number(serviceForm.price);
     if (!Number.isFinite(numericPrice) || numericPrice <= 0) {
-      setServiceError('Prix invalide');
+      setServiceError('Indiquez un prix valide, supérieur à 0.');
       return;
     }
 
@@ -377,8 +395,7 @@ export default function ProfilePage() {
       }));
       await loadProviderData();
     } catch (error: unknown) {
-      const e = error as { response?: { data?: { error?: string } } };
-      setServiceError(e?.response?.data?.error || 'Erreur lors de la création du service');
+      setServiceError(getApiErrorMessage(error, 'Le service n’a pas pu être créé. Réessayez.'));
     } finally {
       setServiceSaving(false);
     }
@@ -391,8 +408,7 @@ export default function ProfilePage() {
       });
       await loadProviderData();
     } catch (error: unknown) {
-      const e = error as { response?: { data?: { error?: string } } };
-      setServiceError(e?.response?.data?.error || 'Impossible de modifier le statut du service');
+      setServiceError(getApiErrorMessage(error, 'Le statut du service n’a pas pu être modifié. Réessayez.'));
     }
   };
 
@@ -475,26 +491,19 @@ export default function ProfilePage() {
             type="file"
             accept="image/jpeg,image/png,image/webp"
             className="sr-only"
-            onChange={(e) => { if (e.target.files?.[0]) uploadAvatar(e.target.files[0]); }}
+            disabled={avatarUploading}
+            onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) uploadAvatar(f); }}
           />
           {avatarUploading ? 'Envoi…' : 'Changer la photo'}
         </label>
       </div>
+      <FormMessage tone={avatarMsg?.tone ?? 'info'} className="mb-4">{avatarMsg?.text}</FormMessage>
 
       <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-6">
         <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-5">Informations personnelles</h2>
 
-        {success && (
-          <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-3 mb-5">
-            <p className="text-green-700 dark:text-green-400 text-sm">Profil mis à jour avec succès</p>
-          </div>
-        )}
-
-        {apiError && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-3 mb-5">
-            <p className="text-red-700 dark:text-red-400 text-sm">{apiError}</p>
-          </div>
-        )}
+        <FormMessage tone="success" className="mb-5">{success ? 'Votre profil a été mis à jour.' : null}</FormMessage>
+        <FormMessage tone="error" className="mb-5">{apiError}</FormMessage>
 
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
           <div className="grid grid-cols-2 gap-4">
@@ -526,11 +535,7 @@ export default function ProfilePage() {
               Sans position, vous n'apparaissez pas dans la recherche. La pièce d'identité permet d'obtenir le badge « Vérifié ».
             </p>
 
-            {locMsg && (
-              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-3 mb-4">
-                <p className="text-blue-700 dark:text-blue-400 text-sm">{locMsg}</p>
-              </div>
-            )}
+            <FormMessage tone={locMsg?.tone ?? 'info'} className="mb-4">{locMsg?.text}</FormMessage>
 
             <div className="grid md:grid-cols-2 gap-4">
               <div>
@@ -555,18 +560,20 @@ export default function ProfilePage() {
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <Button onClick={saveLocation} loading={locSaving}>Enregistrer ma position</Button>
 
-              <label className="cursor-pointer btn-secondary text-sm px-4 py-2">
+              {/* Champ visuellement masqué mais atteignable au clavier (« hidden » le rendait inaccessible). */}
+              <label className="cursor-pointer btn-secondary text-sm px-4 py-2 focus-within:ring-2 focus-within:ring-green-500">
                 <input
                   type="file"
-                  accept="image/*,application/pdf"
-                  className="hidden"
-                  onChange={(e) => { if (e.target.files?.[0]) uploadKyc(e.target.files[0]); }}
+                  accept="image/jpeg,image/png,image/webp,application/pdf"
+                  className="sr-only"
+                  disabled={kycUploading}
+                  onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) uploadKyc(f); }}
                 />
                 {kycUploading ? 'Envoi…' : '🪪 Envoyer ma pièce d\'identité (KYC)'}
               </label>
               {profile?.isVerified && <span className="badge badge-blue">Identité vérifiée</span>}
             </div>
-            {kycMsg && <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">{kycMsg}</p>}
+            <FormMessage tone={kycMsg?.tone ?? 'info'} className="mt-2">{kycMsg?.text}</FormMessage>
           </div>
 
           <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-6">
@@ -590,7 +597,7 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {payoutMsg && <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">{payoutMsg}</p>}
+            <FormMessage tone={payoutMsg?.tone ?? 'info'} className="mb-3">{payoutMsg?.text}</FormMessage>
 
             <Button onClick={requestPayout} loading={payoutBusy} disabled={!balance || balance.available <= 0}>
               Demander un retrait
@@ -613,16 +620,8 @@ export default function ProfilePage() {
           <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-6">
             <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-4">Profil prestataire</h2>
 
-            {providerError && (
-              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-3 mb-4">
-                <p className="text-red-700 dark:text-red-400 text-sm">{providerError}</p>
-              </div>
-            )}
-            {providerSuccess && (
-              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-3 mb-4">
-                <p className="text-green-700 dark:text-green-400 text-sm">{providerSuccess}</p>
-              </div>
-            )}
+            <FormMessage tone="error" className="mb-4">{providerError}</FormMessage>
+            <FormMessage tone="success" className="mb-4">{providerSuccess}</FormMessage>
 
             <div className="grid md:grid-cols-2 gap-4">
               <Input
@@ -694,11 +693,7 @@ export default function ProfilePage() {
           <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-6">
             <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-4">Mes services</h2>
 
-            {serviceError && (
-              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-3 mb-4">
-                <p className="text-red-700 dark:text-red-400 text-sm">{serviceError}</p>
-              </div>
-            )}
+            <FormMessage tone="error" className="mb-4">{serviceError}</FormMessage>
 
             <div className="grid md:grid-cols-2 gap-3">
               <div className="md:col-span-2">

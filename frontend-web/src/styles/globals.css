@@ -12,6 +12,13 @@
   html {
     @apply scroll-smooth;
     font-size: 16px;
+    /* En-tête fixe de 64 px : une section atteinte par un lien, ou un champ en erreur
+       qui reçoit le focus, s'affiche en dessous et non derrière. */
+    scroll-padding-top: 5rem;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
   }
 
   body {

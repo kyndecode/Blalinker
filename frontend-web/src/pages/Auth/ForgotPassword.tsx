@@ -1,16 +1,21 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
 import Logo from '../../components/common/Logo';
+import { FormMessage } from '../../components/common/FormMessage';
 import api from '../../services/api';
+import { classifyApiError } from '../../utils/apiError';
+import { focusFirstInvalidSoon } from '../../utils/formErrors';
 
 const PAGE = 'min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center p-4';
 const CARD = 'w-full max-w-sm bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm p-8';
 
 const PHONE_RE = /^\+[1-9]\d{7,14}$/;
 const PASSWORD_RE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,128}$/;
+
+type Field = 'identifier' | 'code' | 'password' | 'confirm';
 
 function identifierField(identifier: string): 'phone' | 'email' {
   return PHONE_RE.test(identifier.trim()) ? 'phone' : 'email';
@@ -19,32 +24,50 @@ function identifierField(identifier: string): 'phone' | 'email' {
 export default function ForgotPassword() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const formRef = useRef<HTMLFormElement>(null);
 
   const [step, setStep] = useState<'request' | 'reset'>('request');
   const [identifier, setIdentifier] = useState('');
   const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<Field, string>>>({});
   const [apiError, setApiError] = useState('');
   const [info, setInfo] = useState('');
   const [loading, setLoading] = useState(false);
 
+  /** Erreurs affichées sous chaque champ ; le premier champ en erreur reçoit le focus. */
+  const showFieldErrors = (errors: Partial<Record<Field, string>>) => {
+    setFieldErrors(errors);
+    if (Object.keys(errors).length) focusFirstInvalidSoon(formRef.current ?? undefined);
+    return Object.keys(errors).length > 0;
+  };
+  const clearField = (field: Field) => setFieldErrors(({ [field]: _removed, ...rest }) => rest);
+
+  /** Erreur du serveur : sous le champ concerné si possible, sinon message général. */
+  const showServerError = (err: unknown, fieldOf: Record<string, Field>) => {
+    const c = classifyApiError(err);
+    const mapped: Partial<Record<Field, string>> = {};
+    for (const [serverField, message] of Object.entries(c.fieldErrors)) {
+      const field = fieldOf[serverField];
+      if (field) mapped[field] = message;
+    }
+    if (!showFieldErrors(mapped)) setApiError(c.message);
+  };
+
   const requestCode = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
     setApiError('');
     setInfo('');
-    if (!identifier.trim()) {
-      setApiError(t('auth.required', 'Champ requis'));
-      return;
-    }
+    if (showFieldErrors(identifier.trim() ? {} : { identifier: t('errors.identifier_required') })) return;
     setLoading(true);
     try {
       await api.post('/auth/forgot-password', { [identifierField(identifier)]: identifier.trim() });
-      setInfo(t('auth.reset_code_sent', 'Si un compte correspond, un code de réinitialisation a été envoyé.'));
+      setInfo(t('auth.reset_code_sent'));
       setStep('reset');
     } catch (err: unknown) {
-      const e2 = err as { response?: { data?: { error?: string } } };
-      setApiError(e2?.response?.data?.error || t('errors.server', 'Une erreur est survenue.'));
+      showServerError(err, { email: 'identifier', phone: 'identifier' });
     } finally {
       setLoading(false);
     }
@@ -52,33 +75,24 @@ export default function ForgotPassword() {
 
   const resetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
     setApiError('');
-    if (!/^\d{6}$/.test(code)) {
-      setApiError(t('auth.otp_invalid', 'Code à 6 chiffres invalide.'));
-      return;
-    }
-    if (!PASSWORD_RE.test(password)) {
-      setApiError(t('auth.password_rules', 'Mot de passe : 8 caractères min., 1 majuscule, 1 minuscule, 1 chiffre.'));
-      return;
-    }
-    if (password !== confirm) {
-      setApiError(t('auth.password_mismatch', 'Les mots de passe ne correspondent pas.'));
-      return;
-    }
+    const errors: Partial<Record<Field, string>> = {};
+    if (!/^\d{6}$/.test(code.trim())) errors.code = t('auth.otp_format');
+    if (!PASSWORD_RE.test(password)) errors.password = t('auth.password_rules');
+    if (!confirm) errors.confirm = t('errors.required');
+    else if (password !== confirm) errors.confirm = t('auth.password_mismatch');
+    if (showFieldErrors(errors)) return;
     setLoading(true);
     try {
       await api.post('/auth/reset-password', {
         [identifierField(identifier)]: identifier.trim(),
-        code,
+        code: code.trim(),
         password,
       });
-      navigate('/login', {
-        replace: true,
-        state: { notice: t('auth.reset_success', 'Mot de passe réinitialisé. Connectez-vous.') },
-      });
+      navigate('/login', { replace: true, state: { notice: t('auth.reset_success') } });
     } catch (err: unknown) {
-      const e2 = err as { response?: { data?: { error?: string } } };
-      setApiError(e2?.response?.data?.error || t('errors.server', 'Une erreur est survenue.'));
+      showServerError(err, { code: 'code', password: 'password' });
     } finally {
       setLoading(false);
     }
@@ -91,85 +105,83 @@ export default function ForgotPassword() {
           <Logo size="md" />
         </div>
 
-        <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-          {t('auth.forgot_password', 'Mot de passe oublié')}
-        </h1>
+        <h1 className="text-xl font-bold text-gray-900 dark:text-white">{t('auth.forgot_password')}</h1>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 mb-6">
-          {step === 'request'
-            ? t('auth.forgot_subtitle', 'Saisissez votre email ou téléphone pour recevoir un code.')
-            : t('auth.reset_subtitle', 'Saisissez le code reçu et votre nouveau mot de passe.')}
+          {step === 'request' ? t('auth.forgot_subtitle') : t('auth.reset_subtitle')}
         </p>
 
-        {apiError && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-3 mb-5" role="alert">
-            <p className="text-red-700 dark:text-red-400 text-sm">{apiError}</p>
-          </div>
-        )}
-        {info && (
-          <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-3 mb-5" role="status">
-            <p className="text-green-700 dark:text-green-400 text-sm">{info}</p>
-          </div>
-        )}
+        <FormMessage tone="error" className="mb-5">{apiError}</FormMessage>
+        <FormMessage tone="success" className="mb-5">{info}</FormMessage>
 
         {step === 'request' ? (
-          <form onSubmit={requestCode} className="flex flex-col gap-4" noValidate>
+          <form ref={formRef} onSubmit={requestCode} className="flex flex-col gap-4" noValidate>
             <Input
-              label={t('auth.phone_or_email', 'Email ou téléphone')}
-              placeholder={t('auth.phone_or_email_placeholder', 'ex: vous@email.com')}
+              id="forgot-identifier"
+              label={t('auth.phone_or_email')}
+              placeholder={t('auth.phone_or_email_placeholder')}
               value={identifier}
-              onChange={(ev) => setIdentifier(ev.target.value)}
+              onChange={(ev) => { setIdentifier(ev.target.value); clearField('identifier'); }}
+              error={fieldErrors.identifier}
               autoComplete="username"
               required
               autoFocus
             />
             <Button type="submit" loading={loading} className="w-full">
-              {t('auth.send_code', 'Envoyer le code')}
+              {t('auth.send_code')}
             </Button>
           </form>
         ) : (
-          <form onSubmit={resetPassword} className="flex flex-col gap-4" noValidate>
+          <form ref={formRef} onSubmit={resetPassword} className="flex flex-col gap-4" noValidate>
             <Input
-              label={t('auth.otp_label', 'Code de vérification')}
+              id="reset-code"
+              label={t('auth.otp_label')}
               value={code}
-              onChange={(ev) => setCode(ev.target.value)}
-              placeholder={t('auth.otp_placeholder', '000000')}
+              onChange={(ev) => { setCode(ev.target.value); clearField('code'); }}
+              error={fieldErrors.code}
+              placeholder={t('auth.otp_placeholder')}
               inputMode="numeric"
+              autoComplete="one-time-code"
               maxLength={6}
               required
               autoFocus
             />
             <Input
-              label={t('auth.new_password', 'Nouveau mot de passe')}
+              id="reset-password"
+              label={t('auth.new_password')}
               type="password"
               value={password}
-              onChange={(ev) => setPassword(ev.target.value)}
+              onChange={(ev) => { setPassword(ev.target.value); clearField('password'); }}
+              error={fieldErrors.password}
+              helperText={t('auth.password_rules')}
               autoComplete="new-password"
               required
             />
             <Input
-              label={t('auth.confirm_password', 'Confirmer le mot de passe')}
+              id="reset-confirm"
+              label={t('auth.confirm_password')}
               type="password"
               value={confirm}
-              onChange={(ev) => setConfirm(ev.target.value)}
+              onChange={(ev) => { setConfirm(ev.target.value); clearField('confirm'); }}
+              error={fieldErrors.confirm}
               autoComplete="new-password"
               required
             />
             <Button type="submit" loading={loading} className="w-full">
-              {t('auth.reset_password_action', 'Réinitialiser le mot de passe')}
+              {t('auth.reset_password_action')}
             </Button>
             <button
               type="button"
-              onClick={() => { setStep('request'); setApiError(''); }}
-              className="text-xs text-gray-500 dark:text-gray-400 hover:underline"
+              onClick={() => { setStep('request'); setApiError(''); setFieldErrors({}); }}
+              className="text-xs text-gray-600 dark:text-gray-400 hover:underline"
             >
-              {t('auth.resend_code', 'Renvoyer un code')}
+              {t('auth.resend_code')}
             </button>
           </form>
         )}
 
         <div className="mt-6 pt-5 border-t border-gray-100 dark:border-gray-800 text-center">
           <Link to="/login" className="text-sm text-green-700 dark:text-green-400 font-semibold hover:underline">
-            {t('auth.back_to_login', 'Retour à la connexion')}
+            {t('auth.back_to_login')}
           </Link>
         </div>
       </div>

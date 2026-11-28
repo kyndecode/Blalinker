@@ -6,11 +6,12 @@ const navigateMock = vi.fn();
 
 // Traductions réelles (français) : les tests vérifient le texte que voit l'utilisateur,
 // y compris les pluriels et les valeurs insérées ; une clé absente reste affichée telle quelle.
+// Instance i18next PAR DÉFAUT : la même que celle utilisée hors React (messages d'erreur de l'API).
 vi.mock('react-i18next', async () => {
   const i18next = (await import('i18next')).default;
   const fr = (await import('../i18n/fr.json')).default;
-  const instance = i18next.createInstance();
-  await instance.init({
+  const instance = i18next;
+  if (!instance.isInitialized) await instance.init({
     lng: 'fr',
     fallbackLng: 'fr',
     resources: { fr: { translation: fr } },

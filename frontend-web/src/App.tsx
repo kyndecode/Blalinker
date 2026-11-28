@@ -3,7 +3,7 @@ import { Routes, Route } from 'react-router-dom';
 import { useAuthStore } from './store/authStore';
 import { useNetworkStatus } from './hooks/useNetworkStatus';
 import { useTranslation } from 'react-i18next';
-import api, { shouldLogoutAfterRefreshError, useServerStatus } from './services/api';
+import api, { refreshAccessToken, shouldLogoutAfterRefreshError, useServerStatus } from './services/api';
 import { clearLocalSession, endLocalSession, subscribeAuthSync } from './services/session';
 import { flushPendingLogout } from './services/logout';
 import RequireAuth from './components/auth/RequireAuth';
@@ -12,6 +12,8 @@ import RequireAuth from './components/auth/RequireAuth';
 import Header from './components/layout/Header';
 import Footer from './components/layout/Footer';
 import AnnouncementBar from './components/content/AnnouncementBar';
+import ScrollManager from './components/layout/ScrollManager';
+import PageErrorBoundary from './components/common/PageErrorBoundary';
 
 // Pages : chargées à la demande (code-splitting) pour alléger le bundle initial.
 const Home            = lazy(() => import('./pages/Home/Home'));
@@ -74,8 +76,10 @@ export default function App() {
       // Une session a existé (user persisté) : on tente de la restaurer via le
       // cookie HttpOnly du refresh token (envoyé automatiquement par withCredentials).
       try {
-        const refreshed = await api.post('/auth/refresh-token', {});
-        setTokens(refreshed.data.accessToken);
+        // Renouvellement partagé (une seule requête même si le démarrage est exécuté deux fois
+        // ou si une autre requête renouvelle en même temps) : voir refreshAccessToken().
+        await refreshAccessToken();
+        if (cancelled) return;
 
         const me = await api.get('/users/me');
         setUser({
@@ -116,6 +120,7 @@ export default function App() {
         </div>
       )}
 
+      <ScrollManager />
       <AnnouncementBar />
       <Header />
       {serverSlow && (
@@ -125,6 +130,7 @@ export default function App() {
       )}
 
       <main className={`flex-1 ${!isOnline ? 'mt-10' : ''}`}>
+        <PageErrorBoundary>
         <Suspense fallback={<PageFallback />}>
         <Routes>
           {/* Publiques */}
@@ -156,6 +162,7 @@ export default function App() {
           <Route path="*" element={<NotFound />} />
         </Routes>
         </Suspense>
+        </PageErrorBoundary>
       </main>
 
       <Footer />

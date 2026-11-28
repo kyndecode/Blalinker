@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -8,22 +8,23 @@ import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
 import { useAuthStore } from '../../store/authStore';
 import Logo from '../../components/common/Logo';
+import { FormMessage } from '../../components/common/FormMessage';
 import api from '../../services/api';
 import { requestGoogleIdToken } from '../../services/googleAuth';
 import { clearFlashNotice, peekFlashNotice } from '../../utils/flashNotice';
+import { getApiErrorMessage } from '../../utils/apiError';
 
-const schema = z.object({
-  identifier: z.string().min(1, 'Requis'),
-  password: z.string().min(1, 'Requis'),
-});
-
-type FormData = z.infer<typeof schema>;
+type FormData = { identifier: string; password: string };
 
 const PAGE = 'min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center p-4';
 const CARD = 'w-full max-w-sm bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm p-8';
 
 export default function Login() {
   const { t } = useTranslation();
+  const schema = useMemo(() => z.object({
+    identifier: z.string().trim().min(1, t('errors.identifier_required')),
+    password: z.string().min(1, t('errors.password_required')),
+  }), [t]);
   const navigate = useNavigate();
   const location = useLocation();
   // Message transmis par la page précédente (ex. « Vous êtes déconnecté. »), à usage unique.
@@ -41,6 +42,7 @@ export default function Login() {
     tempToken: '',
   });
   const [otpCode, setOtpCode] = useState('');
+  const [mfaSubmitting, setMfaSubmitting] = useState(false);
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID?.toString().trim();
 
   const {
@@ -69,14 +71,16 @@ export default function Login() {
         navigate(afterLogin);
       }
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { error?: string } } };
-      setApiError(e?.response?.data?.error || t('errors.server'));
+      // Mauvais identifiants, compte suspendu, trop de tentatives, serveur ou réseau : message précis.
+      setApiError(getApiErrorMessage(err));
     }
   };
 
   const handleMfaSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (mfaSubmitting) return;
     setApiError('');
+    setMfaSubmitting(true);
 
     try {
       const res = await api.post('/auth/login/verify-mfa', { tempToken: mfaState.tempToken, otpCode });
@@ -84,8 +88,9 @@ export default function Login() {
       setUser(res.data.user);
       navigate(afterLogin);
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { error?: string } } };
-      setApiError(e?.response?.data?.error || t('auth.otp_invalid'));
+      setApiError(getApiErrorMessage(err, t('auth.otp_invalid')));
+    } finally {
+      setMfaSubmitting(false);
     }
   };
 
@@ -107,8 +112,9 @@ export default function Login() {
       setUser(res.data.user);
       navigate(afterLogin);
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { error?: string } }; message?: string };
-      setApiError(e?.response?.data?.error || e?.message || t('errors.server'));
+      const e = err as { response?: unknown; message?: string };
+      // Erreur de l'API : message classé ; erreur du module Google (fenêtre fermée…) : son message.
+      setApiError(e?.response ? getApiErrorMessage(err) : e?.message || t('errors.generic'));
     } finally {
       setGoogleLoading(false);
     }
@@ -124,12 +130,6 @@ export default function Login() {
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{t('auth.otp_sent')}</p>
           </div>
 
-          {apiError && (
-            <p className="text-sm text-red-600 dark:text-red-400 mb-4 bg-red-50 dark:bg-red-900/20 rounded-xl p-3" role="alert">
-              {apiError}
-            </p>
-          )}
-
           <form onSubmit={handleMfaSubmit} className="flex flex-col gap-4">
             <Input
               label={t('auth.otp_label')}
@@ -137,11 +137,13 @@ export default function Login() {
               onChange={(event) => setOtpCode(event.target.value)}
               placeholder={t('auth.otp_placeholder')}
               inputMode="numeric"
+              autoComplete="one-time-code"
               maxLength={6}
               required
               autoFocus
+              error={apiError || undefined}
             />
-            <Button type="submit" className="w-full">{t('auth.verify')}</Button>
+            <Button type="submit" loading={mfaSubmitting} disabled={mfaSubmitting} className="w-full">{t('auth.verify')}</Button>
           </form>
         </div>
       </div>
@@ -158,17 +160,8 @@ export default function Login() {
         <h1 className="text-xl font-bold text-gray-900 dark:text-white">{t('auth.login')}</h1>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 mb-6">{t('auth.login_subtitle')}</p>
 
-        {notice && (
-          <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-3 mb-5" role="status">
-            <p className="text-green-700 dark:text-green-400 text-sm">{notice}</p>
-          </div>
-        )}
-
-        {apiError && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-3 mb-5" role="alert">
-            <p className="text-red-700 dark:text-red-400 text-sm">{apiError}</p>
-          </div>
-        )}
+        <FormMessage tone="info" className="mb-5">{notice}</FormMessage>
+        <FormMessage tone="error" className="mb-5">{apiError}</FormMessage>
 
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
           <Input

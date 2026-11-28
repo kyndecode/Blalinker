@@ -63,7 +63,21 @@
     "google_continue": "Continuer avec Google",
     "google_loading": "Connexion Google...",
     "google_unavailable": "Connexion Google indisponible pour le moment.",
-    "otp_not_password_hint": "Vous recevrez un code OTP de vérification. Votre mot de passe ne vous est jamais envoyé par e-mail."
+    "otp_not_password_hint": "Vous recevrez un code OTP de vérification. Votre mot de passe ne vous est jamais envoyé par e-mail.",
+    "reset_code_sent": "Si un compte correspond, un code de réinitialisation a été envoyé.",
+    "password_mismatch": "Les deux mots de passe ne sont pas identiques.",
+    "reset_success": "Mot de passe réinitialisé. Vous pouvez vous connecter.",
+    "forgot_subtitle": "Saisissez votre e-mail ou votre téléphone pour recevoir un code.",
+    "reset_subtitle": "Saisissez le code reçu et votre nouveau mot de passe.",
+    "send_code": "Envoyer le code",
+    "new_password": "Nouveau mot de passe",
+    "confirm_password": "Confirmer le mot de passe",
+    "reset_password_action": "Réinitialiser le mot de passe",
+    "resend_code": "Renvoyer un code",
+    "back_to_login": "Retour à la connexion",
+    "otp_format": "Saisissez le code à 6 chiffres reçu.",
+    "phone_invalid_length": "Numéro invalide : {{length}} chiffres attendus pour ce pays.",
+    "phone_invalid": "Le numéro de téléphone ne respecte pas le format attendu."
   },
   "search": {
     "title": "Trouver un prestataire",
@@ -134,10 +148,26 @@
     "error": "Échec du paiement"
   },
   "errors": {
-    "network": "Problème de connexion. Vérifiez votre réseau.",
-    "server": "Erreur serveur. Réessayez dans quelques instants.",
-    "unauthorized": "Session expirée. Reconnectez-vous.",
-    "not_found": "Introuvable."
+    "network": "Connexion impossible. Vérifiez votre réseau puis réessayez.",
+    "server": "Erreur du serveur. Réessayez dans quelques instants.",
+    "unauthorized": "Identifiants incorrects.",
+    "not_found": "Introuvable.",
+    "session_expired": "Votre session a expiré. Veuillez vous reconnecter.",
+    "timeout": "Le serveur met du temps à répondre. Réessayez dans un instant.",
+    "forbidden": "Vous n'avez pas l'autorisation d'effectuer cette action.",
+    "not_found_item": "Cet élément n'existe pas ou a été supprimé.",
+    "conflict": "Les informations ont changé entre-temps. Rechargez la page puis réessayez.",
+    "rate_limit": "Trop de tentatives. Patientez quelques minutes avant de réessayer.",
+    "validation": "Certaines informations sont incorrectes. Corrigez les champs signalés.",
+    "unavailable": "Le service est momentanément indisponible. Réessayez dans quelques instants.",
+    "generic": "Une erreur inattendue est survenue. Réessayez.",
+    "required": "Ce champ est obligatoire.",
+    "invalid_email": "Veuillez saisir une adresse e-mail valide.",
+    "identifier_required": "Saisissez votre adresse e-mail ou votre numéro de téléphone.",
+    "password_required": "Saisissez votre mot de passe.",
+    "page_title": "Cette page n’a pas pu s’afficher",
+    "page_text": "Une erreur inattendue est survenue. Rechargez la page ; si le problème continue, revenez à l’accueil.",
+    "page_reload": "Recharger la page"
   },
   "offline": "Connexion perdue. Les données peuvent ne pas être à jour.",
   "home": {

@@ -18,6 +18,11 @@ export function Modal({ open, title, onClose, children, description }: ModalProp
   const descId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
 
+  // Référence stable : une fonction onClose recréée à chaque rendu ne doit pas relancer
+  // l'ouverture (avant : le focus revenait au premier champ pendant la saisie).
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
+
   useEffect(() => {
     if (!open) return undefined;
     const previous = document.activeElement as HTMLElement | null;
@@ -25,14 +30,27 @@ export function Modal({ open, title, onClose, children, description }: ModalProp
     const first = panel?.querySelector<HTMLElement>('input, textarea, select, button:not([data-modal-close])');
     (first ?? panel)?.focus();
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      if (event.key === 'Escape') { onCloseRef.current(); return; }
+      // Tabulation maintenue dans la fenêtre (sinon le focus partait sur la page en arrière-plan).
+      if (event.key !== 'Tab' || !panel) return;
+      const focusables = Array.from(panel.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      )).filter((el) => el.offsetParent !== null || el === document.activeElement);
+      if (!focusables.length) return;
+      const firstEl = focusables[0];
+      const lastEl = focusables[focusables.length - 1];
+      if (event.shiftKey && (document.activeElement === firstEl || !panel.contains(document.activeElement))) {
+        event.preventDefault(); lastEl.focus();
+      } else if (!event.shiftKey && (document.activeElement === lastEl || !panel.contains(document.activeElement))) {
+        event.preventDefault(); firstEl.focus();
+      }
     };
     document.addEventListener('keydown', onKey);
     return () => {
       document.removeEventListener('keydown', onKey);
       previous?.focus?.();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 

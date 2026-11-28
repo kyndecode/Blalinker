@@ -76,8 +76,14 @@ describe('détail de réservation — actions selon le rôle et l’état', () =
     await user.click(screen.getByRole('button', { name: 'Signaler un problème' }));
     const dialog = screen.getByRole('dialog', { name: 'Signaler un problème' });
     const submit = within(dialog).getByRole('button', { name: 'Envoyer le signalement' });
-    expect(submit).toBeDisabled(); // description obligatoire
-    await user.type(within(dialog).getByLabelText('Que s’est-il passé ?'), 'Travail inachevé, fuite toujours présente');
+    // Description obligatoire : l'envoi explique quoi faire et place le focus sur le champ, sans appel API.
+    await user.click(submit);
+    expect(within(dialog).getByRole('alert')).toHaveTextContent('Décrivez ce qui s’est passé (10 caractères minimum).');
+    const description = within(dialog).getByLabelText('Que s’est-il passé ?');
+    expect(description).toHaveFocus();
+    expect(description).toHaveAttribute('aria-invalid', 'true');
+    expect(apiMock.put).not.toHaveBeenCalled();
+    await user.type(description, 'Travail inachevé, fuite toujours présente');
     await user.click(submit);
     await waitFor(() => expect(apiMock.put).toHaveBeenCalledWith('/bookings/b1/dispute', {
       reason: 'other', description: 'Travail inachevé, fuite toujours présente',
@@ -89,7 +95,11 @@ describe('détail de réservation — actions selon le rôle et l’état', () =
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: 'Noter la prestation' }));
     const dialog = screen.getByRole('dialog', { name: 'Noter la prestation' });
-    expect(within(dialog).getByRole('button', { name: 'Envoyer mon avis' })).toBeDisabled();
+    // Sans note : message précis, focus sur la première étoile, rien d'envoyé.
+    await user.click(within(dialog).getByRole('button', { name: 'Envoyer mon avis' }));
+    expect(within(dialog).getByRole('alert')).toHaveTextContent('Choisissez une note de 1 à 5 étoiles.');
+    expect(within(dialog).getByRole('radio', { name: '1 sur 5' })).toHaveFocus();
+    expect(apiMock.post).not.toHaveBeenCalled();
     await user.click(within(dialog).getByRole('radio', { name: '4 sur 5' }));
     await user.click(within(dialog).getByRole('button', { name: 'Envoyer mon avis' }));
     await waitFor(() => expect(apiMock.post).toHaveBeenCalledWith('/reviews', { bookingId: 'b1', rating: 4 }));

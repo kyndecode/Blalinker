@@ -19,6 +19,9 @@ import {
   isValidLocalPhoneForCountry,
 } from '../../utils/phoneCountries';
 import { useActiveCountries, useSiteSettings } from '../../hooks/useSiteContent';
+import { FormMessage } from '../../components/common/FormMessage';
+import { getApiErrorMessage } from '../../utils/apiError';
+import { applyServerFieldErrors } from '../../utils/formErrors';
 
 const CONTACT_SUBJECTS = [
   'support_account',
@@ -50,6 +53,9 @@ const formSchema = z.object({
 });
 
 type ContactFormValues = z.infer<typeof formSchema>;
+
+/** Champs renvoyés par le serveur → champs du formulaire. */
+const CONTACT_SERVER_FIELDS = { firstName: 'firstName', lastName: 'lastName', email: 'email', phone: 'phoneLocal', countryCode: 'countryCode', subject: 'subject', message: 'message' } as const;
 
 interface ContactResponsePayload {
   message: string;
@@ -97,6 +103,8 @@ export default function Contact() {
     setValue,
     getValues,
     watch,
+    setError,
+    resetField,
     formState: { errors, isSubmitting },
   } = useForm<ContactFormValues>({
     resolver: zodResolver(formSchema),
@@ -177,12 +185,12 @@ export default function Contact() {
       });
 
       setSuccessPayload(response.data as ContactResponsePayload);
+      // Message envoyé : le texte est vidé (les coordonnées restent pour un prochain message).
+      resetField('message');
     } catch (error: unknown) {
-      const err = error as { response?: { data?: { error?: string; errors?: Record<string, string[]> } } };
-      const firstFieldError = err.response?.data?.errors
-        ? Object.values(err.response.data.errors).flat()[0]
-        : undefined;
-      setSubmitError(firstFieldError || err.response?.data?.error || t('errors.server'));
+      // Erreurs de validation du serveur : sous le champ concerné ; sinon message général précis.
+      if (applyServerFieldErrors(error, setError, CONTACT_SERVER_FIELDS) > 0) return;
+      setSubmitError(getApiErrorMessage(error));
     }
   };
 
@@ -199,19 +207,10 @@ export default function Contact() {
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">{t('contact.prefill_loading')}</p>
           )}
 
-          {submitError && (
-            <div className="mt-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-3" role="alert">
-              <p className="text-sm text-red-700 dark:text-red-400">{submitError}</p>
-            </div>
-          )}
-
-          {successPayload && (
-            <div className="mt-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-3" role="status">
-              <p className="text-sm text-green-700 dark:text-green-400">
-                {t('contact.success', { requestId: successPayload.requestId })}
-              </p>
-            </div>
-          )}
+          <FormMessage tone="error" className="mt-4">{submitError}</FormMessage>
+          <FormMessage tone="success" className="mt-4">
+            {successPayload ? t('contact.success', { requestId: successPayload.requestId }) : null}
+          </FormMessage>
 
           <form onSubmit={handleSubmit(onSubmit)} className="mt-5 space-y-4" noValidate>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { Modal } from '../common/Modal';
 
 const fieldClass =
@@ -78,10 +78,16 @@ export const DISPUTE_REASONS: Array<{ value: string; label: string }> = [
 export function DisputeDialog({ open, onClose, busy, error, onSubmit }: BaseDialogProps & { onSubmit: (v: { reason: string; description: string }) => void }) {
   const [reason, setReason] = useState('other');
   const [description, setDescription] = useState('');
-  const tooShort = description.trim().length > 0 && description.trim().length < 10;
+  const descriptionRef = useRef<HTMLTextAreaElement>(null);
+  const [tried, setTried] = useState(false);
+  const length = description.trim().length;
+  // Bouton toujours actif : un envoi incomplet explique quoi faire et place le focus sur le champ.
+  const descriptionError = (tried || length > 0) && length < 10
+    ? (length === 0 ? 'Décrivez ce qui s’est passé (10 caractères minimum).' : `Encore ${10 - length} caractère(s) : 10 caractères minimum.`)
+    : null;
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    if (description.trim().length < 10) return;
+    if (length < 10) { setTried(true); descriptionRef.current?.focus(); return; }
     onSubmit({ reason, description: description.trim() });
   };
   return (
@@ -104,19 +110,20 @@ export function DisputeDialog({ open, onClose, busy, error, onSubmit }: BaseDial
             id="dispute-description"
             rows={4}
             maxLength={1000}
+            ref={descriptionRef}
             required
-            aria-invalid={tooShort}
+            aria-invalid={Boolean(descriptionError)}
             aria-describedby="dispute-help"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             className={fieldClass}
           />
-          <p id="dispute-help" className={`mt-1 text-xs ${tooShort ? 'text-red-600' : 'text-gray-500'}`}>
-            {tooShort ? '10 caractères minimum.' : 'Décrivez les faits (10 caractères minimum).'}
+          <p id="dispute-help" role={descriptionError ? 'alert' : undefined} className={`mt-1 text-xs ${descriptionError ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}`}>
+            {descriptionError ?? 'Décrivez les faits (10 caractères minimum).'}
           </p>
         </div>
         <DialogError error={error} />
-        <DialogButtons onClose={onClose} busy={busy} disabled={description.trim().length < 10} submitLabel="Envoyer le signalement" danger />
+        <DialogButtons onClose={onClose} busy={busy} submitLabel="Envoyer le signalement" danger />
       </form>
     </Modal>
   );
@@ -126,15 +133,26 @@ export function DisputeDialog({ open, onClose, busy, error, onSubmit }: BaseDial
 export function ReviewDialog({ open, onClose, busy, error, onSubmit }: BaseDialogProps & { onSubmit: (v: { rating: number; comment: string }) => void }) {
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
+  const [tried, setTried] = useState(false);
+  const firstStarRef = useRef<HTMLButtonElement>(null);
+  const ratingError = tried && rating === 0 ? 'Choisissez une note de 1 à 5 étoiles.' : null;
   return (
     <Modal open={open} onClose={onClose} title="Noter la prestation" description="Votre avis sera publié après vérification par notre équipe.">
-      <form onSubmit={(e) => { e.preventDefault(); if (rating > 0) onSubmit({ rating, comment: comment.trim() }); }} className="space-y-3">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (rating === 0) { setTried(true); firstStarRef.current?.focus(); return; }
+          onSubmit({ rating, comment: comment.trim() });
+        }}
+        className="space-y-3"
+      >
         <fieldset>
           <legend className={labelClass}>Votre note</legend>
-          <div className="flex gap-1" role="radiogroup" aria-label="Note sur 5">
+          <div className="flex gap-1" role="radiogroup" aria-label="Note sur 5" aria-invalid={Boolean(ratingError)} aria-describedby={ratingError ? 'review-rating-error' : undefined}>
             {[1, 2, 3, 4, 5].map((n) => (
               <button
                 key={n}
+                ref={n === 1 ? firstStarRef : undefined}
                 type="button"
                 role="radio"
                 aria-checked={rating === n}
@@ -146,6 +164,7 @@ export function ReviewDialog({ open, onClose, busy, error, onSubmit }: BaseDialo
               </button>
             ))}
           </div>
+          {ratingError && <p id="review-rating-error" role="alert" className="mt-1 text-xs text-red-600 dark:text-red-400">{ratingError}</p>}
         </fieldset>
         <div>
           <label htmlFor="review-comment" className={labelClass}>Commentaire (facultatif)</label>
@@ -153,7 +172,7 @@ export function ReviewDialog({ open, onClose, busy, error, onSubmit }: BaseDialo
           <p className="mt-1 text-xs text-gray-500">{comment.length}/1000</p>
         </div>
         <DialogError error={error} />
-        <DialogButtons onClose={onClose} busy={busy} disabled={rating === 0} submitLabel="Envoyer mon avis" />
+        <DialogButtons onClose={onClose} busy={busy} submitLabel="Envoyer mon avis" />
       </form>
     </Modal>
   );

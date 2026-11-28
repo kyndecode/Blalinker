@@ -20,8 +20,14 @@ import {
 } from '../../utils/phoneCountries';
 import type { CountryOption } from '../../utils/phoneCountries';
 import { useActiveCountries, useSiteSettings } from '../../hooks/useSiteContent';
+import { FormMessage } from '../../components/common/FormMessage';
+import { getApiErrorMessage } from '../../utils/apiError';
+import { applyServerFieldErrors } from '../../utils/formErrors';
 
 const E164_PHONE_REGEX = /^\+[1-9]\d{7,14}$/;
+
+/** Champs renvoyés par le serveur → champs du formulaire. */
+const REGISTER_SERVER_FIELDS = { firstName: 'firstName', lastName: 'lastName', phone: 'phoneLocal', countryCode: 'countryCode', email: 'email', password: 'password', role: 'role' } as const;
 
 const schema = z.object({
   firstName: z
@@ -149,13 +155,13 @@ export default function Register() {
       const lengthMessage = rule.min === rule.max ? `${rule.min}` : `${rule.min}-${rule.max}`;
       setError('phoneLocal', {
         type: 'manual',
-        message: `Numero invalide (${lengthMessage} chiffres)`,
-      });
+        message: t('auth.phone_invalid_length', { length: lengthMessage }),
+      }, { shouldFocus: true });
       return;
     }
 
     if (!E164_PHONE_REGEX.test(internationalPhone)) {
-      setError('phoneLocal', { type: 'manual', message: 'Format téléphone invalide' });
+      setError('phoneLocal', { type: 'manual', message: t('auth.phone_invalid') }, { shouldFocus: true });
       return;
     }
 
@@ -174,23 +180,9 @@ export default function Register() {
         `/verify?phone=${encodeURIComponent(internationalPhone)}&email=${encodeURIComponent(data.email)}`
       );
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { error?: string; errors?: Record<string, string[]> } } };
-      const validationErrors = e?.response?.data?.errors;
-
-      if (validationErrors && Object.keys(validationErrors).length > 0) {
-        const firstFieldErrors = Object.values(validationErrors)[0];
-        if (firstFieldErrors?.length) {
-          setApiError(firstFieldErrors[0]);
-          return;
-        }
-      }
-
-      if (!e?.response) {
-        setApiError(t('errors.network'));
-        return;
-      }
-
-      setApiError(e.response.data?.error || t('auth.register_error'));
+      // Erreurs de validation du serveur : sous le champ concerné ; sinon message général précis.
+      if (applyServerFieldErrors(err, setError, REGISTER_SERVER_FIELDS) > 0) return;
+      setApiError(getApiErrorMessage(err, t('auth.register_error')));
     }
   };
 
@@ -218,8 +210,8 @@ export default function Register() {
       setUser(response.data.user);
       navigate('/dashboard');
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { error?: string } }; message?: string };
-      setApiError(e?.response?.data?.error || e?.message || t('errors.server'));
+      const e = err as { response?: unknown; message?: string };
+      setApiError(e?.response ? getApiErrorMessage(err) : e?.message || t('errors.generic'));
     } finally {
       setGoogleLoading(false);
     }
@@ -259,11 +251,7 @@ export default function Register() {
           ))}
         </div>
 
-        {apiError && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-3 mb-4" role="alert">
-            <p className="text-red-700 dark:text-red-400 text-sm">{apiError}</p>
-          </div>
-        )}
+        <FormMessage tone="error" className="mb-4">{apiError}</FormMessage>
 
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

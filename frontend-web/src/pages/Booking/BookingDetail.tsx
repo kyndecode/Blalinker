@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Calendar, MapPin, FileText, CheckCircle, Wallet, AlertTriangle, Info } from 'lucide-react';
 import api from '../../services/api';
@@ -8,6 +8,7 @@ import { useSiteConfig } from '../../hooks/useSiteConfig';
 import { getApiErrorMessage } from '../../utils/apiError';
 import { CancelDialog, ConfirmDialog, DisputeDialog, ReviewDialog } from '../../components/booking/BookingDialogs';
 import { ReportDialog } from '../../components/report/ReportDialog';
+import { FormMessage } from '../../components/common/FormMessage';
 
 type BookingStatus = 'pending' | 'accepted' | 'rejected' | 'in_progress' | 'completed' | 'validated' | 'cancelled' | 'disputed';
 
@@ -80,7 +81,9 @@ export default function BookingDetail() {
   const user = useAuthStore((state) => state.user);
   const siteConfig = useSiteConfig();
   const [dialog, setDialog] = useState<Transition | 'cancel' | 'dispute' | 'review' | 'report' | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const location = useLocation();
+  // Confirmation transmise par la page précédente (ex. demande de réservation envoyée).
+  const [notice, setNotice] = useState<string | null>(() => (location.state as { notice?: string } | null)?.notice ?? null);
 
   const { data: booking, isLoading, isError, error } = useQuery<BookingData>({
     queryKey: ['booking', id],
@@ -221,7 +224,7 @@ export default function BookingDetail() {
           </span>
         </div>
 
-        {notice && <p role="status" className="rounded-lg bg-green-50 dark:bg-green-900/20 px-3 py-2 text-sm text-green-800 dark:text-green-300">{notice}</p>}
+        <FormMessage tone="success">{notice}</FormMessage>
 
         {currentStep >= 0 && (
           <ol className="flex items-center" aria-label="Progression de la mission">

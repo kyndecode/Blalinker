@@ -1,5 +1,7 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { getApiErrorCode, getApiErrorMessage } from '../../utils/apiError';
+import { applyServerFieldErrors } from '../../utils/formErrors';
+import { FormMessage } from '../../components/common/FormMessage';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -22,6 +24,9 @@ interface ProviderService {
   priceType?: string | null;
   category?: { name?: string };
 }
+
+/** Champs renvoyés par le serveur → champs du formulaire. */
+const BOOKING_SERVER_FIELDS = { serviceId: 'serviceId', scheduledAt: 'scheduledAt', description: 'description', clientAddress: 'address' } as const;
 
 /** Identifiant de la demande déjà en attente (réponse 409 BOOKING_DUPLICATE). */
 function duplicateId(error: unknown): string | undefined {
@@ -58,8 +63,11 @@ export default function BookingNew() {
     handleSubmit,
     watch,
     setValue,
+    setError,
     formState: { errors },
   } = useForm<BookingForm>({ mode: 'onTouched' });
+  // Erreur générale affichée seulement si le serveur n'a pas désigné de champ précis.
+  const [generalError, setGeneralError] = useState<unknown>(null);
   const descriptionLength = (watch('description') ?? '').trim().length;
   const selectedServiceId = watch('serviceId');
   const activeService = providerServices.find((service) => service.id === selectedServiceId) ?? selectedService;
@@ -89,11 +97,21 @@ export default function BookingNew() {
       }).then((r) => r.data),
     onSuccess: (data) => {
       const bookingId = data?.data?.id ?? data?.id;
-      navigate(bookingId ? `/bookings/${bookingId}` : '/dashboard');
+      // Confirmation affichée sur la page suivante, uniquement après la réponse du serveur.
+      navigate(bookingId ? `/bookings/${bookingId}` : '/dashboard', {
+        state: { notice: 'Votre demande de réservation a été envoyée. Le prestataire va l’accepter ou la refuser : vous serez prévenu.' },
+      });
+    },
+    onError: (error) => {
+      if (applyServerFieldErrors(error, setError, BOOKING_SERVER_FIELDS) === 0) setGeneralError(error);
     },
   });
 
-  const onSubmit = (form: BookingForm) => mutation.mutate(form);
+  const onSubmit = (form: BookingForm) => {
+    if (mutation.isPending) return;
+    setGeneralError(null);
+    mutation.mutate(form);
+  };
 
   // Min datetime = now + 1 hour
   const minDate = new Date(Date.now() + 60 * 60 * 1000)
@@ -139,6 +157,8 @@ export default function BookingNew() {
             </label>
             <select
               id="booking-service"
+              aria-invalid={Boolean(errors.serviceId)}
+              aria-describedby={errors.serviceId ? 'booking-service-error' : undefined}
               className={`input ${errors.serviceId ? 'input-error' : ''}`}
               {...register('serviceId', { required: 'Le service est obligatoire' })}
             >
@@ -150,7 +170,7 @@ export default function BookingNew() {
               ))}
             </select>
             {errors.serviceId && (
-              <p className="text-xs text-red-600 dark:text-red-400" role="alert">
+              <p id="booking-service-error" className="text-xs text-red-600 dark:text-red-400" role="alert">
                 {errors.serviceId.message}
               </p>
             )}
@@ -174,7 +194,7 @@ export default function BookingNew() {
               type="datetime-local"
               min={minDate}
               aria-invalid={Boolean(errors.scheduledAt)}
-              aria-describedby="booking-date-help"
+              aria-describedby={errors.scheduledAt ? 'booking-date-error booking-date-help' : 'booking-date-help'}
               className={`input ${errors.scheduledAt ? 'input-error' : ''}`}
               {...register('scheduledAt', {
                 required: 'Choisissez une date et une heure.',
@@ -185,7 +205,7 @@ export default function BookingNew() {
               Proposez un créneau : le prestataire l’accepte ou le refuse, vous êtes prévenu dans tous les cas.
             </p>
             {errors.scheduledAt && (
-              <p className="text-xs text-red-600 dark:text-red-400" role="alert">
+              <p id="booking-date-error" className="text-xs text-red-600 dark:text-red-400" role="alert">
                 {errors.scheduledAt.message}
               </p>
             )}
@@ -219,7 +239,7 @@ export default function BookingNew() {
               maxLength={1000}
               placeholder="Ex. : fuite sous l’évier de la cuisine depuis hier, accès par la cour."
               aria-invalid={Boolean(errors.description)}
-              aria-describedby="booking-description-help"
+              aria-describedby={errors.description ? 'booking-description-error booking-description-help' : 'booking-description-help'}
               className={`input resize-none ${errors.description ? 'input-error' : ''}`}
               {...register('description', {
                 required: 'Décrivez votre besoin.',
@@ -231,21 +251,23 @@ export default function BookingNew() {
               <span aria-live="polite">{descriptionLength}/1000</span>
             </p>
             {errors.description && (
-              <p className="text-xs text-red-600 dark:text-red-400" role="alert">
+              <p id="booking-description-error" className="text-xs text-red-600 dark:text-red-400" role="alert">
                 {errors.description.message}
               </p>
             )}
           </div>
 
           {/* Error */}
-          {mutation.isError && (
-            <div role="alert" className="text-sm text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-4 py-3 rounded-xl">
-              <p>{getApiErrorMessage(mutation.error, 'La demande n’a pas pu être envoyée. Réessayez.')}</p>
-              {getApiErrorCode(mutation.error) === 'BOOKING_DUPLICATE' && duplicateId(mutation.error) && (
-                <Link to={`/bookings/${duplicateId(mutation.error)}`} className="mt-1 inline-block font-medium underline">Voir ma demande en cours</Link>
-              )}
-            </div>
-          )}
+          <FormMessage tone="error">
+            {generalError ? (
+              <>
+                <p>{getApiErrorMessage(generalError, 'La demande n’a pas pu être envoyée. Réessayez.')}</p>
+                {getApiErrorCode(generalError) === 'BOOKING_DUPLICATE' && duplicateId(generalError) && (
+                  <Link to={`/bookings/${duplicateId(generalError)}`} className="mt-1 inline-block font-medium underline">Voir ma demande en cours</Link>
+                )}
+              </>
+            ) : null}
+          </FormMessage>
 
           {/* Submit */}
           <button

@@ -71,9 +71,9 @@ export function ProviderCard({ provider, onBook }: ProviderCardProps) {
 
           {/* Distance + prix */}
           <div className="flex items-center gap-4 mt-1.5 text-sm text-gray-600 dark:text-gray-400">
-            <span>📍 {provider.distanceKm} km</span>
+            <span>📍 {Number(provider.distanceKm).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} km</span>
             {provider.hourlyRate && (
-              <span>💰 {provider.hourlyRate.toLocaleString('fr-SN')} XOF/h</span>
+              <span>💰 {Number(provider.hourlyRate).toLocaleString('fr-FR')} XOF/h</span>
             )}
             {provider.city && <span>🏙 {provider.city}</span>}
           </div>

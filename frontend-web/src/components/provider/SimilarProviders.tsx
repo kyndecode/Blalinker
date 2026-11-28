@@ -30,7 +30,7 @@ export default function SimilarProviders({ providerId }: { providerId: string })
                 <span className="min-w-0">
                   <span className="block truncate text-sm font-medium text-gray-900 dark:text-white">{name}</span>
                   <span className="block text-xs text-gray-500 dark:text-gray-400">
-                    {p.city ?? ''}{p.ratingCount > 0 ? ` · ★ ${p.ratingAverage.toFixed(1)} (${p.ratingCount})` : ''}
+                    {p.city ?? ''}{p.ratingCount > 0 ? ` · ★ ${Number(p.ratingAverage).toFixed(1)} (${p.ratingCount})` : ''}
                   </span>
                 </span>
               </Link>
