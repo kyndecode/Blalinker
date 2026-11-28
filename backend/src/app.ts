@@ -167,7 +167,7 @@ if (env.SENTRY_DSN) {
 export function clientErrorResponse(err: unknown): { status: number; error: string; code: string } | null {
   if (err instanceof multer.MulterError) {
     return err.code === 'LIMIT_FILE_SIZE'
-      ? { status: 413, error: 'Fichier trop volumineux.', code: 'FILE_TOO_LARGE' }
+      ? { status: 413, error: 'Fichier trop volumineux : la taille maximale autorisée est de 6 Mo.', code: 'FILE_TOO_LARGE' }
       : { status: 400, error: 'Envoi de fichier invalide.', code: 'INVALID_UPLOAD' };
   }
   const type = (err as { type?: string } | null)?.type;

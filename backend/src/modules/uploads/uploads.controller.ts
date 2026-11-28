@@ -15,7 +15,7 @@ export const uploadsController = {
   /** POST /uploads/avatar — photo de profil */
   async avatar(req: Request, res: Response) {
     if (!isCloudinaryConfigured()) {
-      return res.status(503).json({ error: 'Stockage de fichiers non configuré.' });
+      return res.status(503).json({ error: 'L’envoi de fichiers est momentanément indisponible. Réessayez plus tard ou contactez le support.', code: 'STORAGE_UNAVAILABLE' });
     }
     if (!req.file) return res.status(400).json({ error: 'Aucun fichier fourni' });
     if (!isAllowedFile(req.file.buffer, AVATAR_KINDS)) {
@@ -36,7 +36,7 @@ export const uploadsController = {
   /** POST /uploads/id-card — pièce d'identité (KYC) */
   async idCard(req: Request, res: Response) {
     if (!isCloudinaryConfigured()) {
-      return res.status(503).json({ error: 'Stockage de fichiers non configuré.' });
+      return res.status(503).json({ error: 'L’envoi de fichiers est momentanément indisponible. Réessayez plus tard ou contactez le support.', code: 'STORAGE_UNAVAILABLE' });
     }
     if (!req.file) return res.status(400).json({ error: 'Aucun fichier fourni' });
     if (!isAllowedFile(req.file.buffer, ID_DOCUMENT_KINDS)) {

@@ -596,12 +596,21 @@ export class AuthService {
       throw Object.assign(new Error('Accès refusé : compte inactif ou suspendu.'), { status: 403, code });
     }
 
-    // Renouveler les tokens (la session remplacée reste reconnue 60 s comme « déjà renouvelée »)
-    await prisma.userSession.delete({ where: { id: session.id } });
+    // Renouvellement. Le marqueur « déjà renouvelée » est posé AVANT la suppression : auparavant,
+    // une requête concurrente arrivée entre la suppression et le marqueur ne trouvait ni la session
+    // ni le marqueur, concluait à un vol et fermait TOUTES les sessions de l'utilisateur (y compris
+    // celle que la première requête venait de créer) : déconnexions « toutes seules » au
+    // rechargement d'une page ou avec deux onglets.
     try {
       await redis.setex(`refresh:rotated:${session.id}`, 60, '1');
     } catch {
       // Redis indisponible : une course éventuelle sera traitée comme une réutilisation.
+    }
+    // Suppression atomique : si deux requêtes ont lu la session en même temps, une seule la
+    // supprime et obtient de nouveaux jetons ; l'autre reçoit un simple refus « course » (409).
+    const { count } = await prisma.userSession.deleteMany({ where: { id: session.id } });
+    if (count === 0) {
+      throw Object.assign(new Error('Session déjà renouvelée par une autre requête.'), { status: 409, code: 'REFRESH_RACE' });
     }
     return this._generateTokens(user.id, user.role, { method: 'refresh', ip: session.ipAddress ?? undefined, silent: true });
   }

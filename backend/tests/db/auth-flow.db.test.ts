@@ -197,6 +197,22 @@ describeDb('PostgreSQL réel — authentification et données de bout en bout', 
       refreshToken = r2.body.refreshToken;
     });
 
+    it('renouvellements SIMULTANÉS (rechargement, deux onglets) : un seul gagne, aucune session fermée', async () => {
+      const other = await newSession();
+      const results = await Promise.all([1, 2, 3].map(() => request(app).post(api('/auth/refresh-token')).send({ refreshToken })));
+      const statuses = results.map((r) => r.status).sort();
+      // Un seul renouvellement réussi ; les autres : simple refus « course » (jamais 401 ni 500).
+      expect(statuses).toEqual([200, 409, 409]);
+      const winner = results.find((r) => r.status === 200)!;
+      // La session du gagnant et celle de l'autre appareil restent valables (avant : vol présumé,
+      // toutes les sessions de l'utilisateur étaient fermées).
+      const next = await request(app).post(api('/auth/refresh-token')).send({ refreshToken: winner.body.refreshToken });
+      expect(next.status).toBe(200);
+      expect(await prisma.userSession.count({ where: { id: sessionIdOf(other.refreshToken) } })).toBe(1);
+      accessToken = next.body.accessToken;
+      refreshToken = next.body.refreshToken;
+    });
+
     // Seconde session (autre appareil) sans repasser par un code e-mail (délai entre deux codes).
     const newSession = async () => {
       const { AuthService } = await import('../../src/modules/auth/auth.service');
