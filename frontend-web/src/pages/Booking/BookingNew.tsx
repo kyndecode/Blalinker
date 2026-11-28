@@ -90,7 +90,9 @@ export default function BookingNew() {
       api.post('/bookings', {
         providerId,
         serviceId: form.serviceId,
-        scheduledAt: form.scheduledAt || undefined,
+        // Champ datetime-local (« 2026-12-01T10:00 », heure locale) → date ISO complète exigée par
+        // l'API. Avant : valeur brute refusée (« Date invalide »), aucune réservation possible.
+        scheduledAt: form.scheduledAt ? new Date(form.scheduledAt).toISOString() : undefined,
         description: form.description.trim(),
         clientAddress: form.address.trim(),
         amount: activeServicePrice ?? undefined,
