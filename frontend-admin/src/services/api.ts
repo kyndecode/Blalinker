@@ -199,6 +199,16 @@ api.interceptors.response.use(
           if (!data?.accessToken || !data?.refreshToken) {
             throw Object.assign(new Error('Session expirée'), { response: { status: 401 } });
           }
+          // Déconnexion pendant le renouvellement : la session n'est pas réinstallée et celle que ce
+          // renouvellement vient d'ouvrir est fermée côté serveur (avant : retour connecté après
+          // avoir cliqué sur « Déconnexion »).
+          if (!useAdminAuthStore.getState().user) {
+            void axios.post(`${getActiveApiBaseUrl()}/auth/logout`, { refreshToken: data.refreshToken }, {
+              timeout: WRITE_TIMEOUT_MS,
+              headers: { 'X-Admin-Request': '1', Authorization: `Bearer ${data.accessToken}` },
+            }).catch(() => { /* fermeture au mieux */ });
+            throw Object.assign(new Error('Session terminée'), { response: { status: 401 } });
+          }
           setTokens(data.accessToken, data.refreshToken, user);
           return data.accessToken as string;
         }).finally(() => {
