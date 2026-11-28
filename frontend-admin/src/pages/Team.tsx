@@ -228,7 +228,8 @@ export default function Team() {
                 { onSuccess: () => toast.success('Droits mis à jour') },
               );
             } else {
-              createM.mutate(form);
+              // « Personnalisé » : aucun rôle prédéfini envoyé (les permissions cochées suffisent).
+              createM.mutate({ ...form, preset: form.preset || undefined } as typeof form);
             }
           }}
         />

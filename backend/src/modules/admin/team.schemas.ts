@@ -3,6 +3,13 @@ import { ROLE_PRESETS } from '../../config/permissions';
 
 const presetKeys = Object.keys(ROLE_PRESETS) as [string, ...string[]];
 
+// « Personnalisé » (aucun rôle prédéfini) arrive vide depuis l'administration : équivaut à « absent ».
+// Avant : refusé avec un message technique anglais, création de membre impossible.
+const presetField = z.preprocess(
+  (v) => (v === '' || v === null ? undefined : v),
+  z.enum(presetKeys, { message: 'Rôle prédéfini inconnu.' }).optional(),
+);
+
 const strongPassword = z
   .string()
   .min(10, 'Mot de passe : 10 caractères minimum.')
@@ -16,14 +23,14 @@ export const createAdminSchema = z.object({
   password: strongPassword,
   firstName: z.string().trim().min(2, 'Prénom : 2 caractères minimum.').max(100, 'Prénom : 100 caractères maximum.'),
   lastName: z.string().trim().min(2, 'Nom : 2 caractères minimum.').max(100, 'Nom : 100 caractères maximum.'),
-  preset: z.enum(presetKeys).optional(),
+  preset: presetField,
   permissions: z.array(z.string()).optional(),
   adminTitle: z.string().trim().max(100).optional(),
   role: z.enum(['admin', 'super_admin']).optional(),
 });
 
 export const updateAdminSchema = z.object({
-  preset: z.enum(presetKeys).optional(),
+  preset: presetField,
   permissions: z.array(z.string()).optional(),
   adminTitle: z.string().trim().max(100).optional(),
   status: z.enum(['active', 'suspended']).optional(),
