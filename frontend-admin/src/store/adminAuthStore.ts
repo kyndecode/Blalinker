@@ -10,9 +10,10 @@ interface AdminUser {
 interface AdminAuthState {
   user:         AdminUser | null;
   accessToken:  string | null;
+  /** Hérité des versions précédentes (migration) : le jeton vit désormais dans un cookie HttpOnly. */
   refreshToken: string | null;
   isAuthenticated: boolean;
-  setTokens: (access: string, refresh: string, user: AdminUser) => void;
+  setTokens: (access: string, refresh: string | null | undefined, user: AdminUser) => void;
   logout: () => void;
 }
 
@@ -25,7 +26,7 @@ export const useAdminAuthStore = create<AdminAuthState>()(
       isAuthenticated: false,
 
       setTokens: (accessToken, refreshToken, user) =>
-        set({ accessToken, refreshToken, user, isAuthenticated: true }),
+        set({ accessToken, refreshToken: refreshToken ?? null, user, isAuthenticated: true }),
 
       logout: () =>
         set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false }),
@@ -34,7 +35,6 @@ export const useAdminAuthStore = create<AdminAuthState>()(
       name: 'bla-admin-auth',
       partialize: (s) => ({
         accessToken:  s.accessToken,
-        refreshToken: s.refreshToken,
         user:         s.user,
         isAuthenticated: s.isAuthenticated,
       }),

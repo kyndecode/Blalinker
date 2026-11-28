@@ -141,15 +141,24 @@ function isTransientNetworkError(error: AxiosError): boolean {
   return error.response.status >= 500;
 }
 
+/**
+ * Jeton de renouvellement : cookie HttpOnly « bla_admin_refresh » posé par l'API (mode cookie),
+ * illisible par le JavaScript de la page. Avant : conservé 30 jours dans le localStorage, où un
+ * script injecté pouvait le lire.
+ */
+const COOKIE_MODE_HEADERS = { 'X-Admin-Request': '1', 'X-Auth-Mode': 'cookie' } as const;
+
 const api = axios.create({
   baseURL: getActiveApiBaseUrl(),
   timeout: READ_TIMEOUT_MS,
+  withCredentials: true,
 });
 
 api.interceptors.request.use((config: RetryableRequestConfig) => {
   const token = useAdminAuthStore.getState().accessToken;
   if (token) config.headers.Authorization = `Bearer ${token}`;
   config.headers['X-Admin-Request'] = '1';
+  config.headers['X-Auth-Mode'] = 'cookie';
   config.baseURL = getActiveApiBaseUrl();
   if (!isIdempotentRequest(config.method) && config.timeout === READ_TIMEOUT_MS) {
     config.timeout = WRITE_TIMEOUT_MS;
@@ -183,7 +192,7 @@ api.interceptors.response.use(
         }
       };
 
-      if (!refreshToken || !user) {
+      if (!user) {
         forceLogout();
         return Promise.reject(error);
       }
@@ -193,23 +202,26 @@ api.interceptors.response.use(
       if (!refreshPromise) {
         refreshPromise = axios.post(
           `${getActiveApiBaseUrl()}/auth/refresh-token`,
-          { refreshToken },
-          { headers: { 'X-Admin-Request': '1' }, timeout: WRITE_TIMEOUT_MS },
+          // Ancien jeton encore stocké (version précédente) : envoyé une dernière fois, la réponse le
+          // remplace par le cookie. Sinon, corps vide : le cookie suffit.
+          refreshToken ? { refreshToken } : {},
+          { headers: COOKIE_MODE_HEADERS, withCredentials: true, timeout: WRITE_TIMEOUT_MS },
         ).then(({ data }) => {
-          if (!data?.accessToken || !data?.refreshToken) {
+          if (!data?.accessToken) {
             throw Object.assign(new Error('Session expirée'), { response: { status: 401 } });
           }
           // Déconnexion pendant le renouvellement : la session n'est pas réinstallée et celle que ce
           // renouvellement vient d'ouvrir est fermée côté serveur (avant : retour connecté après
           // avoir cliqué sur « Déconnexion »).
           if (!useAdminAuthStore.getState().user) {
-            void axios.post(`${getActiveApiBaseUrl()}/auth/logout`, { refreshToken: data.refreshToken }, {
+            void axios.post(`${getActiveApiBaseUrl()}/auth/logout`, {}, {
               timeout: WRITE_TIMEOUT_MS,
-              headers: { 'X-Admin-Request': '1', Authorization: `Bearer ${data.accessToken}` },
+              withCredentials: true,
+              headers: { ...COOKIE_MODE_HEADERS, Authorization: `Bearer ${data.accessToken}` },
             }).catch(() => { /* fermeture au mieux */ });
             throw Object.assign(new Error('Session terminée'), { response: { status: 401 } });
           }
-          setTokens(data.accessToken, data.refreshToken, user);
+          setTokens(data.accessToken, null, user);
           return data.accessToken as string;
         }).finally(() => {
           refreshPromise = null;

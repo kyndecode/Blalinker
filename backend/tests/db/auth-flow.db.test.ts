@@ -299,14 +299,42 @@ describeDb('PostgreSQL réel — authentification et données de bout en bout', 
   });
 
   it('super-administrateur : code e-mail puis accès à l’administration et permissions complètes', async () => {
-    const login = await request(app).post(api('/auth/login')).send({ email: adminEmail, password: PASSWORD });
+    // En-têtes envoyés par l'application d'administration (jeton de renouvellement en cookie).
+    const ADMIN = { 'X-Admin-Request': '1', 'X-Auth-Mode': 'cookie' };
+    const login = await request(app).post(api('/auth/login')).set(ADMIN).send({ email: adminEmail, password: PASSWORD });
     expect(login.status).toBe(200);
-    const ok = await request(app).post(api('/auth/login/verify-mfa')).send({ tempToken: login.body.tempToken, otpCode: lastCode(adminEmail) });
+    const ok = await request(app).post(api('/auth/login/verify-mfa')).set(ADMIN).send({ tempToken: login.body.tempToken, otpCode: lastCode(adminEmail) });
     expect(ok.status).toBe(200);
     expect(ok.body.user.role).toBe('super_admin');
     const dash = await request(app).get(api('/admin/dashboard')).set('Authorization', `Bearer ${ok.body.accessToken}`);
     expect(dash.status).toBe(200);
     // Un seul super-administrateur créé par ce test : aucun doublon par le démarrage.
     expect(await prisma.user.count({ where: { email: adminEmail } })).toBe(1);
+
+    // Jeton de renouvellement : jamais dans le corps (lisible par le JavaScript), seulement dans un
+    // cookie HttpOnly propre à l'administration (distinct de celui du site public).
+    expect(ok.body.refreshToken).toBeUndefined();
+    const cookies = ([] as string[]).concat(ok.headers['set-cookie'] ?? []);
+    const adminCookie = cookies.find((c) => c.startsWith('bla_admin_refresh='));
+    expect(adminCookie).toMatch(/HttpOnly/i);
+    expect(adminCookie).toMatch(/Path=\/api\/v1\/auth/);
+    expect(cookies.some((c) => c.startsWith('bla_refresh='))).toBe(false);
+    const cookiePair = adminCookie!.split(';')[0];
+
+    // Renouvellement par le cookie de l'administration.
+    const refreshed = await request(app).post(api('/auth/refresh-token')).set(ADMIN).set('Cookie', cookiePair).send({});
+    expect(refreshed.status).toBe(200);
+    expect(refreshed.body.refreshToken).toBeUndefined();
+    const rotated = ([] as string[]).concat(refreshed.headers['set-cookie'] ?? []).find((c) => c.startsWith('bla_admin_refresh='))!.split(';')[0];
+    // Le site public (sans en-tête d'administration) ne lit pas le cookie de l'administration.
+    const fromWeb = await request(app).post(api('/auth/refresh-token')).set('X-Auth-Mode', 'cookie').set('Cookie', rotated).send({});
+    expect(fromWeb.status).toBe(401);
+
+    // Déconnexion : session fermée et cookie de l'administration effacé.
+    const out = await request(app).post(api('/auth/logout')).set(ADMIN).set('Authorization', `Bearer ${refreshed.body.accessToken}`).set('Cookie', rotated).send({});
+    expect(out.status).toBe(200);
+    expect(([] as string[]).concat(out.headers['set-cookie'] ?? []).some((c) => /^bla_admin_refresh=;/.test(c))).toBe(true);
+    const after = await request(app).post(api('/auth/refresh-token')).set(ADMIN).set('Cookie', rotated).send({});
+    expect(after.status).toBe(401);
   });
 });

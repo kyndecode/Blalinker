@@ -28,14 +28,19 @@ describe('administration : déconnexion pendant un renouvellement', () => {
     const request = api.get('/admin/users').catch((e) => e);
     await vi.waitFor(() => expect(answer).toBeTypeOf('function'));
     useAdminAuthStore.getState().logout(); // clic sur « Déconnexion » pendant le renouvellement
-    answer({ data: { accessToken: 'acces-tardif', refreshToken: 'renouvellement-tardif' } });
+    // Mode cookie : le nouveau jeton de renouvellement est dans le cookie HttpOnly, pas dans la réponse.
+    answer({ data: { accessToken: 'acces-tardif' } });
     await request;
     expect(useAdminAuthStore.getState().isAuthenticated).toBe(false);
     expect(useAdminAuthStore.getState().refreshToken).toBeNull();
+    // Fermeture côté serveur : jeton d'accès tardif + cookie (lu par l'API), aucun jeton dans le corps.
     expect(post).toHaveBeenCalledWith(
       expect.stringMatching(/\/auth\/logout$/),
-      { refreshToken: 'renouvellement-tardif' },
-      expect.objectContaining({ headers: expect.objectContaining({ Authorization: 'Bearer acces-tardif' }) }),
+      {},
+      expect.objectContaining({
+        withCredentials: true,
+        headers: expect.objectContaining({ Authorization: 'Bearer acces-tardif', 'X-Auth-Mode': 'cookie', 'X-Admin-Request': '1' }),
+      }),
     );
   });
 });

@@ -2,6 +2,11 @@ import type { Request, Response } from 'express';
 import { env } from '../config/env';
 
 export const REFRESH_COOKIE_NAME = 'bla_refresh';
+/**
+ * Cookie distinct pour l'administration : le site et l'administration appellent la même API ;
+ * un cookie commun ferait se remplacer les deux sessions dans un même navigateur.
+ */
+export const ADMIN_REFRESH_COOKIE_NAME = 'bla_admin_refresh';
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -13,6 +18,15 @@ const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
  */
 export function isCookieAuthMode(req: Request): boolean {
   return String(req.headers['x-auth-mode'] ?? '').toLowerCase() === 'cookie';
+}
+
+/** Requête de l'administration (en-tête personnalisé envoyé par l'application d'administration). */
+export function isAdminRequest(req: Request): boolean {
+  return String(req.headers['x-admin-request'] ?? '') === '1';
+}
+
+function cookieName(req: Request): string {
+  return isAdminRequest(req) ? ADMIN_REFRESH_COOKIE_NAME : REFRESH_COOKIE_NAME;
 }
 
 function cookieOptions() {
@@ -27,17 +41,18 @@ function cookieOptions() {
   };
 }
 
-export function setRefreshCookie(res: Response, token: string): void {
-  res.cookie(REFRESH_COOKIE_NAME, token, cookieOptions());
+export function setRefreshCookie(req: Request, res: Response, token: string): void {
+  res.cookie(cookieName(req), token, cookieOptions());
 }
 
-export function clearRefreshCookie(res: Response): void {
+export function clearRefreshCookie(req: Request, res: Response): void {
   const { maxAge: _maxAge, ...opts } = cookieOptions();
-  res.clearCookie(REFRESH_COOKIE_NAME, opts);
+  res.clearCookie(cookieName(req), opts);
 }
 
 /**
- * Lit le refresh token : cookie (web) ou corps de la requête (mobile, administration).
+ * Lit le refresh token : cookie (site, administration) ou corps de la requête (mobile, et ancienne
+ * administration le temps de la migration : le jeton du corps est alors remplacé par un cookie).
  * Le cookie n'est lu QU'AVEC l'en-tête `X-Auth-Mode: cookie` : un en-tête personnalisé impose
  * une vérification CORS préalable, qu'un site tiers ne peut pas passer. Sans cela, un simple
  * formulaire d'un autre site (cookie SameSite=None) pouvait forcer une rotation du jeton et
@@ -45,7 +60,7 @@ export function clearRefreshCookie(res: Response): void {
  */
 export function getRefreshToken(req: Request): string | undefined {
   const fromCookie = isCookieAuthMode(req)
-    ? (req as Request & { cookies?: Record<string, string> }).cookies?.[REFRESH_COOKIE_NAME]
+    ? (req as Request & { cookies?: Record<string, string> }).cookies?.[cookieName(req)]
     : undefined;
   const fromBody = (req.body as { refreshToken?: string } | undefined)?.refreshToken;
   return fromCookie || fromBody || undefined;

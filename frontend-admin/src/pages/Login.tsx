@@ -134,7 +134,8 @@ export default function AdminLogin() {
   };
 
   const completeSession = async (payload: AuthResponse, fallbackEmail: string) => {
-    if (!payload.accessToken || !payload.refreshToken) {
+    // Le jeton de renouvellement arrive en cookie HttpOnly (absent du corps de la réponse).
+    if (!payload.accessToken) {
       throw new Error('Session incomplète: tokens manquants');
     }
 

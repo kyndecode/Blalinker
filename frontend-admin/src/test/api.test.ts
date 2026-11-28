@@ -1,5 +1,5 @@
-import { AxiosError, type AxiosAdapter, type InternalAxiosRequestConfig } from 'axios';
-import { beforeEach, describe, expect, it } from 'vitest';
+import axios, { AxiosError, type AxiosAdapter, type InternalAxiosRequestConfig } from 'axios';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import api, {
   READ_TIMEOUT_MS,
   WRITE_TIMEOUT_MS,
@@ -39,6 +39,7 @@ beforeEach(() => {
   useAdminAuthStore.getState().logout();
   window.history.pushState({}, '', '/login');
 });
+afterEach(() => { vi.restoreAllMocks(); });
 
 describe('fonctions de décision', () => {
   it('reconnaît les requêtes idempotentes', () => {
@@ -108,12 +109,37 @@ describe('intercepteurs du client API admin', () => {
     expect(calls).toHaveLength(3); // 1 essai + 2 nouvelles tentatives
   }, 10_000);
 
-  it('401 sur une route protégée sans jeton de rafraîchissement : déconnexion', async () => {
+  // Jeton de renouvellement en cookie HttpOnly (29/11/2026) : l'absence de jeton dans le navigateur
+  // ne signifie plus « pas de session » ; c'est le refus du serveur qui déconnecte.
+  it('401 sur une route protégée, renouvellement refusé par le serveur : déconnexion', async () => {
     signIn(false);
     fakeServer(401, { error: 'Token invalide ou expiré' });
+    vi.spyOn(axios, 'post').mockRejectedValue(Object.assign(new AxiosError('HTTP 401'), { response: { status: 401, data: {} } }));
 
-    await expect(api.get('/admin/dashboard')).rejects.toBeInstanceOf(AxiosError);
+    await expect(api.get('/admin/dashboard')).rejects.toBeTruthy();
     expect(useAdminAuthStore.getState().isAuthenticated).toBe(false);
+  });
+
+  it('renouvellement par cookie HttpOnly : aucun jeton envoyé par le JavaScript, requête rejouée', async () => {
+    signIn(false);
+    let first = true;
+    const adapter: AxiosAdapter = async (config) => {
+      const status = first ? 401 : 200;
+      first = false;
+      const response = { data: { ok: true }, status, statusText: String(status), headers: {}, config, request: {} };
+      if (status === 200) return response;
+      throw new AxiosError('HTTP 401', AxiosError.ERR_BAD_REQUEST, config, {}, response);
+    };
+    api.defaults.adapter = adapter;
+    const post = vi.spyOn(axios, 'post').mockResolvedValue({ data: { accessToken: 'nouvel-acces' } } as never);
+
+    await expect(api.get('/admin/dashboard')).resolves.toMatchObject({ data: { ok: true } });
+    const [url, body, config] = post.mock.calls[0];
+    expect(String(url)).toMatch(/\/auth\/refresh-token$/);
+    expect(body).toEqual({});
+    expect(config).toMatchObject({ withCredentials: true, headers: { 'X-Admin-Request': '1', 'X-Auth-Mode': 'cookie' } });
+    expect(useAdminAuthStore.getState().accessToken).toBe('nouvel-acces');
+    expect(useAdminAuthStore.getState().refreshToken).toBeNull();
   });
 
   it('délai long pour les écritures (réveil Render), court pour les lectures', async () => {

@@ -36,7 +36,7 @@ function sendAuthResult(
 ): Response {
   const refreshToken = result.refreshToken;
   if (typeof refreshToken === 'string' && isCookieAuthMode(req)) {
-    setRefreshCookie(res, refreshToken);
+    setRefreshCookie(req, res, refreshToken);
     const { refreshToken: _omit, ...rest } = result;
     return res.status(status).json(rest);
   }
@@ -189,7 +189,7 @@ export const authController = {
       const e = err as { message: string; status?: number; code?: string };
       // En cas d'échec en mode cookie, on nettoie le cookie potentiellement invalide
       // (sauf course entre deux onglets : la session reste valable).
-      if (isCookieAuthMode(req) && e.status !== 409) clearRefreshCookie(res);
+      if (isCookieAuthMode(req) && e.status !== 409) clearRefreshCookie(req, res);
       return res.status(e.status ?? 401).json({ error: e.message, ...(e.code ? { code: e.code } : {}) });
     }
   },
@@ -206,12 +206,12 @@ export const authController = {
     const mayClearCookie = isCookieAuthMode(req) || Boolean(accessToken);
     try {
       const { sessionsClosed } = await authService.logoutSession({ accessToken, refreshToken });
-      if (mayClearCookie) clearRefreshCookie(res);
+      if (mayClearCookie) clearRefreshCookie(req, res);
       return res.json({ message: 'Déconnexion réussie', sessionsClosed });
     } catch (err: unknown) {
       logger.error('Erreur logout:', err);
       // Le cookie est retiré du navigateur même si la base est indisponible.
-      if (mayClearCookie) clearRefreshCookie(res);
+      if (mayClearCookie) clearRefreshCookie(req, res);
       return res.status(503).json({ error: 'Déconnexion enregistrée sur cet appareil ; serveur momentanément indisponible.', code: 'LOGOUT_PARTIAL' });
     }
   },
