@@ -6,10 +6,11 @@ import { z } from 'zod';
 import api from '../services/api';
 import { useAdminAuthStore } from '../store/adminAuthStore';
 import { Shield } from 'lucide-react';
+import { ADMIN_NOTICE_KEY } from '../services/sessionNotice';
 
 const schema = z.object({
-  email: z.string().email('Email invalide'),
-  password: z.string().min(1, 'Mot de passe requis'),
+  email: z.string().trim().min(1, 'Saisissez votre adresse e-mail.').email('Veuillez saisir une adresse e-mail valide.'),
+  password: z.string().min(1, 'Saisissez votre mot de passe.'),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -88,6 +89,14 @@ export default function AdminLogin() {
 
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
+  // Message laissé par une fin de session (ex. « Votre session a expiré »), affiché une seule fois.
+  const [sessionNotice] = useState(() => {
+    try {
+      const notice = sessionStorage.getItem(ADMIN_NOTICE_KEY);
+      sessionStorage.removeItem(ADMIN_NOTICE_KEY);
+      return notice ?? '';
+    } catch { return ''; }
+  });
   const [loading, setLoading] = useState(false);
   const [slow, setSlow] = useState(false);
   const [otpCode, setOtpCode] = useState('');
@@ -267,29 +276,40 @@ export default function AdminLogin() {
 
         <div className="bg-[#1a2744] rounded-2xl p-8 shadow-2xl border border-white/10">
           {!mfa ? (
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
+              {sessionNotice && (
+                <div role="status" className="bg-blue-900/30 border border-blue-700 rounded-lg px-4 py-3 text-blue-200 text-sm">
+                  <span aria-hidden="true">ℹ </span>{sessionNotice}
+                </div>
+              )}
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">Email administrateur</label>
+                <label htmlFor="admin-email" className="block text-sm font-medium text-gray-300 mb-1">Email administrateur</label>
                 <input
+                  id="admin-email"
                   type="email"
                   autoComplete="username"
+                  aria-invalid={Boolean(errors.email)}
+                  aria-describedby={errors.email ? 'admin-email-error' : undefined}
                   {...register('email')}
-                  className={inputClass}
+                  className={`${inputClass} ${errors.email ? 'border-red-500' : ''}`}
                   placeholder="vous@exemple.com"
                 />
-                {errors.email && <p className="text-red-400 text-sm mt-1">{errors.email.message}</p>}
+                {errors.email && <p id="admin-email-error" role="alert" className="text-red-400 text-sm mt-1">{errors.email.message}</p>}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">Mot de passe</label>
+                <label htmlFor="admin-password" className="block text-sm font-medium text-gray-300 mb-1">Mot de passe</label>
                 <input
+                  id="admin-password"
                   type="password"
                   autoComplete="current-password"
+                  aria-invalid={Boolean(errors.password)}
+                  aria-describedby={errors.password ? 'admin-password-error' : undefined}
                   {...register('password')}
-                  className={inputClass}
+                  className={`${inputClass} ${errors.password ? 'border-red-500' : ''}`}
                   placeholder="••••••••••••"
                 />
-                {errors.password && <p className="text-red-400 text-sm mt-1">{errors.password.message}</p>}
+                {errors.password && <p id="admin-password-error" role="alert" className="text-red-400 text-sm mt-1">{errors.password.message}</p>}
               </div>
 
               {error && (

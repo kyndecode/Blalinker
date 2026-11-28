@@ -5,7 +5,7 @@ import AccessDenied, { isForbidden } from '../components/AccessDenied';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import Modal from '../components/ui/Modal';
 import { useToast } from '../components/ui/Toast';
-import { CheckboxField, SelectField, TextArea, TextField, fieldErrors } from '../components/ui/Field';
+import { CheckboxField, SelectField, TextArea, TextField, fieldErrors, useFocusFirstError } from '../components/ui/Field';
 import api from '../services/api';
 import { getApiErrorMessage } from '../utils/apiError';
 
@@ -52,9 +52,10 @@ function Editor({ item, all, onClose }: { item: Category | 'new' | null; all: Ca
     onSuccess: () => { toast.success('Catégorie enregistrée'); qc.invalidateQueries({ queryKey: ['admin-categories'] }); onClose(); },
   });
   const errors = fieldErrors(save.error);
+  useFocusFirstError(save.error);
   return (
     <Modal open={Boolean(item)} onClose={onClose} title={isNew ? 'Nouvelle catégorie' : 'Modifier la catégorie'}>
-      <form onSubmit={(e) => { e.preventDefault(); save.mutate(); }} className="space-y-3">
+      <form onSubmit={(e) => { e.preventDefault(); if (!save.isPending) save.mutate(); }} className="space-y-3" noValidate>
         <TextField label="Nom" required value={d.name} maxLength={100} error={errors.name}
           onChange={(e) => { const name = e.target.value; setD((x) => ({ ...x, name, slug: slugTouched ? x.slug : slugify(name) })); }} />
         <TextField label="Identifiant (adresse)" required value={d.slug} maxLength={100} error={errors.slug} hint="minuscules, chiffres, tirets"

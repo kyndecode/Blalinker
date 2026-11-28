@@ -1,4 +1,4 @@
-import { useId, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
+import { useEffect, useId, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 
 const base = 'w-full rounded-lg border bg-[#0f1b33] px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-60';
 const border = (error?: string) => (error ? 'border-red-500/70' : 'border-white/10');
@@ -43,7 +43,7 @@ export function SelectField({ label, error, hint, required, children, ...props }
   const id = useId();
   return (
     <Wrapper id={id} label={label} error={error} hint={hint} required={required}>
-      <select id={id} required={required} aria-invalid={Boolean(error)} className={`${base} ${border(error)}`} {...props}>{children}</select>
+      <select id={id} required={required} aria-invalid={Boolean(error)} aria-describedby={error ? `${id}-err` : hint ? `${id}-hint` : undefined} className={`${base} ${border(error)}`} {...props}>{children}</select>
     </Wrapper>
   );
 }
@@ -87,3 +87,22 @@ export const LOCALES = [
   { value: 'fr', label: 'Français' },
   { value: 'en', label: 'Anglais' },
 ] as const;
+
+/**
+ * Après un enregistrement refusé : le premier champ signalé (dans la fenêtre ouverte, sinon dans
+ * la page) défile à l'écran et reçoit le focus, pour corriger sans chercher. Sans champ signalé
+ * (erreur générale), rien ne bouge : le message s'affiche à côté du bouton.
+ */
+export function useFocusFirstError(error: unknown): void {
+  useEffect(() => {
+    if (!error) return undefined;
+    const frame = requestAnimationFrame(() => {
+      const scope = document.querySelector('[role="dialog"]') ?? document;
+      const el = scope.querySelector<HTMLElement>('[aria-invalid="true"]');
+      if (!el) return;
+      el.scrollIntoView?.({ block: 'center' });
+      el.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [error]);
+}

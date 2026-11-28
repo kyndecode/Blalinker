@@ -5,7 +5,7 @@ import AccessDenied, { isForbidden } from '../../components/AccessDenied';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import Modal from '../../components/ui/Modal';
 import { useToast } from '../../components/ui/Toast';
-import { CheckboxField, LOCALES, SelectField, TextField, fieldErrors } from '../../components/ui/Field';
+import { CheckboxField, LOCALES, SelectField, TextField, fieldErrors, useFocusFirstError } from '../../components/ui/Field';
 import api from '../../services/api';
 import { getApiErrorMessage } from '../../utils/apiError';
 
@@ -27,10 +27,11 @@ function Editor({ item, onClose }: { item: Country | 'new' | null; onClose: () =
     onSuccess: () => { toast.success('Pays enregistré'); qc.invalidateQueries({ queryKey: ['admin-countries'] }); onClose(); },
   });
   const errors = fieldErrors(save.error);
+  useFocusFirstError(save.error);
   const set = (k: keyof Country) => (e: { target: { value: string } }) => setD((x) => ({ ...x, [k]: e.target.value }));
   return (
     <Modal open={Boolean(item)} onClose={onClose} title={isNew ? 'Ajouter un pays' : `Modifier ${d.name}`}>
-      <form onSubmit={(e) => { e.preventDefault(); save.mutate(); }} className="space-y-3">
+      <form onSubmit={(e) => { e.preventDefault(); if (!save.isPending) save.mutate(); }} className="space-y-3" noValidate>
         <div className="grid gap-3 sm:grid-cols-2">
           <TextField label="Code ISO" required disabled={!isNew} value={d.code} onChange={(e) => setD((x) => ({ ...x, code: e.target.value.toUpperCase() }))} maxLength={2} error={errors.code} hint="2 lettres (ex. : CI)" />
           <TextField label="Nom" required value={d.name} onChange={set('name')} maxLength={100} error={errors.name} />

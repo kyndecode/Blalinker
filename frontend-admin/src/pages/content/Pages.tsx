@@ -6,7 +6,7 @@ import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import Modal from '../../components/ui/Modal';
 import Pagination from '../../components/ui/Pagination';
 import { useToast } from '../../components/ui/Toast';
-import { LOCALES, STATUS_BADGE, STATUS_OPTIONS, SelectField, TextArea, TextField, fieldErrors } from '../../components/ui/Field';
+import { LOCALES, STATUS_BADGE, STATUS_OPTIONS, SelectField, TextArea, TextField, fieldErrors, useFocusFirstError } from '../../components/ui/Field';
 import Markdown from '../../components/content/Markdown';
 import api from '../../services/api';
 import { getApiErrorMessage } from '../../utils/apiError';
@@ -56,12 +56,13 @@ function PageEditor({ pageId, onClose }: { pageId: string | 'new' | null; onClos
     },
   });
   const errors = fieldErrors(save.error);
+  useFocusFirstError(save.error);
   const set = (k: keyof Draft) => (e: { target: { value: string } }) => setDraft((d) => ({ ...d, [k]: e.target.value }));
 
   return (
     <Modal open={Boolean(pageId)} onClose={onClose} title={isNew ? 'Nouvelle page' : 'Modifier la page'} size="lg">
       {!isNew && isLoading ? <p className="text-sm text-gray-400">Chargement…</p> : (
-        <form onSubmit={(e) => { e.preventDefault(); save.mutate(); }} className="space-y-3">
+        <form onSubmit={(e) => { e.preventDefault(); if (!save.isPending) save.mutate(); }} className="space-y-3" noValidate>
           <div className="grid gap-3 sm:grid-cols-3">
             <TextField label="Identifiant (adresse)" required value={draft.slug} onChange={set('slug')} error={errors.slug}
               hint={RESERVED_SLUGS[draft.slug] ?? (draft.slug ? `/page/${draft.slug}` : 'minuscules, chiffres, tirets')} />

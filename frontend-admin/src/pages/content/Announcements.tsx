@@ -5,7 +5,7 @@ import AccessDenied, { isForbidden } from '../../components/AccessDenied';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import Modal from '../../components/ui/Modal';
 import { useToast } from '../../components/ui/Toast';
-import { LOCALES, STATUS_BADGE, STATUS_OPTIONS, SelectField, TextField, fieldErrors } from '../../components/ui/Field';
+import { LOCALES, STATUS_BADGE, STATUS_OPTIONS, SelectField, TextField, fieldErrors, useFocusFirstError } from '../../components/ui/Field';
 import api from '../../services/api';
 import { getApiErrorMessage } from '../../utils/apiError';
 
@@ -48,10 +48,11 @@ function Editor({ item, onClose }: { item: Announcement | 'new' | null; onClose:
     onSuccess: () => { toast.success('Annonce enregistrée'); qc.invalidateQueries({ queryKey: ['admin-announcements'] }); onClose(); },
   });
   const errors = fieldErrors(save.error);
+  useFocusFirstError(save.error);
   const set = (k: keyof Draft) => (e: { target: { value: string } }) => setD((x) => ({ ...x, [k]: e.target.value }));
   return (
     <Modal open={Boolean(item)} onClose={onClose} title={isNew ? 'Nouvelle annonce' : 'Modifier l’annonce'} size="lg">
-      <form onSubmit={(e) => { e.preventDefault(); save.mutate(); }} className="space-y-3">
+      <form onSubmit={(e) => { e.preventDefault(); if (!save.isPending) save.mutate(); }} className="space-y-3" noValidate>
         <TextField label="Message" required value={d.message} onChange={set('message')} error={errors.message} maxLength={300} />
         <div className="grid gap-3 sm:grid-cols-2">
           <TextField label="Lien" value={d.linkUrl} onChange={set('linkUrl')} error={errors.linkUrl} hint="https://… ou chemin du site (/help)" />

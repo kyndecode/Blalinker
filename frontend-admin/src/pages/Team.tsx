@@ -5,6 +5,7 @@ import ConfirmDialog from '../components/ui/ConfirmDialog';
 import Modal from '../components/ui/Modal';
 import { useToast } from '../components/ui/Toast';
 import { getApiErrorMessage } from '../utils/apiError';
+import { SelectField, TextField, fieldErrors, useFocusFirstError } from '../components/ui/Field';
 
 /** Règle identique au serveur : 10 caractères minimum, une majuscule, une minuscule, un chiffre. */
 export function passwordIssues(pw: string): string[] {
@@ -35,7 +36,7 @@ function ResetPasswordDialog({ member, busy, error, onClose, onSubmit }: { membe
     </Modal>
   );
 }
-import { UserPlus, Shield, Power, KeyRound, Trash2, LogOut, X } from 'lucide-react';
+import { UserPlus, Shield, Power, KeyRound, Trash2, LogOut } from 'lucide-react';
 
 interface Member {
   id: string;
@@ -77,6 +78,8 @@ const STATUS_COLORS: Record<string, string> = {
   suspended: 'bg-orange-900/50 text-orange-400',
 };
 
+const STATUS_LABELS: Record<string, string> = { active: 'Actif', suspended: 'Suspendu', banned: 'Banni', pending: 'En attente' };
+
 const emptyForm = { firstName: '', lastName: '', email: '', password: '', preset: '', adminTitle: '', permissions: [] as string[] };
 
 export default function Team() {
@@ -101,7 +104,7 @@ export default function Team() {
 
   const createM = useMutation({
     mutationFn: (body: typeof emptyForm) => api.post('/admin/team', body),
-    onSuccess: () => { invalidate(); setModal(null); },
+    onSuccess: () => { invalidate(); setModal(null); toast.success('Membre créé : il peut se connecter avec son mot de passe provisoire.'); },
   });
   const updateM = useMutation({
     mutationFn: ({ id, body }: { id: string; body: Record<string, unknown> }) => api.patch(`/admin/team/${id}`, body),
@@ -136,7 +139,7 @@ export default function Team() {
           <p className="text-white/70 text-sm mt-0.5">Gérez les administrateurs et leurs permissions (RBAC).</p>
         </div>
         <button
-          onClick={() => setModal({ mode: 'create' })}
+          onClick={() => { createM.reset(); updateM.reset(); setModal({ mode: 'create' }); }}
           className="flex items-center gap-2 px-4 py-2 bg-green-700 hover:bg-green-800 text-white text-sm font-medium rounded-lg transition-colors"
         >
           <UserPlus className="w-4 h-4" /> Nouveau membre
@@ -166,7 +169,7 @@ export default function Team() {
                 </td>
                 <td className="px-4 py-3">
                   <div className="text-gray-300">{m.adminTitle ?? (m.role === 'super_admin' ? 'Super Admin' : 'Administrateur')}</div>
-                  <div className="text-white/70 text-xs capitalize">{m.role}</div>
+                  <div className="text-white/70 text-xs">{m.role === 'super_admin' ? 'Super administrateur' : 'Administrateur'}</div>
                 </td>
                 <td className="px-4 py-3 text-gray-400">
                   {m.role === 'super_admin'
@@ -174,7 +177,7 @@ export default function Team() {
                     : `${m.permissions?.length ?? 0} permission(s)`}
                 </td>
                 <td className="px-4 py-3">
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[m.status] ?? 'bg-white/10 text-gray-400'}`}>{m.status}</span>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[m.status] ?? 'bg-white/10 text-gray-400'}`}>{STATUS_LABELS[m.status] ?? m.status}</span>
                 </td>
                 <td className="px-4 py-3 text-gray-400">
                   {m.lastLoginAt ? new Date(m.lastLoginAt).toLocaleString('fr-FR') : 'Jamais'}
@@ -182,13 +185,23 @@ export default function Team() {
                 <td className="px-4 py-3">
                   <div className="flex gap-2 justify-end">
                     {m.role !== 'super_admin' && (
-                      <button title="Modifier les droits" onClick={() => setModal({ mode: 'edit', member: m })} className="text-blue-400 hover:text-blue-300"><Shield className="w-4 h-4" /></button>
+                      <button title="Modifier les droits" aria-label={`Modifier les droits de ${m.email ?? 'ce membre'}`} onClick={() => { createM.reset(); updateM.reset(); setModal({ mode: 'edit', member: m }); }} className="text-blue-400 hover:text-blue-300"><Shield className="w-4 h-4" /></button>
                     )}
                     <button title="Forcer la déconnexion" aria-label={`Forcer la déconnexion de ${m.email ?? 'ce membre'}`} onClick={() => forceLogoutM.mutate(m.id, { onSuccess: () => toast.success('Sessions fermées'), onError: (e) => toast.error(getApiErrorMessage(e)) })} className="text-yellow-400 hover:text-yellow-300"><LogOut className="w-4 h-4" /></button>
                     <button title="Réinitialiser le mot de passe" aria-label={`Réinitialiser le mot de passe de ${m.email ?? 'ce membre'}`} onClick={() => { resetPwM.reset(); setPwTarget(m); }} className="text-cyan-400 hover:text-cyan-300"><KeyRound className="w-4 h-4" /></button>
                     {m.role !== 'super_admin' && (
                       <>
-                        <button title={m.status === 'active' ? 'Suspendre' : 'Réactiver'} onClick={() => updateM.mutate({ id: m.id, body: { status: m.status === 'active' ? 'suspended' : 'active' } })} className="text-orange-400 hover:text-orange-300"><Power className="w-4 h-4" /></button>
+                        <button
+                          title={m.status === 'active' ? 'Suspendre' : 'Réactiver'}
+                          aria-label={`${m.status === 'active' ? 'Suspendre' : 'Réactiver'} ${m.email ?? 'ce membre'}`}
+                          disabled={updateM.isPending}
+                          onClick={() => updateM.mutate(
+                            { id: m.id, body: { status: m.status === 'active' ? 'suspended' : 'active' } },
+                            // Avant : aucun retour, et un refus passait inaperçu.
+                            { onSuccess: () => toast.success(m.status === 'active' ? 'Membre suspendu' : 'Membre réactivé'), onError: (e) => toast.error(getApiErrorMessage(e)) },
+                          )}
+                          className="text-orange-400 hover:text-orange-300 disabled:opacity-50"
+                        ><Power className="w-4 h-4" /></button>
                         <button title="Supprimer" aria-label={`Supprimer ${m.email ?? 'ce membre'}`} onClick={() => { deleteM.reset(); setDeleteTarget(m); }} className="text-red-400 hover:text-red-300"><Trash2 className="w-4 h-4" /></button>
                       </>
                     )}
@@ -206,11 +219,14 @@ export default function Team() {
           allPermissions={meta.permissions}
           initial={modal.mode === 'edit' ? modal.member : null}
           saving={createM.isPending || updateM.isPending}
-          errorMsg={(createM.error || updateM.error) ? 'Vérifiez les champs (email unique, mot de passe fort).' : ''}
+          error={modal.mode === 'edit' ? updateM.error : createM.error}
           onClose={() => setModal(null)}
           onSubmit={(form) => {
             if (modal.mode === 'edit') {
-              updateM.mutate({ id: modal.member.id, body: { adminTitle: form.adminTitle, permissions: form.permissions } });
+              updateM.mutate(
+                { id: modal.member.id, body: { adminTitle: form.adminTitle, permissions: form.permissions } },
+                { onSuccess: () => toast.success('Droits mis à jour') },
+              );
             } else {
               createM.mutate(form);
             }
@@ -239,12 +255,12 @@ export default function Team() {
   );
 }
 
-function MemberModal({ presets, allPermissions, initial, saving, errorMsg, onClose, onSubmit }: {
+function MemberModal({ presets, allPermissions, initial, saving, error, onClose, onSubmit }: {
   presets: Preset[];
   allPermissions: string[];
   initial: Member | null;
   saving: boolean;
-  errorMsg: string;
+  error: unknown;
   onClose: () => void;
   onSubmit: (form: typeof emptyForm) => void;
 }) {
@@ -254,6 +270,10 @@ function MemberModal({ presets, allPermissions, initial, saving, errorMsg, onClo
       : emptyForm
   );
   const isEdit = Boolean(initial);
+  // Erreurs du serveur : sous chaque champ (avant : un seul message générique quelle que soit l'erreur).
+  const errors = fieldErrors(error);
+  useFocusFirstError(error);
+  const generalError = error && !Object.keys(errors).length ? getApiErrorMessage(error) : '';
 
   const applyPreset = (key: string) => {
     const preset = presets.find((p) => p.key === key);
@@ -264,50 +284,53 @@ function MemberModal({ presets, allPermissions, initial, saving, errorMsg, onClo
     permissions: f.permissions.includes(perm) ? f.permissions.filter((p) => p !== perm) : [...f.permissions, perm],
   }));
 
+  // Fenêtre accessible partagée (titre, Échap, focus contenu puis rendu) et vrai formulaire (Entrée envoie).
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50" onClick={onClose}>
-      <div className="bg-[#1a2744] border border-white/10 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-auto p-6" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-white">{isEdit ? 'Modifier les droits' : 'Nouveau membre admin'}</h2>
-          <button onClick={onClose} className="text-white/70 hover:text-white"><X className="w-5 h-5" /></button>
-        </div>
-
-        {errorMsg && <div className="mb-3 text-sm text-red-400 bg-red-900/20 rounded-lg p-2">{errorMsg}</div>}
-
+    <Modal open onClose={onClose} title={isEdit ? 'Modifier les droits' : 'Nouveau membre admin'} size="lg">
+      <form onSubmit={(e) => { e.preventDefault(); if (!saving) onSubmit(form); }} className="space-y-3" noValidate>
         {!isEdit && (
-          <div className="grid grid-cols-2 gap-3 mb-3">
-            <input placeholder="Prénom" value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} className="input" />
-            <input placeholder="Nom" value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} className="input" />
-            <input placeholder="Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="input col-span-2" />
-            <input placeholder="Mot de passe (≥10 car.)" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="input col-span-2" />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <TextField label="Prénom" required autoComplete="off" value={form.firstName} error={errors.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} />
+            <TextField label="Nom" required autoComplete="off" value={form.lastName} error={errors.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} />
+            <div className="sm:col-span-2">
+              <TextField label="E-mail" type="email" required autoComplete="off" value={form.email} error={errors.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+            </div>
+            <div className="sm:col-span-2">
+              <TextField label="Mot de passe provisoire" type="password" required autoComplete="new-password" value={form.password} error={errors.password}
+                hint="10 caractères minimum, avec au moins une majuscule, une minuscule et un chiffre." onChange={(e) => setForm({ ...form, password: e.target.value })} />
+            </div>
           </div>
         )}
 
-        <label className="block text-xs text-white/70 mb-1">Rôle prédéfini</label>
-        <select value={form.preset} onChange={(e) => applyPreset(e.target.value)} className="input w-full mb-3">
+        <SelectField label="Rôle prédéfini" value={form.preset} error={errors.preset} onChange={(e) => applyPreset(e.target.value)}>
           <option value="">Personnalisé</option>
           {presets.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
-        </select>
+        </SelectField>
 
-        <input placeholder="Titre affiché (ex: Responsable KYC)" value={form.adminTitle} onChange={(e) => setForm({ ...form, adminTitle: e.target.value })} className="input w-full mb-3" />
+        <TextField label="Titre affiché" placeholder="ex. : Responsable KYC" value={form.adminTitle} error={errors.adminTitle} onChange={(e) => setForm({ ...form, adminTitle: e.target.value })} />
 
-        <label className="block text-xs text-white/70 mb-2">Permissions</label>
-        <div className="grid grid-cols-2 gap-2 mb-4">
-          {allPermissions.map((perm) => (
-            <label key={perm} className="flex items-center gap-2 text-sm text-white/80 cursor-pointer">
-              <input type="checkbox" checked={form.permissions.includes(perm)} onChange={() => toggle(perm)} className="accent-green-500" />
-              {PERMISSION_LABELS[perm] ?? perm}
-            </label>
-          ))}
-        </div>
+        <fieldset>
+          <legend className="mb-2 block text-xs text-white/70">Permissions</legend>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {allPermissions.map((perm) => (
+              <label key={perm} className="flex items-center gap-2 text-sm text-white/80 cursor-pointer">
+                <input type="checkbox" checked={form.permissions.includes(perm)} onChange={() => toggle(perm)} className="accent-green-500" />
+                {PERMISSION_LABELS[perm] ?? perm}
+              </label>
+            ))}
+          </div>
+          {errors.permissions && <p role="alert" className="mt-1 text-xs text-red-400">{errors.permissions}</p>}
+        </fieldset>
+
+        {generalError && <p role="alert" className="text-sm text-red-400">{generalError}</p>}
 
         <div className="flex justify-end gap-2">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-white/60 hover:text-white">Annuler</button>
-          <button disabled={saving} onClick={() => onSubmit(form)} className="px-4 py-2 bg-green-700 hover:bg-green-800 disabled:opacity-50 text-white text-sm font-medium rounded-lg">
+          <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-white/70 hover:text-white">Annuler</button>
+          <button type="submit" disabled={saving} className="px-4 py-2 bg-green-700 hover:bg-green-800 disabled:opacity-50 text-white text-sm font-medium rounded-lg">
             {saving ? 'Enregistrement…' : (isEdit ? 'Enregistrer' : 'Créer le membre')}
           </button>
         </div>
-      </div>
-    </div>
+      </form>
+    </Modal>
   );
 }

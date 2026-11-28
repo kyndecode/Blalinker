@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import AccessDenied, { isForbidden } from '../../components/AccessDenied';
 import { useToast } from '../../components/ui/Toast';
@@ -32,6 +32,8 @@ function SettingEditor({ entry, scope, row }: { entry: CatalogEntry; scope: stri
       return api.put('/admin/settings', { key: entry.key, scope, value });
     },
     onSuccess: () => { toast.success(`« ${entry.label} » enregistré`); qc.invalidateQueries({ queryKey: ['admin-settings'] }); },
+    // Erreur : le champ concerné est signalé et reçoit le focus (avant : le focus restait sur le bouton).
+    onError: () => requestAnimationFrame(() => firstInputRef.current?.focus()),
   });
   const reset = useMutation({
     mutationFn: () => api.delete(`/admin/settings/${encodeURIComponent(entry.key)}`, { params: { scope } }),
@@ -39,30 +41,33 @@ function SettingEditor({ entry, scope, row }: { entry: CatalogEntry; scope: stri
     onError: (err) => toast.error(getApiErrorMessage(err)),
   });
   const id = `setting-${entry.key.replace(/\W/g, '-')}`;
+  const errorId = `${id}-error`;
+  const firstInputRef = useRef<HTMLInputElement>(null);
+  const invalidProps = save.isError ? { 'aria-invalid': true, 'aria-describedby': errorId } : {};
   const inputType = entry.kind === 'email' ? 'email' : entry.kind === 'url' ? 'url' : entry.kind === 'phone' ? 'tel' : 'text';
 
   return (
-    <form onSubmit={(e) => { e.preventDefault(); save.mutate(); }} className="rounded-lg border border-white/10 p-3">
+    <form onSubmit={(e) => { e.preventDefault(); if (!save.isPending) save.mutate(); }} className="rounded-lg border border-white/10 p-3" noValidate>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <label htmlFor={entry.kind === 'localized' ? `${id}-fr` : id} className="text-sm font-medium text-gray-100">{entry.label}</label>
         <span className="text-[11px] text-gray-400">{row ? `modifié le ${new Date(row.updatedAt).toLocaleDateString('fr-FR')}` : scope === 'global' ? 'valeur intégrée au site' : 'valeur globale'}</span>
       </div>
       {entry.kind === 'localized' ? (
         <div className="mt-2 grid gap-2 sm:grid-cols-3">
-          {LOCALES.map((l) => (
+          {LOCALES.map((l, index) => (
             <div key={l.value}>
               <label htmlFor={`${id}-${l.value}`} className="text-xs text-gray-400">{l.label}</label>
-              <input id={`${id}-${l.value}`} value={loc[l.value] ?? ''} onChange={(e) => setLoc((v) => ({ ...v, [l.value]: e.target.value }))}
+              <input id={`${id}-${l.value}`} ref={index === 0 ? firstInputRef : undefined} {...invalidProps} value={loc[l.value] ?? ''} onChange={(e) => setLoc((v) => ({ ...v, [l.value]: e.target.value }))}
                 className="w-full rounded border border-white/10 bg-[#0f1b33] px-2 py-1.5 text-sm text-white" />
             </div>
           ))}
         </div>
       ) : (
-        <input id={id} type={inputType} value={text} onChange={(e) => setText(entry.kind === 'country' ? e.target.value.toUpperCase() : e.target.value)}
+        <input id={id} ref={firstInputRef} {...invalidProps} type={inputType} value={text} onChange={(e) => setText(entry.kind === 'country' ? e.target.value.toUpperCase() : e.target.value)}
           maxLength={entry.kind === 'country' ? 2 : 500} placeholder={entry.kind === 'url' ? 'https://…' : entry.kind === 'country' ? 'Code ISO (ex. : CI)' : ''}
           className="mt-2 w-full rounded border border-white/10 bg-[#0f1b33] px-2 py-1.5 text-sm text-white" />
       )}
-      {save.isError && <p role="alert" className="mt-1 text-xs text-red-400">{getApiErrorMessage(save.error)}</p>}
+      {save.isError && <p id={errorId} role="alert" className="mt-1 text-xs text-red-400">{getApiErrorMessage(save.error)}</p>}
       <div className="mt-2 flex gap-2">
         <button type="submit" disabled={save.isPending} className="rounded bg-green-700 px-3 py-1 text-xs font-semibold text-white disabled:opacity-50">{save.isPending ? '…' : 'Enregistrer'}</button>
         {row && <button type="button" onClick={() => reset.mutate()} disabled={reset.isPending} className="rounded border border-white/15 px-3 py-1 text-xs">Revenir à la valeur par défaut</button>}

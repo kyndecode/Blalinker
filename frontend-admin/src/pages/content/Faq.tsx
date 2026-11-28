@@ -5,7 +5,7 @@ import AccessDenied, { isForbidden } from '../../components/AccessDenied';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import Modal from '../../components/ui/Modal';
 import { useToast } from '../../components/ui/Toast';
-import { LOCALES, STATUS_BADGE, STATUS_OPTIONS, SelectField, TextArea, TextField, fieldErrors } from '../../components/ui/Field';
+import { LOCALES, STATUS_BADGE, STATUS_OPTIONS, SelectField, TextArea, TextField, fieldErrors, useFocusFirstError } from '../../components/ui/Field';
 import api from '../../services/api';
 import { getApiErrorMessage } from '../../utils/apiError';
 
@@ -31,10 +31,11 @@ function FaqEditor({ item, onClose }: { item: FaqItem | 'new' | null; onClose: (
     onSuccess: () => { toast.success('Question enregistrée'); qc.invalidateQueries({ queryKey: ['admin-faq'] }); onClose(); },
   });
   const errors = fieldErrors(save.error);
+  useFocusFirstError(save.error);
   const set = (k: keyof Draft) => (e: { target: { value: string } }) => setDraft((d) => ({ ...d, [k]: e.target.value }));
   return (
     <Modal open={Boolean(item)} onClose={onClose} title={isNew ? 'Nouvelle question' : 'Modifier la question'} size="lg">
-      <form onSubmit={(e) => { e.preventDefault(); save.mutate(); }} className="space-y-3">
+      <form onSubmit={(e) => { e.preventDefault(); if (!save.isPending) save.mutate(); }} className="space-y-3" noValidate>
         <div className="grid gap-3 sm:grid-cols-3">
           <SelectField label="Langue" value={draft.locale} onChange={set('locale')}>{LOCALES.map((l) => <option key={l.value} value={l.value}>{l.label}</option>)}</SelectField>
           <SelectField label="Statut" value={draft.status} onChange={set('status')}>{STATUS_OPTIONS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}</SelectField>

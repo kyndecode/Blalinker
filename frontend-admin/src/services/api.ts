@@ -1,5 +1,6 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import { useAdminAuthStore } from '../store/adminAuthStore';
+import { setAdminSessionNotice } from './sessionNotice';
 
 type RetryableRequestConfig = InternalAxiosRequestConfig & {
   _networkRetryCount?: number;
@@ -174,6 +175,8 @@ api.interceptors.response.use(
       const { refreshToken, user, setTokens, logout } = useAdminAuthStore.getState();
 
       const forceLogout = () => {
+        // Message expliquant le retour à la connexion (seulement si une session existait).
+        if (user) setAdminSessionNotice('Votre session a expiré. Veuillez vous reconnecter.');
         logout();
         if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
           window.location.href = '/login';
